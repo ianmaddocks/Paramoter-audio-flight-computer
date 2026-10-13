@@ -1,0 +1,311 @@
+#include "Audio.h"
+#include "Log.h"
+
+#include <Arduino.h>
+#include <LittleFS.h>
+#include <driver/i2s.h>
+#include <freertos/semphr.h>
+
+#include "Pins.h"
+
+namespace audio {
+namespace {
+
+constexpr i2s_port_t kPort = I2S_NUM_0;
+constexpr int kFrames = 256;
+constexpr int kQueueLen = 6;
+constexpr uint32_t kClipGapSamples = kSampleRate * 40 / 1000;
+constexpr uint32_t kUtteranceGapSamples = kSampleRate * 250 / 1000;
+constexpr uint32_t kRampSamples = kSampleRate * 5 / 1000;
+
+// ---------- IMA ADPCM ----------
+const int8_t kIndexTable[16] = {-1, -1, -1, -1, 2, 4, 6, 8, -1, -1, -1, -1, 2, 4, 6, 8};
+const int16_t kStepTable[89] = {
+    7,     8,     9,     10,    11,    12,    13,    14,    16,    17,    19,    21,    23,
+    25,    28,    31,    34,    37,    41,    45,    50,    55,    60,    66,    73,    80,
+    88,    97,    107,   118,   130,   143,   157,   173,   190,   209,   230,   253,   279,
+    307,   337,   371,   408,   449,   494,   544,   598,   658,   724,   796,   876,   963,
+    1060,  1166,  1282,  1411,  1552,  1707,  1878,  2066,  2272,  2499,  2749,  3024,  3327,
+    3660,  4026,  4428,  4871,  5358,  5894,  6484,  7132,  7845,  8630,  9493,  10442, 11487,
+    12635, 13899, 15289, 16818, 18500, 20350, 22385, 24623, 27086, 29794, 32767};
+
+struct Adpcm {
+  int32_t pred = 0;
+  int index = 0;
+
+  int16_t decode(uint8_t code) {
+    int step = kStepTable[index];
+    int diff = step >> 3;
+    if (code & 4) diff += step;
+    if (code & 2) diff += step >> 1;
+    if (code & 1) diff += step >> 2;
+    pred += (code & 8) ? -diff : diff;
+    pred = constrain(pred, -32768, 32767);
+    index = constrain(index + kIndexTable[code], 0, 88);
+    return (int16_t)pred;
+  }
+};
+
+// ---------- speech queue (shared with loop task) ----------
+SemaphoreHandle_t gLock;
+Utterance gQueue[kQueueLen];
+int gHead = 0, gCount = 0;
+volatile bool gAbort = false;
+volatile bool gBusy = false;
+
+// ---------- tone params (written by loop task) ----------
+portMUX_TYPE gToneMux = portMUX_INITIALIZER_UNLOCKED;
+struct ToneParams {
+  float hz = 0;
+  uint16_t onMs = 0;
+  uint16_t offMs = 0;
+} gTone;
+volatile uint8_t gSpeechVol = 90;
+volatile uint8_t gToneVol = 60;
+
+int16_t gSine[256];
+
+// ---------- audio-task-only state ----------
+enum class SpState : uint8_t { Idle, Clip, Gap };
+SpState spState = SpState::Idle;
+Utterance spCur;
+uint8_t spClip = 0;
+File spFile;
+Adpcm spDec;
+uint32_t spSamplesLeft = 0;
+uint32_t spGapLeft = 0;
+uint8_t spBuf[128];
+int spBufLen = 0, spBufPos = 0;
+bool spHighNibble = false;
+
+uint32_t tonePhase = 0;
+uint32_t toneCyclePos = 0;
+int32_t toneEnv = 0;  // 0..kRampSamples
+
+bool openClip(const char* name) {
+  char path[40];
+  snprintf(path, sizeof(path), "/v/%s.adp", name);
+  spFile = LittleFS.open(path, "r");
+  if (!spFile) {
+    LOGW("AUD", "Missing voice clip %s", path);
+    return false;
+  }
+  uint8_t hdr[12];
+  if (spFile.read(hdr, sizeof(hdr)) != sizeof(hdr) || memcmp(hdr, "IMA1", 4) != 0) {
+    LOGW("AUD", "Bad voice clip %s", path);
+    spFile.close();
+    return false;
+  }
+  spSamplesLeft = hdr[8] | (hdr[9] << 8) | (hdr[10] << 16) | ((uint32_t)hdr[11] << 24);
+  spDec = Adpcm();
+  spBufLen = spBufPos = 0;
+  spHighNibble = false;
+  return true;
+}
+
+// Opens the next playable clip of the current utterance; false when the utterance is done.
+bool startNextClip() {
+  while (spClip < spCur.count) {
+    if (openClip(spCur.clips[spClip++])) return true;
+  }
+  return false;
+}
+
+void stopSpeech() {
+  if (spFile) spFile.close();
+  spState = SpState::Idle;
+  spSamplesLeft = 0;
+}
+
+int16_t nextSpeechSample() {
+  if (spState == SpState::Gap) {
+    if (--spGapLeft == 0) {
+      if (spClip < spCur.count && startNextClip()) {
+        spState = SpState::Clip;
+      } else {
+        spState = SpState::Idle;
+      }
+    }
+    return 0;
+  }
+  if (spSamplesLeft == 0) {
+    spFile.close();
+    bool more = spClip < spCur.count;
+    spState = SpState::Gap;
+    spGapLeft = more ? kClipGapSamples : kUtteranceGapSamples;
+    return 0;
+  }
+  if (!spHighNibble && spBufPos >= spBufLen) {
+    spBufLen = spFile.read(spBuf, sizeof(spBuf));
+    spBufPos = 0;
+    if (spBufLen <= 0) {
+      spBufLen = 0;
+      spSamplesLeft = 0;
+      return 0;
+    }
+  }
+  uint8_t byte = spBuf[spBufPos];
+  uint8_t code;
+  if (!spHighNibble) {
+    code = byte & 0x0F;
+    spHighNibble = true;
+  } else {
+    code = byte >> 4;
+    spHighNibble = false;
+    ++spBufPos;
+  }
+  --spSamplesLeft;
+  return spDec.decode(code);
+}
+
+void render(int16_t* out, int frames) {
+  // Abort and pop are checked under one lock so an urgent utterance queued together with
+  // the abort flag is never itself aborted.
+  bool popped = false;
+  xSemaphoreTake(gLock, portMAX_DELAY);
+  if (gAbort) {
+    gAbort = false;
+    stopSpeech();
+  }
+  if (spState == SpState::Idle && gCount > 0) {
+    spCur = gQueue[gHead];
+    gHead = (gHead + 1) % kQueueLen;
+    --gCount;
+    popped = true;
+  }
+  xSemaphoreGive(gLock);
+  if (popped) {
+    spClip = 0;
+    if (startNextClip()) spState = SpState::Clip;
+  }
+  gBusy = spState != SpState::Idle;
+
+  ToneParams tp;
+  portENTER_CRITICAL(&gToneMux);
+  tp = gTone;
+  portEXIT_CRITICAL(&gToneMux);
+
+  const int32_t speechGain = gSpeechVol * 256 / 100;
+  const int32_t toneGain = gToneVol * 256 / 100;
+  const uint32_t phaseInc = (uint32_t)(tp.hz * 4294967296.0f / kSampleRate);
+  const uint32_t onSamples = tp.onMs * kSampleRate / 1000;
+  const uint32_t cycleSamples = (tp.onMs + tp.offMs) * kSampleRate / 1000;
+
+  for (int i = 0; i < frames; ++i) {
+    int32_t s = 0;
+    if (spState != SpState::Idle) {
+      s = (int32_t)nextSpeechSample() * speechGain / 256;
+      toneEnv = 0;
+    } else {
+      bool gate = tp.hz > 0;
+      if (gate && tp.offMs > 0) {
+        if (toneCyclePos >= cycleSamples) toneCyclePos = 0;
+        gate = toneCyclePos < onSamples;
+        ++toneCyclePos;
+      }
+      if (gate && toneEnv < (int32_t)kRampSamples) ++toneEnv;
+      if (!gate && toneEnv > 0) --toneEnv;
+      if (toneEnv > 0) {
+        tonePhase += phaseInc;
+        s = (int32_t)gSine[tonePhase >> 24] * toneGain / 256 * toneEnv / (int32_t)kRampSamples;
+      }
+    }
+    out[2 * i] = out[2 * i + 1] = (int16_t)s;
+  }
+}
+
+void audioTask(void*) {
+  static int16_t buf[kFrames * 2];
+  for (;;) {
+    render(buf, kFrames);
+    size_t written;
+    i2s_write(kPort, buf, sizeof(buf), &written, portMAX_DELAY);
+  }
+}
+
+}  // namespace
+
+void begin() {
+  gLock = xSemaphoreCreateMutex();
+  for (int i = 0; i < 256; ++i) gSine[i] = (int16_t)(32000.0f * sinf(2.0f * PI * i / 256.0f));
+
+  i2s_config_t cfg = {};
+  cfg.mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX);
+  cfg.sample_rate = kSampleRate;
+  cfg.bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT;
+  cfg.channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT;
+  cfg.communication_format = I2S_COMM_FORMAT_STAND_I2S;
+  cfg.intr_alloc_flags = 0;
+  cfg.dma_buf_count = 4;
+  cfg.dma_buf_len = kFrames;
+  cfg.use_apll = false;
+  cfg.tx_desc_auto_clear = true;
+  if (i2s_driver_install(kPort, &cfg, 0, nullptr) != ESP_OK) {
+    LOGE("AUD", "I2S install failed");
+    return;
+  }
+  i2s_pin_config_t pinCfg = {};
+  pinCfg.mck_io_num = I2S_PIN_NO_CHANGE;
+  pinCfg.bck_io_num = pins::I2S_BCLK;
+  pinCfg.ws_io_num = pins::I2S_LRC;
+  pinCfg.data_out_num = pins::I2S_DOUT;
+  pinCfg.data_in_num = I2S_PIN_NO_CHANGE;
+  i2s_set_pin(kPort, &pinCfg);
+  i2s_zero_dma_buffer(kPort);
+
+  xTaskCreate(audioTask, "audio", 4096, nullptr, 5, nullptr);
+}
+
+void say(const Utterance& u) {
+  if (u.count == 0) return;
+#if PV_DEBUG
+  char text[100];
+  size_t len = 0;
+  text[0] = 0;
+  for (int i = 0; i < u.count && len < sizeof(text) - 1; ++i) {
+    len += snprintf(text + len, sizeof(text) - len, "%s%s", i ? " " : "", u.clips[i]);
+  }
+  static const char* kPrio[] = {"low", "normal", "high", "urgent"};
+  LOGD("SAY", "[%s] %s", kPrio[(int)u.prio], text);
+#endif
+  xSemaphoreTake(gLock, portMAX_DELAY);
+  switch (u.prio) {
+    case Priority::Urgent:
+      gHead = gCount = 0;
+      gAbort = true;
+      [[fallthrough]];
+    case Priority::High:
+      if (gCount == kQueueLen) --gCount;
+      gHead = (gHead + kQueueLen - 1) % kQueueLen;
+      gQueue[gHead] = u;
+      ++gCount;
+      break;
+    case Priority::Low:
+      if (gCount > 0) break;
+      [[fallthrough]];
+    case Priority::Normal:
+      if (gCount < kQueueLen) {
+        gQueue[(gHead + gCount) % kQueueLen] = u;
+        ++gCount;
+      }
+      break;
+  }
+  xSemaphoreGive(gLock);
+}
+
+bool speaking() { return gBusy || gCount > 0; }
+
+void setTone(float hz, uint16_t onMs, uint16_t offMs) {
+  portENTER_CRITICAL(&gToneMux);
+  gTone.hz = hz;
+  gTone.onMs = onMs;
+  gTone.offMs = offMs;
+  portEXIT_CRITICAL(&gToneMux);
+}
+
+void setVolumes(uint8_t speechPct, uint8_t tonePct) {
+  gSpeechVol = speechPct;
+  gToneVol = tonePct;
+}
+
+}  // namespace audio

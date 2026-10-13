@@ -1,0 +1,80 @@
+# Voice clip vocabulary: <clip id>|<spoken text>
+# The firmware plays /v/<clip id>.adp. Regenerate with: python tools/make_voice.py
+# To use your own recording for a clip, put tools/voice_custom/<clip id>.wav (any rate, 16-bit).
+
+n0|zero
+n1|one
+n2|two
+n3|three
+n4|four
+n5|five
+n6|six
+n7|seven
+n8|eight
+n9|nine
+n10|ten
+n11|eleven
+n12|twelve
+n13|thirteen
+n14|fourteen
+n15|fifteen
+n16|sixteen
+n17|seventeen
+n18|eighteen
+n19|nineteen
+n20|twenty
+n30|thirty
+n40|forty
+n50|fifty
+n60|sixty
+n70|seventy
+n80|eighty
+n90|ninety
+hundred|hundred
+thousand|thousand
+point|point
+minus|minus
+
+feet|feet
+metres|metres
+kilometres|kilometres
+miles|miles
+hour|hour
+hours|hours
+minute|minute
+minutes|minutes
+oclock|o'clock
+
+system_ready|Vario ready
+gps_fix|GPS fix
+no_gps|No GPS
+takeoff|Take off
+landed|Landed
+flight_resumed|Flight resumed
+flight_time|Flight time
+battery_low|Battery low
+vario_muted|Vario muted
+vario_on|Vario on
+lz_set|Landing zone set
+
+approach_on|Landing approach
+approach_off|Approach cancelled
+circuit_start|Circuit start
+descend_to|Descend to
+turn_left_now|Turn left now
+turn_right_now|Turn right now
+turn_crosswind_now|Turn crosswind now
+steer_left|Steer left
+steer_right|Steer right
+too_high|Too high
+too_low|Too low
+wind_unknown|Wind unknown
+no_landing_zone|No landing zone
+
+emergency|Emergency
+emergency_off|Emergency cancelled
+glide_range|Glide range
+landing_zone|Landing zone
+distance|Distance
+on_course|On course
+cannot_reach|Cannot reach landing zone
