@@ -37,6 +37,7 @@ button.on{outline:2px solid var(--acc)}
 .row small{color:var(--mut);margin-left:4px}
 .row input[type=number],.row input[type=text],.row input[type=password],.row select{width:9.5em;max-width:50vw;font:inherit;padding:7px 8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--fg)}
 .row input[type=checkbox]{width:22px;height:22px}
+.row b{font-weight:600;text-align:right;min-width:0;overflow-wrap:anywhere}
 .mode-emergency{color:var(--bad)}.mode-approach{color:var(--warn)}
 .log{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--bd);gap:8px}
 .log a{color:var(--acc);word-break:break-all}
@@ -51,6 +52,9 @@ button.on{outline:2px solid var(--acc)}
 .dbgbar{display:flex;gap:8px;margin:0 12px 8px}.dbgbar button{flex:1;padding:8px}
 #dbglog{margin:0 12px 6px;max-height:55vh;overflow:auto;font:11px/1.35 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-all;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:8px}
 #dbglog .E{color:var(--bad)}#dbglog .W{color:var(--warn)}#dbglog .D{color:var(--mut)}
+.prog{height:8px;background:var(--bg);border:1px solid var(--bd);border-radius:4px;overflow:hidden;margin:10px 0 6px}
+#fwbar{height:100%;width:0;background:var(--acc);transition:width .2s}
+#fwfile{width:100%;font:inherit;margin-bottom:8px}#fwgo{width:100%}
 .badge{font-size:11px;background:var(--warn);color:#000;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle}
 </style></head><body>
 <header><h1>ParaVario</h1><span id="conn">connecting…</span></header>
@@ -79,6 +83,12 @@ button.on{outline:2px solid var(--acc)}
 <details class="card" id="dbg"><summary>Debug log <small class="mut" id="dbginfo"></small></summary>
 <div class="dbgbar"><button id="dbgpause">Pause</button><button id="dbgclear">Clear</button><button id="dbgsave">Save as file</button></div>
 <pre id="dbglog"></pre></details>
+<section class="card"><h2>Firmware update</h2>
+<p class="mut" id="fwver"></p>
+<input type="file" id="fwfile" accept=".bin">
+<button class="pri" id="fwgo">Install update</button>
+<div class="prog"><div id="fwbar"></div></div><p class="mut" id="fwmsg">Choose firmware.bin (program) or littlefs.bin (voice clips &ndash; erases flight logs). Not available in flight.</p>
+</section>
 <section class="card"><h2>System</h2><div class="btns">
 <button data-a="restart">Restart</button>
 <button data-a="defaults" class="dng">Factory defaults</button>
@@ -130,7 +140,10 @@ async function poll(){
     txt('ready-t',s.ready?'Ready to fly':s.notReady);
     txt('ready-s',s.gps.sats+' / '+s.minSats+' satellites');
     txt('t-batt',s.batt.v<2.5?'USB':s.batt.pct+'%');txt('t-batts',s.batt.v.toFixed(2)+' V');
-    txt('sys','Uptime '+fT(s.uptime)+' · heap '+Math.round(s.heap/1024)+' kB · BLE clients '+s.ble+' · baro '+(s.baro.ok?(s.baro.pressure/100).toFixed(1)+' hPa':'missing'));
+    txt('fwver','Installed: '+(s.version||'unknown')+(s.debug?' (debug build)':' (release build)'));
+    if(!fwBusy)$('#fwgo').disabled=s.flying;
+    txt('sys','Uptime '+fT(s.uptime)+' · heap '+Math.round(s.heap/1024)+' kB · BLE clients '+s.ble+' · baro '+(s.baro.ok?(s.baro.pressure/100).toFixed(1)+' hPa':'missing')));
+    wifiInfo=s.wifi;showWifi();
   }catch(e){$('#conn').textContent='offline';$('#conn').className='bad'}
 }
 
@@ -144,7 +157,7 @@ function field(f){
   if(f.t==='bool'){i=document.createElement('input');i.type='checkbox';i.checked=!!cfg[f.k];i.onchange=()=>setVal(f,i.checked)}
   else if(f.t==='enum'){i=document.createElement('select');f.o.split('|').forEach((o,n)=>i.add(new Option(o,n)));i.value=cfg[f.k];
     i.onchange=()=>{setVal(f,+i.value);if(/Unit$/.test(f.k))render()}}
-  else if(f.t==='str'){i=document.createElement('input');i.type=f.k==='wifiPass'?'password':'text';i.maxLength=f.n;i.value=cfg[f.k];i.onchange=()=>setVal(f,i.value)}
+  else if(f.t==='str'){i=document.createElement('input');i.type=/Pass$/.test(f.k)?'password':'text';i.maxLength=f.n;i.value=cfg[f.k];i.onchange=()=>setVal(f,i.value)}
   else if(f.t==='list'){i=document.createElement('input');i.type='text';i.inputMode='decimal';
     i.value=String(cfg[f.k]).split(',').filter(x=>x).map(v=>Math.round(v*c.f)).join(', ');
     i.onchange=()=>setVal(f,i.value.split(/[ ,]+/).map(parseFloat).filter(v=>!isNaN(v)&&v>0).map(v=>(v/c.f).toFixed(2)).join(','))}
@@ -160,8 +173,22 @@ function render(){
     const d=document.createElement('details');d.className='card';d.open=openGroups.has(g);
     d.ontoggle=()=>d.open?openGroups.add(g):openGroups.delete(g);
     const s=document.createElement('summary');s.textContent=g;d.appendChild(s);
+    if(g==='Wi-Fi')d.insertAdjacentHTML('beforeend','<div class="row"><span>This vario's network</span><b id="w-ap">–</b></div>'+
+      '<div class="row"><span>Home network</span><b id="w-home">–</b></div><div class="row"><span>IP address on home network</span><b id="w-ip">–</b></div>');
     groups[g].forEach(f=>d.appendChild(field(f)));root.appendChild(d);
   }
+  showWifi();
+}
+let wifiInfo=null;
+function showWifi(){
+  const w=wifiInfo;if(!w||!document.getElementById('w-home'))return;
+  txt('w-ap',w.apIp+' · '+w.apClients+' connected');
+  const q=w.rssi>-60?'good':w.rssi>-70?'fair':'weak';
+  let h=!w.homeSsid?'Off (not set)':w.home=='connected'?'Connected to '+w.homeSsid+' · signal '+q+' ('+w.rssi+' dBm)':
+    w.home=='connecting'?'Connecting to '+w.homeSsid+'…':w.homeSsid+' – '+w.home;
+  if(w.restart)h+=' · restart to apply changes';
+  txt('w-home',h);
+  txt('w-ip',w.homeIp?w.homeIp+' (paravario.local)':'–');
 }
 async function loadSettings(){
   [schema,cfg]=await Promise.all([fetch('/api/schema').then(r=>r.json()),fetch('/api/settings').then(r=>r.json())]);
@@ -230,6 +257,22 @@ $('#dbgclear').onclick=()=>{$('#dbglog').innerHTML='';dbgText=[]};
 $('#dbgsave').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([dbgText.join('\n')+'\n'],{type:'text/plain'}));
   a.download='paravario-debug-'+new Date().toISOString().replace(/[:.]/g,'-')+'.txt';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
 $('#dbg').ontoggle=()=>{if($('#dbg').open)pollDbg()};
+let fwBusy=false;
+function setFw(p,m){$('#fwbar').style.width=Math.round(p*100)+'%';txt('fwmsg',m)}
+$('#fwgo').onclick=()=>{
+  const f=$('#fwfile').files[0];if(!f)return toast('Choose a .bin file first');
+  const fs=/littlefs|spiffs/i.test(f.name);
+  if(!confirm((fs?'Replace the voice clips with '+f.name+'? This erases the flight logs.':'Install firmware '+f.name+'?')+' The vario restarts afterwards.'))return;
+  const fd=new FormData();fd.append('file',f,f.name);
+  const x=new XMLHttpRequest();x.open('POST','/api/ota'+(fs?'?target=fs':''));
+  const done=m=>{fwBusy=false;$('#fwgo').disabled=false;setFw(0,m)};
+  x.upload.onprogress=e=>{if(e.lengthComputable)setFw(e.loaded/e.total,'Uploading '+Math.round(e.loaded/e.total*100)+'%')};
+  x.onload=()=>{let j={};try{j=JSON.parse(x.responseText)}catch(e){}
+    if(x.status!=200)return done('Update failed: '+(j.error||'HTTP '+x.status));
+    setFw(1,'Installed. Restarting – rejoin the ParaVario Wi-Fi if your phone drops it.');setTimeout(()=>location.reload(),10000)};
+  x.onerror=()=>done('Update failed: connection lost');
+  fwBusy=true;$('#fwgo').disabled=true;setFw(0,'Uploading 0%');x.send(fd);
+};
 async function boot(){
   await loadSettings().catch(()=>{});
   poll();setInterval(poll,1000);setInterval(pollDbg,1000);loadLogs();

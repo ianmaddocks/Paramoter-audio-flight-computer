@@ -3,7 +3,9 @@
 
 #include <ArduinoJson.h>
 #include <DNSServer.h>
+#include <ESPmDNS.h>
 #include <LittleFS.h>
+#include <Update.h>
 #include <WebServer.h>
 #include <WiFi.h>
 
@@ -13,6 +15,10 @@
 #include "comms/WebPage.h"
 #include "nav/Geo.h"
 
+#ifndef PV_VERSION
+#define PV_VERSION "unknown"
+#endif
+
 namespace webui {
 namespace {
 
@@ -20,6 +26,45 @@ WebServer server(80);
 DNSServer dns;
 bool restartPending = false;
 uint32_t restartAtMs = 0;
+
+// Home Wi-Fi (station) alongside the vario's own access point, so a PC on the home network
+// can reach the page and /api/ota. Only on the ground: dropped at takeoff, and abandoned if
+// the network is not joined within kHomeTimeoutMs (it keeps scanning otherwise, which
+// disturbs the access point and Bluetooth).
+constexpr uint32_t kHomeTimeoutMs = 30000;
+enum class Home : uint8_t { Off, Connecting, Connected };
+Home home = Home::Off;
+uint32_t homeSinceMs = 0;
+const char* homeWhyOff = "not set";  // shown on the page while Off
+char homeSsidUsed[33] = "";          // network joined at boot; settings changes need a restart
+
+void homeStop(const char* why) {
+  WiFi.disconnect();
+  WiFi.mode(WIFI_AP);
+  home = Home::Off;
+  homeWhyOff = why;
+  LOGI("WEB", "Home Wi-Fi off (%s)", why);
+}
+
+void homeUpdate(uint32_t now) {
+  if (home == Home::Off) return;
+  if (app.nav.flying) return homeStop("off while flying");
+  bool up = WiFi.status() == WL_CONNECTED;
+  if (home == Home::Connecting && up) {
+    home = Home::Connected;
+    LOGI("WEB", "Joined '%s' as %s (http://paravario.local)", g_cfg.homeSsid,
+         WiFi.localIP().toString().c_str());
+  } else if (home == Home::Connected && !up) {
+    home = Home::Connecting;
+    homeSinceMs = now;
+    LOGW("WEB", "Lost home Wi-Fi, retrying");
+  } else if (home == Home::Connecting && now - homeSinceMs >= kHomeTimeoutMs) {
+    wl_status_t st = WiFi.status();
+    homeStop(st == WL_CONNECT_FAILED ? "could not connect - check the password"
+             : st == WL_NO_SSID_AVAIL ? "network not found"
+                                      : "could not connect");
+  }
+}
 
 void sendJson(const JsonDocument& doc, int code = 200) {
   String s;
@@ -54,6 +99,7 @@ void handleStatus() {
   doc["uptime"] = millis() / 1000;
   doc["heap"] = ESP.getFreeHeap();
   doc["debug"] = dlog::kDebugBuild;
+  doc["version"] = PV_VERSION;
   doc["flying"] = n.flying;
   doc["flightTime"] = n.flightTimeS;
   doc["agl"] = n.aglM;
@@ -100,6 +146,16 @@ void handleStatus() {
   doc["mode"] = app.emergency.active() ? "emergency" : app.approach.active() ? "approach" : "none";
   doc["approach"] = app.approach.phaseName();
   if (app.emergency.active()) doc["range"] = app.emergency.lastRangeM();
+  JsonObject wifi = doc["wifi"].to<JsonObject>();
+  wifi["apIp"] = WiFi.softAPIP().toString();
+  wifi["apClients"] = WiFi.softAPgetStationNum();
+  wifi["homeSsid"] = homeSsidUsed;
+  wifi["home"] = home == Home::Connected ? "connected" : home == Home::Connecting ? "connecting" : homeWhyOff;
+  if (home == Home::Connected) {
+    wifi["homeIp"] = WiFi.localIP().toString();
+    wifi["rssi"] = WiFi.RSSI();
+  }
+  if (strcmp(homeSsidUsed, g_cfg.homeSsid) != 0) wifi["restart"] = true;
   doc["ble"] = app.ble.clients();
   doc["logging"] = app.logger.active();
   sendJson(doc);
@@ -251,21 +307,82 @@ void handleLogDelete() {
   sendJson(doc);
 }
 
+// Firmware or file-system image upload (multipart POST to /api/ota, ?target=fs for the
+// LittleFS image, optional ?md5=). Refused in flight; the vario restarts after a good image.
+String otaError;
+bool otaFs = false;
+
+void otaFail(const String& msg) {
+  if (otaError.isEmpty()) otaError = msg;
+  if (Update.isRunning()) Update.abort();
+}
+
+void handleOtaUpload() {
+  HTTPUpload& up = server.upload();
+  if (up.status == UPLOAD_FILE_START) {
+    otaError = "";
+    otaFs = server.arg("target") == "fs";
+    if (app.nav.flying) {
+      otaError = "not allowed in flight";
+      return;
+    }
+    LOGI("OTA", "%s update from '%s'", otaFs ? "File system" : "Firmware", up.filename.c_str());
+    if (!Update.begin(UPDATE_SIZE_UNKNOWN, otaFs ? U_SPIFFS : U_FLASH)) {
+      otaFail(Update.errorString());
+      return;
+    }
+    if (server.hasArg("md5") && !Update.setMD5(server.arg("md5").c_str())) otaFail("bad md5");
+  } else if (up.status == UPLOAD_FILE_WRITE) {
+    if (otaError.isEmpty() && Update.write(up.buf, up.currentSize) != up.currentSize) {
+      otaFail(Update.errorString());
+    }
+  } else if (up.status == UPLOAD_FILE_END) {
+    if (otaError.isEmpty() && !Update.end(true)) otaFail(Update.errorString());
+    if (otaError.isEmpty()) LOGI("OTA", "Update OK, %u bytes", (unsigned)up.totalSize);
+  } else if (up.status == UPLOAD_FILE_ABORTED) {
+    otaFail("upload aborted");
+  }
+}
+
+void handleOtaDone() {
+  if (!otaError.isEmpty() || !Update.isFinished()) {
+    if (otaError.isEmpty()) otaError = "no image received";
+    LOGE("OTA", "Update failed: %s", otaError.c_str());
+    sendError(otaError == "not allowed in flight" ? 409 : 500, otaError.c_str());
+    return;
+  }
+  JsonDocument doc;
+  doc["ok"] = true;
+  sendJson(doc);
+  restartPending = true;
+  restartAtMs = millis() + 1000;
+}
+
 void handleRoot() { server.send_P(200, "text/html", kIndexHtml); }
 
 // Anything else (including OS captive-portal probes) is sent to the UI.
 void handleNotFound() {
-  server.sendHeader("Location", "http://" + WiFi.softAPIP().toString() + "/", true);
+  server.sendHeader("Location", "http://" + server.client().localIP().toString() + "/", true);
   server.send(302, "text/plain", "");
 }
 
 }  // namespace
 
 void begin() {
-  WiFi.mode(WIFI_AP);
+  bool joinHome = g_cfg.homeSsid[0] != 0;
+  WiFi.setHostname("paravario");
+  WiFi.mode(joinHome ? WIFI_AP_STA : WIFI_AP);
   const char* pass = strlen(g_cfg.wifiPass) >= 8 ? g_cfg.wifiPass : nullptr;
   WiFi.softAP(g_cfg.wifiSsid, pass);
   dns.start(53, "*", WiFi.softAPIP());
+  if (joinHome) {
+    WiFi.begin(g_cfg.homeSsid, g_cfg.homePass);
+    strlcpy(homeSsidUsed, g_cfg.homeSsid, sizeof(homeSsidUsed));
+    home = Home::Connecting;
+    homeSinceMs = millis();
+    LOGI("WEB", "Joining home Wi-Fi '%s'", g_cfg.homeSsid);
+  }
+  if (MDNS.begin("paravario")) MDNS.addService("http", "tcp", 80);
 
   server.on("/", HTTP_GET, handleRoot);
   server.on("/api/status", HTTP_GET, handleStatus);
@@ -277,6 +394,7 @@ void begin() {
   server.on("/api/debuglog", HTTP_GET, handleDebugLog);
   server.on("/api/log", HTTP_GET, handleLogDownload);
   server.on("/api/log", HTTP_DELETE, handleLogDelete);
+  server.on("/api/ota", HTTP_POST, handleOtaDone, handleOtaUpload);
   server.onNotFound(handleNotFound);
   server.begin();
   LOGI("WEB", "Wi-Fi AP '%s' at %s", g_cfg.wifiSsid, WiFi.softAPIP().toString().c_str());
@@ -285,6 +403,7 @@ void begin() {
 void update() {
   dns.processNextRequest();
   server.handleClient();
+  homeUpdate(millis());
   if (restartPending && (int32_t)(millis() - restartAtMs) >= 0) ESP.restart();
 }
 

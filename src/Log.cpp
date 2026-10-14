@@ -41,6 +41,11 @@ void pump() {
       portEXIT_CRITICAL(&gMux);
       return;
     }
+    portEXIT_CRITICAL(&gMux);
+    // With USB plugged in but no terminal reading, the CDC buffer fills and a write stalls
+    // (core warns "waiting USB Host - timeout"). Leave lines queued until there is room.
+    if (Serial.availableForWrite() < kLineLen + 48) return;
+    portENTER_CRITICAL(&gMux);
     if (gSeq - gPrinted > kLines) {
       dropped = gSeq - kLines - gPrinted;
       gPrinted = gSeq - kLines;

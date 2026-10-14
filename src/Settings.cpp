@@ -110,6 +110,8 @@ const Field kFields[] = {
 
     SR(wifiSsid, "Wi-Fi", "Network name"),
     SR(wifiPass, "Wi-Fi", "Password (8+ chars, blank = open)"),
+    SR(homeSsid, "Wi-Fi", "Home network to join for updates (blank = off)"),
+    SR(homePass, "Wi-Fi", "Home network password"),
 
     FL(battDivider, "Battery", "Divider ratio", "", 1.0f, 10.0f),
     FL(battCal, "Battery", "Calibration factor", "", 0.8f, 1.2f),
@@ -261,8 +263,9 @@ void schemaJson(JsonArray arr) {
 
 void load() {
   Preferences prefs;
-  if (!prefs.begin("paravario", true)) return;
-  String s = prefs.getString("cfg", "");
+  // Read-write open creates the namespace on a fresh device instead of logging NOT_FOUND.
+  if (!prefs.begin("paravario", false)) return;
+  String s = prefs.isKey("cfg") ? prefs.getString("cfg", "") : String();
   prefs.end();
   if (s.isEmpty()) return;
   JsonDocument doc;

@@ -12,9 +12,10 @@ namespace flightstore {
 
 bool load(FlightRecord& rec) {
   Preferences prefs;
-  if (!prefs.begin(kNs, true)) return false;
-  bool ok = prefs.getBytesLength(kKey) == sizeof(rec) && prefs.getBytes(kKey, &rec, sizeof(rec)) == sizeof(rec) &&
-            rec.version == kVersion;
+  // Read-write open creates the namespace on a fresh device instead of logging NOT_FOUND.
+  if (!prefs.begin(kNs, false)) return false;
+  bool ok = prefs.isKey(kKey) && prefs.getBytesLength(kKey) == sizeof(rec) &&
+            prefs.getBytes(kKey, &rec, sizeof(rec)) == sizeof(rec) && rec.version == kVersion;
   prefs.end();
   return ok;
 }

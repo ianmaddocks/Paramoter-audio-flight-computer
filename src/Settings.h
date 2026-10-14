@@ -81,7 +81,9 @@ struct Settings {
   int32_t bleGpsRateHz = 1;
 
   char wifiSsid[33] = "ParaVario";
-  char wifiPass[65] = "paramotor";
+  char wifiPass[65] = "";
+  char homeSsid[33] = "";  // joined on the ground for updates from a PC; blank = off
+  char homePass[65] = "";
 
   float battDivider = 2.0f;
   float battCal = 1.0f;

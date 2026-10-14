@@ -93,6 +93,7 @@ The phone has no internet while it's on this network, so turn mobile data on if 
 | Settings | Collapsible groups (see below). Change values, then tap **Save settings** at the bottom. Settings marked *restart* apply after a restart, which the page offers. |
 | Flight logs | IGC files for each flight. Tap a name to download or Delete to remove. The oldest logs are deleted automatically when space runs low. |
 | Debug log | Live log lines from the vario, with Pause, Clear and Save as file. Opens automatically on the debug firmware. The same lines appear on the USB serial port. |
+| Firmware update | Shows the installed version. Choose a `.bin` file and tap **Install update** (see *Maintenance*). Disabled while flying. |
 | System | Restart, Factory defaults. |
 
 Heights, distances and speeds on the page follow your chosen units, and you always enter them in those units.
@@ -211,6 +212,8 @@ The LZ, ground height and flight state are saved to the vario's memory, so a res
 |---|---|---|
 | Network name | ParaVario | *Restart.* |
 | Password | paramotor | *Restart.* At least 8 characters; blank = open network. |
+| Home network to join for updates | – | *Restart.* Your home Wi-Fi name (2.4 GHz). When set, the vario also joins it at power-on, so a PC on that network can open **http://paravario.local** and upload firmware from VS Code without switching networks. Its own network stays on. It gives up after 30 s if the network isn't found, and disconnects at takeoff. Blank = off. |
+| Home network password | – | *Restart.* |
 
 ### Battery
 | Setting | Default | Notes |
@@ -228,8 +231,11 @@ The LZ, ground height and flight state are saved to the vario's memory, so a res
 
 ## Maintenance
 
-- **Firmware:** `pio run -e release -t upload`. Use `-e debug` for detailed logging on USB and the web page.
-- **Voice clips:** edit `tools/vocab.txt` or add your own recordings to `tools/voice_custom/`, run `python tools/make_voice.py`, then `pio run -e release -t uploadfs`. **This erases the flight logs stored on the vario, so download them first.** Settings are kept.
+- **Firmware (USB):** `pio run -e release -t upload`. Use `-e debug` for detailed logging on USB and the web page.
+- **Firmware (Wi-Fi from VS Code):** connect the PC to the vario's Wi-Fi (or, if you've set *Home network to join for updates*, just power the vario on near the PC), then `pio run -e release_ota -t upload` (or `debug_ota`), or pick the `release_ota` environment in the PlatformIO sidebar and click *Upload*. The vario restarts when it's done.
+- **Firmware (phone):** build on the PC (`pio run -e release`) and copy `.pio/build/release/firmware.bin` to the phone. On the phone, join the vario's Wi-Fi, open **http://192.168.4.1** in the normal browser (the pop-up captive-portal window often can't pick files), then go to **Firmware update**, choose the file and tap **Install update**. Keep the phone close and the page open until it says *Installed*. A failed or interrupted upload leaves the old firmware running.
+- **Voice clips:** edit `tools/vocab.txt` or add your own recordings to `tools/voice_custom/`, run `python tools/make_voice.py`, then `pio run -e release -t uploadfs` (USB) or `pio run -e release_ota -t uploadfs` (Wi-Fi). You can also run `pio run -e release -t buildfs` and install `.pio/build/release/littlefs.bin` from the phone page. **This erases the flight logs stored on the vario, so download them first.** Settings are kept.
+- Firmware and voice-clip updates are refused while the vario is flying.
 - **Factory defaults:** web page → System → Factory defaults.
 
 ## Hardware test

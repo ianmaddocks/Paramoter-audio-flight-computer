@@ -197,6 +197,7 @@ void actionToggleMute() {
 }
 
 void setup() {
+  Serial.setTxBufferSize(2048);  // before begin(), which otherwise allocates 256 bytes
   Serial.begin(115200);
   Serial.setTxTimeoutMs(0);  // never block when no USB host is listening
   LOGI("APP", "ParaVario starting (%s build), reset reason %d", dlog::kDebugBuild ? "debug" : "release",
