@@ -142,7 +142,7 @@ async function poll(){
     txt('t-batt',s.batt.v<2.5?'USB':s.batt.pct+'%');txt('t-batts',s.batt.v.toFixed(2)+' V');
     txt('fwver','Installed: '+(s.version||'unknown')+(s.debug?' (debug build)':' (release build)'));
     if(!fwBusy)$('#fwgo').disabled=s.flying;
-    txt('sys','Uptime '+fT(s.uptime)+' · heap '+Math.round(s.heap/1024)+' kB · BLE clients '+s.ble+' · baro '+(s.baro.ok?(s.baro.pressure/100).toFixed(1)+' hPa':'missing')));
+    txt('sys','Uptime '+fT(s.uptime)+' · heap '+Math.round(s.heap/1024)+' kB · BLE clients '+s.ble+' · baro '+(s.baro.ok?(s.baro.pressure/100).toFixed(1)+' hPa':'missing'));
     wifiInfo=s.wifi;showWifi();
   }catch(e){$('#conn').textContent='offline';$('#conn').className='bad'}
 }
@@ -173,7 +173,7 @@ function render(){
     const d=document.createElement('details');d.className='card';d.open=openGroups.has(g);
     d.ontoggle=()=>d.open?openGroups.add(g):openGroups.delete(g);
     const s=document.createElement('summary');s.textContent=g;d.appendChild(s);
-    if(g==='Wi-Fi')d.insertAdjacentHTML('beforeend','<div class="row"><span>This vario's network</span><b id="w-ap">–</b></div>'+
+    if(g==='Wi-Fi')d.insertAdjacentHTML('beforeend','<div class="row"><span>Vario network</span><b id="w-ap">–</b></div>'+
       '<div class="row"><span>Home network</span><b id="w-home">–</b></div><div class="row"><span>IP address on home network</span><b id="w-ip">–</b></div>');
     groups[g].forEach(f=>d.appendChild(field(f)));root.appendChild(d);
   }

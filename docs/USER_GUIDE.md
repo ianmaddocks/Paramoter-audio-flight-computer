@@ -215,6 +215,8 @@ The LZ, ground height and flight state are saved to the vario's memory, so a res
 | Home network to join for updates | – | *Restart.* Your home Wi-Fi name (2.4 GHz). When set, the vario also joins it at power-on, so a PC on that network can open **http://paravario.local** and upload firmware from VS Code without switching networks. Its own network stays on. It gives up after 30 s if the network isn't found, and disconnects at takeoff. Blank = off. |
 | Home network password | – | *Restart.* |
 
+The top of the Wi-Fi group shows live status: the vario's own address (192.168.4.1) and how many devices are on it, the home network state (connected with signal strength, connecting, network not found, wrong password, or off while flying), and the IP address your router gave the vario.
+
 ### Battery
 | Setting | Default | Notes |
 |---|---|---|

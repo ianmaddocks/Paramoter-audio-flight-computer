@@ -8,6 +8,7 @@
 #include <Update.h>
 #include <WebServer.h>
 #include <WiFi.h>
+#include <sys/stat.h>
 
 #include "App.h"
 #include "Settings.h"
@@ -252,6 +253,12 @@ void handleDebugLog() {
   server.send(200, "text/plain", body);
 }
 
+// LittleFS.exists() logs an error for a missing path, so check with stat() instead.
+bool fsExists(const String& path) {
+  struct stat st;
+  return stat(("/littlefs" + path).c_str(), &st) == 0;
+}
+
 bool validLogName(const String& name) {
   if (name.isEmpty() || name.length() > 32 || !name.endsWith(".igc")) return false;
   for (char c : name) {
@@ -263,7 +270,7 @@ bool validLogName(const String& name) {
 void handleLogs() {
   JsonDocument doc;
   JsonArray files = doc["files"].to<JsonArray>();
-  File dir = LittleFS.open("/logs");
+  File dir = fsExists("/logs") ? LittleFS.open("/logs") : File();  // created at first takeoff
   if (dir) {
     for (File f = dir.openNextFile(); f; f = dir.openNextFile()) {
       JsonObject o = files.add<JsonObject>();
@@ -282,7 +289,8 @@ void handleLogDownload() {
     sendError(400, "bad name");
     return;
   }
-  File f = LittleFS.open("/logs/" + name, "r");
+  String path = "/logs/" + name;
+  File f = fsExists(path) ? LittleFS.open(path, "r") : File();
   if (!f) {
     sendError(404, "not found");
     return;
@@ -360,11 +368,19 @@ void handleOtaDone() {
 
 void handleRoot() { server.send_P(200, "text/html", kIndexHtml); }
 
-// Anything else (including OS captive-portal probes) is sent to the UI.
-void handleNotFound() {
-  server.sendHeader("Location", "http://" + server.client().localIP().toString() + "/", true);
-  server.send(302, "text/plain", "");
-}
+// Anything else (including OS captive-portal probes) is sent to the UI. Registered as the last
+// handler rather than with onNotFound(), which makes the core log "request handler not found"
+// for every connectivity check a phone or PC makes.
+class RedirectToUi : public RequestHandler {
+ public:
+  bool canHandle(HTTPMethod, String) override { return true; }
+  bool handle(WebServer& s, HTTPMethod, String) override {
+    String url = "http://" + s.client().localIP().toString() + "/";
+    s.sendHeader("Location", url, true);
+    s.send(302, "text/plain", url);
+    return true;
+  }
+};
 
 }  // namespace
 
@@ -395,7 +411,7 @@ void begin() {
   server.on("/api/log", HTTP_GET, handleLogDownload);
   server.on("/api/log", HTTP_DELETE, handleLogDelete);
   server.on("/api/ota", HTTP_POST, handleOtaDone, handleOtaUpload);
-  server.onNotFound(handleNotFound);
+  server.addHandler(new RedirectToUi());
   server.begin();
   LOGI("WEB", "Wi-Fi AP '%s' at %s", g_cfg.wifiSsid, WiFi.softAPIP().toString().c_str());
 }
