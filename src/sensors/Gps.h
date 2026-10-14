@@ -38,6 +38,7 @@ class Gps {
   void openBaud(uint32_t baud);
   void valset(std::initializer_list<KV> kvs);
   void sendConfig();
+  void logChar(char c);
 
   TinyGPSPlus gps_;
   HardwareSerial& ser_ = Serial1;
@@ -47,4 +48,6 @@ class Gps {
   uint32_t listenStartMs_ = 0;
   uint32_t checksumAtListen_ = 0;
   uint32_t lastCharMs_ = 0;
+  char line_[100];  // NMEA sentence being collected for debug logging
+  size_t lineLen_ = 0;
 };

@@ -231,3 +231,17 @@ The LZ, ground height and flight state are saved to the vario's memory, so a res
 - **Firmware:** `pio run -e release -t upload`. Use `-e debug` for detailed logging on USB and the web page.
 - **Voice clips:** edit `tools/vocab.txt` or add your own recordings to `tools/voice_custom/`, run `python tools/make_voice.py`, then `pio run -e release -t uploadfs`. **This erases the flight logs stored on the vario, so download them first.** Settings are kept.
 - **Factory defaults:** web page → System → Factory defaults.
+
+## Hardware test
+
+A separate test firmware in `hardware_test/` checks every part of the hardware without the flight logic.
+
+1. `cd hardware_test`, then `pio run -t upload`. Re-flash the flight firmware from the main folder afterwards.
+2. You hear a rising chirp at power-on if the amplifier and speaker work.
+3. Join Wi-Fi **ParaVario-Test** (password **paramotor**). The page opens by itself, or go to http://192.168.4.1. USB serial (`pio device monitor`) prints the same results every 5 s.
+
+Each part gets a green, amber or red indicator with a hint: storage and voice clips, I2C bus (lists every address found), barometer (lift the vario about 1 m and watch the vario reading), GPS (bytes, detected baud, NMEA checksums, satellites and fix, plus the raw NMEA lines), battery (pin and battery voltage), push button (state, count, single/double/long), Bluetooth (advertises as *ParaVario-Test* and sends a test `$LK8EX1` every second when FlyGaggle connects) and Wi-Fi.
+
+Audio tests: a volume slider; preset tones, sweeps and a loud square wave; a custom tone (frequency, length, sine or square); a vario simulation slider from −5 to +8 m/s using the same beep pattern as the flight firmware; each voice clip on its own, all clips in turn, or a sample phrase; and an option to beep when the button is pressed.
+
+The test uses the same storage layout as the flight firmware, so flashing it keeps your voice clips, settings and flight logs.

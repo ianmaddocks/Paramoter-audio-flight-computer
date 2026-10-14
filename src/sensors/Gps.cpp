@@ -90,8 +90,10 @@ void Gps::sendConfig() {
 
 void Gps::update(uint32_t nowMs) {
   while (ser_.available()) {
-    gps_.encode(ser_.read());
+    char c = ser_.read();
+    gps_.encode(c);
     lastCharMs_ = nowMs;
+    //if (dlog::kDebugBuild) logChar(c);
   }
 
   if (locked_) {
@@ -121,6 +123,27 @@ void Gps::update(uint32_t nowMs) {
     openBaud(kBauds[baudIdx_]);
   }
 }
+
+/*
+// Collects NMEA sentences ('$' to end of line) and logs each one. Non-printable bytes
+// (UBX binary, line noise at the wrong baud rate) discard the partial sentence.
+void Gps::logChar(char c) {
+  if (c == '$') {
+    lineLen_ = 0;
+    line_[lineLen_++] = c;
+  } else if (lineLen_ == 0) {
+    return;
+  } else if (c == '\r' || c == '\n') {
+    line_[lineLen_] = '\0';
+    LOGD("GPS", "%s", line_);
+    lineLen_ = 0;
+  } else if (c < 0x20 || c > 0x7E || lineLen_ >= sizeof(line_) - 1) {
+    lineLen_ = 0;
+  } else {
+    line_[lineLen_++] = c;
+  }
+}
+*/
 
 uint32_t Gps::utcEpoch() {
   if (!dateValid() || !timeValid()) return 0;
