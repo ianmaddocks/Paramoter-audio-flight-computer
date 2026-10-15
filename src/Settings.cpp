@@ -54,6 +54,7 @@ const Field kFields[] = {
     FL(varioBaseHz, "Vario", "Base tone", "Hz", 200.0f, 2000.0f),
     FL(varioHzPerMs, "Vario", "Tone rise per m/s", "Hz", 0.0f, 400.0f),
     FL(varioAccelNoise, "Vario", "Responsiveness (higher = faster, noisier)", "", 0.05f, 10.0f),
+    I(varioSettleS, "Vario", "Settle time at power-on", "s", 0, 30),
 
     B(boundaryEnabled, "Height calls", "Announce height boundaries"),
     {"boundaries", "Height calls", "Boundaries", FT::List, "height", &g_cfg.boundaries, 0, 0,

@@ -38,7 +38,7 @@ FlightEvent Flight::update(uint32_t now, const Baro& baro, Gps& gps, NavState& n
   n.pressurePa = baro.pressurePa();
   n.tempC = baro.tempC();
   n.altStdM = baro.altStdM();
-  n.varioMs = n.baroOk ? baro.varioMs() : 0.0f;
+  n.varioMs = n.baroOk && baro.settled() ? baro.varioMs() : 0.0f;
 
   // Baro gives smooth relative altitude; GPS slowly removes its drift and sets the MSL datum.
   if (n.baroOk && gpsAltOk) {

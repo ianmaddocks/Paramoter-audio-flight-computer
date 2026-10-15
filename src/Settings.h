@@ -27,6 +27,7 @@ struct Settings {
   float varioBaseHz = 700.0f;
   float varioHzPerMs = 100.0f;
   float varioAccelNoise = 1.0f;
+  int32_t varioSettleS = 5;  // vario held at 0 after power-on until this long without movement
 
   bool boundaryEnabled = true;
   char boundaries[128] = "15.24,30.48,45.72,76.2,106.68,152.4,228.6,304.8";

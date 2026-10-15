@@ -6,6 +6,12 @@
 
 namespace {
 constexpr float kMeasVar = 0.25f * 0.25f;
+// The DPS310's first readings after start-up jump while its filtering settles: skip ~1 s.
+constexpr uint16_t kWarmupSamples = 32;
+// Settled once the vario has stayed within this for varioSettleS, or after 3x that regardless
+// (e.g. restarted in flight, where it may never be still).
+constexpr float kSettleQuietMs = 0.3f;
+constexpr uint32_t kSettleMaxFactor = 3;
 
 float pressureToAltStd(float pa) { return 44330.8f * (1.0f - powf(pa / 101325.0f, 0.190263f)); }
 }  // namespace
@@ -50,6 +56,9 @@ bool Baro::configure() {
   dps_.setMode(DPS310_CONT_PRESTEMP);
   lastSampleUs_ = 0;
   kf_ = AltKalman();
+  warmupLeft_ = kWarmupSamples;
+  settled_ = false;
+  settleStartMs_ = 0;
   return true;
 }
 
@@ -82,7 +91,24 @@ void Baro::update(uint32_t nowMs) {
 
   pressurePa_ = pa;
   tempC_ = t.temperature;
+  lastGoodMs_ = nowMs;
+  if (warmupLeft_) {
+    --warmupLeft_;
+    return;
+  }
   kf_.update(pressureToAltStd(pa), dt, g_cfg.varioAccelNoise, kMeasVar);
   ok_ = true;
-  lastGoodMs_ = nowMs;
+  updateSettled(nowMs);
+}
+
+void Baro::updateSettled(uint32_t nowMs) {
+  if (settled_) return;
+  if (!settleStartMs_) settleStartMs_ = quietSinceMs_ = nowMs;
+  if (fabsf(kf_.v) > kSettleQuietMs) quietSinceMs_ = nowMs;
+  uint32_t needMs = (uint32_t)g_cfg.varioSettleS * 1000;
+  bool timedOut = nowMs - settleStartMs_ >= needMs * kSettleMaxFactor;
+  if (nowMs - quietSinceMs_ < needMs && !timedOut) return;
+  settled_ = true;
+  LOGI("BARO", "Vario settled after %.1f s%s", (nowMs - settleStartMs_) / 1000.0f,
+       timedOut ? " (timed out)" : "");
 }

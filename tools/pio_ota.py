@@ -43,7 +43,10 @@ def ota_upload(source, target, env):
     path = str(source[0])
     name = os.path.basename(path)
     fs = name.startswith(("littlefs", "spiffs"))
-    hosts = list(dict.fromkeys(h for h in (env.subst("$UPLOAD_PORT"), AP_ADDRESS) if h))
+    # The vario's address lives in custom_ota_host, not upload_port: the espressif32 platform
+    # switches any IP / .local upload_port to espota and prints a warning.
+    hosts = (env.subst("$UPLOAD_PORT"), env.GetProjectOption("custom_ota_host", ""), AP_ADDRESS)
+    hosts = list(dict.fromkeys(h for h in hosts if h))
     host = find_vario(hosts)
     if not host:
         print("OTA failed: vario not found at %s.\nJoin the vario's Wi-Fi, or set its home "

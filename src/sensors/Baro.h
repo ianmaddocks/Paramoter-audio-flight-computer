@@ -21,9 +21,12 @@ class Baro {
   float tempC() const { return tempC_; }
   float altStdM() const { return kf_.h; }
   float varioMs() const { return kf_.v; }
+  // False after power-on (or sensor reset) until the vario reading has settled; see update().
+  bool settled() const { return settled_; }
 
  private:
   bool configure();
+  void updateSettled(uint32_t nowMs);
 
   Adafruit_DPS310 dps_;
   TwoWire* wire_ = nullptr;
@@ -35,4 +38,8 @@ class Baro {
   uint32_t lastRetryMs_ = 0;
   float pressurePa_ = 0;
   float tempC_ = 0;
+  uint16_t warmupLeft_ = 0;
+  bool settled_ = false;
+  uint32_t settleStartMs_ = 0;
+  uint32_t quietSinceMs_ = 0;
 };
