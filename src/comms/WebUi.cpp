@@ -47,7 +47,6 @@ void serverStop(const char* why) {
 
 void serverUpdate(uint32_t now) {
   if (serverWifi == ServerWifi::Off) return;
-  if (app.nav.flying) return serverStop("off while flying");
   if (now - serverWindowStartedMs >= (uint32_t)serverWindowUsedMin * 60000UL) {
     return serverStop("connection window ended");
   }
