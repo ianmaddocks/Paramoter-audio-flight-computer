@@ -38,7 +38,7 @@ int lastBleClients = 0;
 void traceNav() {
 #if PV_DEBUG
   const NavState& n = app.nav;
-  LOGD("NAV", "fix=%d sat=%u hdop=%.1f %.6f,%.6f gs=%.1f trk=%.0f gpsAlt=%.1f", n.fix, n.sats,
+  LOGD("NAV", "fix=%d good=%d sat=%u hdop=%.1f %.6f,%.6f gs=%.1f trk=%.0f gpsAlt=%.1f", n.fix, n.gpsGood, n.sats,
        n.hdop, n.lat, n.lon, n.speedMs, n.trackDeg, n.gpsAltM);
   LOGD("NAV", "baro=%d p=%.0f t=%.1f std=%.1f msl=%.1f agl=%.1f vs=%+.2f fly=%d ft=%lu", n.baroOk,
        n.pressurePa, n.tempC, n.altStdM, n.altMslM, n.aglM, n.varioMs, n.flying,

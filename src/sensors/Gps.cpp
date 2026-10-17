@@ -3,8 +3,14 @@
 
 #include "Pins.h"
 #include "Settings.h"
+#include "nav/Geo.h"
 
 namespace {
+constexpr uint32_t kFixGapMs = 2000;    // longer than this between fixes counts as re-acquisition
+constexpr uint32_t kSteadyMs = 3000;    // fix must be jump-free this long to be trusted
+constexpr float kJumpSlackM = 12.0f;    // position change allowed beyond what the reported speed explains
+constexpr float kMaxAccelMs2 = 8.0f;    // reported speed cannot change faster than this
+constexpr float kSpeedSlackMs = 1.0f;
 constexpr uint32_t kTargetBaud = 115200;
 constexpr uint32_t kBauds[] = {115200, 9600, 38400, 57600};
 constexpr uint32_t kListenMs = 1500;
@@ -95,6 +101,7 @@ void Gps::update(uint32_t nowMs) {
     lastCharMs_ = nowMs;
     //if (dlog::kDebugBuild) logChar(c);
   }
+  if (gps_.speed.isUpdated()) screenFix(nowMs);  // once per epoch: RMC carries position and speed
 
   if (locked_) {
     if (nowMs - lastCharMs_ > 5000) {
@@ -144,6 +151,34 @@ void Gps::logChar(char c) {
   }
 }
 */
+
+void Gps::screenFix(uint32_t nowMs) {
+  double lat = gps_.location.lat();
+  double lon = gps_.location.lng();
+  float speed = gps_.speed.mps();
+  if (!havePrev_ || nowMs - prevFixMs_ > kFixGapMs) {
+    suspectMs_ = nowMs;
+  } else {
+    float dt = (nowMs - prevFixMs_) / 1000.0f;
+    float dist = (float)geo::distanceM(prevLat_, prevLon_, lat, lon);
+    bool jump = dist > fmaxf(speed, prevSpeed_) * dt + kJumpSlackM;
+    bool surge = fabsf(speed - prevSpeed_) > kMaxAccelMs2 * dt + kSpeedSlackMs;
+    if (jump || surge) {
+      suspectMs_ = nowMs;
+      LOGD("GPS", "suspect fix: moved %.0f m in %.2f s, speed %.1f -> %.1f m/s, sats %u hdop %.1f", dist,
+           dt, prevSpeed_, speed, sats(), hdop());
+    }
+  }
+  havePrev_ = true;
+  prevLat_ = lat;
+  prevLon_ = lon;
+  prevSpeed_ = speed;
+  prevFixMs_ = nowMs;
+}
+
+bool Gps::steady(uint32_t nowMs) const {
+  return havePrev_ && nowMs - prevFixMs_ <= kFixGapMs && nowMs - suspectMs_ >= kSteadyMs;
+}
 
 uint32_t Gps::utcEpoch() {
   if (!dateValid() || !timeValid()) return 0;

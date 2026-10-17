@@ -31,6 +31,7 @@ FlightEvent Flight::update(uint32_t now, const Baro& baro, Gps& gps, NavState& n
   }
   n.sats = gps.sats();
   n.hdop = gps.hdop();
+  n.gpsGood = n.fix && n.sats >= g_cfg.readyMinSats && n.hdop <= g_cfg.readyMaxHdop && gps.steady(now);
   bool gpsAltOk = n.fix && gps.altValid() && n.hdop < 3.0f;
   if (gpsAltOk) n.gpsAltM = gps.altM();
 
@@ -67,13 +68,21 @@ FlightEvent Flight::update(uint32_t now, const Baro& baro, Gps& gps, NavState& n
         groundAlt_ += (alt - groundAlt_) * fminf(1.0f, dt / kGroundTauS);
       }
     }
-    if (still && n.fix) {
+    if (still && n.gpsGood) {
       autoLzLat_ = n.lat;
       autoLzLon_ = n.lon;
       autoLzValid_ = true;
     }
+    if (still && n.baroOk) {
+      if (!groundStdValid_) {
+        groundStd_ = n.altStdM;
+        groundStdValid_ = true;
+      } else {
+        groundStd_ += (n.altStdM - groundStd_) * fminf(1.0f, dt / kGroundTauS);
+      }
+    }
 
-    bool fast = n.fix && n.speedMs >= g_cfg.takeoffSpeedMs;
+    bool fast = n.gpsGood && n.speedMs >= g_cfg.takeoffSpeedMs;
     if (fast) {
       if (!fastSinceMs_) {
         fastSinceMs_ = now;
@@ -86,10 +95,11 @@ FlightEvent Flight::update(uint32_t now, const Baro& baro, Gps& gps, NavState& n
       if (fastSinceMs_) LOGD("FLT", "takeoff candidate ended after %lu ms", (unsigned long)(now - fastSinceMs_));
       fastSinceMs_ = 0;
     }
-    float gain = groundValid_ ? alt - groundAlt_ : 0.0f;
+    // Pressure altitude only: a bad GPS altitude must not be able to fake a height gain.
+    float gain = groundStdValid_ && n.baroOk ? n.altStdM - groundStd_ : groundValid_ ? alt - groundAlt_ : 0.0f;
     bool gpsTakeoff = fastSinceMs_ && now - fastSinceMs_ >= (uint32_t)g_cfg.takeoffTimeS * 1000 &&
                       gain >= g_cfg.takeoffGainM;
-    bool baroOnlyTakeoff = !n.fix && n.baroOk && gain >= g_cfg.takeoffGainM * 3.0f;
+    bool baroOnlyTakeoff = !n.gpsGood && n.baroOk && gain >= g_cfg.takeoffGainM * 3.0f;
     if (gpsTakeoff || baroOnlyTakeoff) {
       flying_ = true;
       takeoffMs_ = gpsTakeoff ? fastSinceMs_ : now;
@@ -128,6 +138,7 @@ FlightEvent Flight::update(uint32_t now, const Baro& baro, Gps& gps, NavState& n
         flying_ = false;
         fastSinceMs_ = 0;
         groundValid_ = false;
+        groundStdValid_ = false;
         ev = FlightEvent::Landing;
       }
     } else {
@@ -180,6 +191,7 @@ void Flight::importState(const FlightRecord& r, uint32_t now) {
 void Flight::abandonFlight() {
   flying_ = false;
   groundValid_ = false;
+  groundStdValid_ = false;
   fastSinceMs_ = 0;
   stillSinceMs_ = 0;
   resumePending_ = false;

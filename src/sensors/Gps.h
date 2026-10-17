@@ -22,6 +22,8 @@ class Gps {
   float hdop() { return gps_.hdop.isValid() ? gps_.hdop.hdop() : 99.0f; }
   bool connected() const { return locked_; }
   uint32_t baud() const { return baud_; }
+  // True once fixes have arrived steadily, with no position or speed jump, for a few seconds.
+  bool steady(uint32_t nowMs) const;
 
   bool timeValid() { return gps_.time.isValid() && gps_.time.age() < 3000; }
   bool dateValid() { return gps_.date.isValid() && gps_.date.year() > 2020; }
@@ -38,6 +40,7 @@ class Gps {
   void openBaud(uint32_t baud);
   void valset(std::initializer_list<KV> kvs);
   void sendConfig();
+  void screenFix(uint32_t nowMs);
   void logChar(char c);
 
   TinyGPSPlus gps_;
@@ -48,6 +51,11 @@ class Gps {
   uint32_t listenStartMs_ = 0;
   uint32_t checksumAtListen_ = 0;
   uint32_t lastCharMs_ = 0;
+  bool havePrev_ = false;
+  double prevLat_ = 0, prevLon_ = 0;
+  float prevSpeed_ = 0;
+  uint32_t prevFixMs_ = 0;
+  uint32_t suspectMs_ = 0;  // last (re)acquisition or jump
   char line_[100];  // NMEA sentence being collected for debug logging
   size_t lineLen_ = 0;
 };

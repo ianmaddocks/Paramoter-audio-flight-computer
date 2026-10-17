@@ -79,6 +79,7 @@ const char* notReadyReason(const NavState& n) {
   if (!app.gps.connected()) return "GPS not responding";
   if (!n.fix || n.sats < g_cfg.readyMinSats) return "Waiting for satellites";
   if (n.hdop > g_cfg.readyMaxHdop) return "GPS accuracy low";
+  if (!n.gpsGood) return "GPS position unstable";
   if (!n.baroOk) return "Barometer not working";
   if (!app.baro.settled()) return "Vario settling";
   if (!n.lzValid) return "Landing zone not set";

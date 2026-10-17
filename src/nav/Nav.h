@@ -6,6 +6,7 @@ struct NavState {
   uint32_t ms = 0;
 
   bool fix = false;
+  bool gpsGood = false;  // fix with enough satellites, low HDOP and no recent jump
   double lat = 0.0;
   double lon = 0.0;
   float speedMs = 0.0f;

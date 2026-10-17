@@ -35,6 +35,8 @@ class Flight {
 
   bool groundValid_ = false;
   float groundAlt_ = 0;
+  bool groundStdValid_ = false;
+  float groundStd_ = 0;  // baro-only ground reference for takeoff height gain
   bool autoLzValid_ = false;
   double autoLzLat_ = 0, autoLzLon_ = 0;
 
