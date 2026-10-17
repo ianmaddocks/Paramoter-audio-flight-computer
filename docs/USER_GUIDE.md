@@ -127,6 +127,7 @@ The defaults below are shown in the default units (feet, metres, km/h).
 | Base tone | 700 Hz | Pitch at zero climb. |
 | Tone rise per m/s | 100 Hz | |
 | Responsiveness | 1.0 | Higher reacts faster but is noisier; lower is smoother. |
+| Settle time at power-on | 5 s | The vario stays silent (and sends 0 to FlyGaggle) after power-on until the reading has been steady this long, so it doesn't beep while the sensor warms up. The ready banner shows *Vario settling* meanwhile. If it never steadies (e.g. restarted in the air) it starts anyway after 3x this time. 0 = start immediately. |
 
 ### Height calls
 | Setting | Default | Notes |

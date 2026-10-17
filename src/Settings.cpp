@@ -111,8 +111,9 @@ const Field kFields[] = {
 
     SR(wifiSsid, "Wi-Fi", "Network name"),
     SR(wifiPass, "Wi-Fi", "Password (8+ chars, blank = open)"),
-    SR(homeSsid, "Wi-Fi", "Home network to join for updates (blank = off)"),
-    SR(homePass, "Wi-Fi", "Home network password"),
+    SR(serverSsid, "Wi-Fi", "Server network name (blank = off)"),
+    SR(serverPass, "Wi-Fi", "Server network password"),
+    IR(serverConnectWindowMin, "Wi-Fi", "Server connection window after power-on (0 = off)", "min", 0, 60),
 
     FL(battDivider, "Battery", "Divider ratio", "", 1.0f, 10.0f),
     FL(battCal, "Battery", "Calibration factor", "", 0.8f, 1.2f),
@@ -273,6 +274,13 @@ void load() {
   if (deserializeJson(doc, s) != DeserializationError::Ok) {
     LOGW("CFG", "Stored settings unreadable, using defaults");
     return;
+  }
+  JsonObject root = doc.as<JsonObject>();
+  if (root["serverSsid"].isNull() && !root["homeSsid"].isNull()) {
+    root["serverSsid"] = root["homeSsid"];
+  }
+  if (root["serverPass"].isNull() && !root["homePass"].isNull()) {
+    root["serverPass"] = root["homePass"];
   }
   fromJson(doc.as<JsonObjectConst>());
 }

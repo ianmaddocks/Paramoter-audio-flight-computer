@@ -13,6 +13,10 @@ body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-appl
 header{display:flex;align-items:center;justify-content:space-between;padding:14px 2px 10px}
 h1{font-size:20px;margin:0}
 h2{font-size:15px;margin:0 0 10px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--bd);margin:0 -12px 10px;padding:0 12px}
+.tabs button{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;color:var(--mut);padding:10px 12px}
+.tabs button[aria-selected=true]{border-bottom-color:var(--acc);color:var(--acc)}
+div.page[hidden]{display:none}
 #conn{font-size:13px;color:var(--mut)}
 #conn.ok{color:var(--ok)}#conn.bad{color:var(--bad)}
 .tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
@@ -42,8 +46,6 @@ button.on{outline:2px solid var(--acc)}
 .log{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--bd);gap:8px}
 .log a{color:var(--acc);word-break:break-all}
 .mut{color:var(--mut);font-size:13px}
-#savebar{position:fixed;left:0;right:0;bottom:0;padding:10px 12px;background:var(--card);border-top:1px solid var(--bd);display:none;gap:8px}
-#savebar.show{display:flex}#savebar button{flex:1}
 #toast{position:fixed;left:50%;top:12px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:20px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw}
 #toast.show{opacity:.92}
 .ready{display:flex;justify-content:space-between;align-items:center;gap:10px;border-radius:12px;padding:12px 14px;margin-bottom:8px;font-size:16px;color:#fff}
@@ -58,6 +60,12 @@ button.on{outline:2px solid var(--acc)}
 .badge{font-size:11px;background:var(--warn);color:#000;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle}
 </style></head><body>
 <header><h1>ParaVario</h1><span id="conn">connecting…</span></header>
+<nav class="tabs" role="tablist" aria-label="Main views">
+<button type="button" role="tab" aria-selected="true" data-tab="flight">Flight</button>
+<button type="button" role="tab" aria-selected="false" data-tab="settings">Settings</button>
+<button type="button" role="tab" aria-selected="false" data-tab="system">Logs &amp; system</button>
+</nav>
+<div id="flightPage" class="page" role="tabpanel">
 <div id="ready" class="ready wait"><b id="ready-t">Checking…</b><span id="ready-s"></span></div>
 <section class="tiles">
 <div class="tile big"><div class="k">Height AGL</div><div class="v" id="t-agl">–</div><div class="s" id="t-msl"></div></div>
@@ -78,7 +86,12 @@ button.on{outline:2px solid var(--acc)}
 <button data-a="lz_here">Set LZ here</button>
 <button data-a="lz_takeoff">LZ = takeoff</button>
 </div></section>
+ </div>
+<div id="settingsPage" class="page" role="tabpanel" hidden>
 <section id="settings"></section>
+<p id="saveState" class="mut" role="status" aria-live="polite"></p>
+</div>
+<div id="systemPage" class="page" role="tabpanel" hidden>
 <section class="card"><h2>Flight logs</h2><div id="logs" class="mut">Loading…</div></section>
 <details class="card" id="dbg"><summary>Debug log <small class="mut" id="dbginfo"></small></summary>
 <div class="dbgbar"><button id="dbgpause">Pause</button><button id="dbgclear">Clear</button><button id="dbgsave">Save as file</button></div>
@@ -93,12 +106,13 @@ button.on{outline:2px solid var(--acc)}
 <button data-a="restart">Restart</button>
 <button data-a="defaults" class="dng">Factory defaults</button>
 </div><p class="mut" id="sys"></p></section>
-<div id="savebar"><button id="revert">Discard</button><button class="pri" id="save">Save settings</button></div>
+</div>
 <div id="toast"></div>
 <script>
 const $=s=>document.querySelector(s);
 const FT=3.28084;
-let schema=[],cfg={},saved={},openGroups=new Set();
+let schema=[],cfg={},openGroups=new Set();
+let saveTimer=0,saveRevision=0,saveInFlight=false,saveAgain=false,restartRequired=false;
 const rnd=(v,d)=>{const m=Math.pow(10,d);return Math.round(v*m)/m};
 function conv(u){
   switch(u){
@@ -147,7 +161,11 @@ async function poll(){
   }catch(e){$('#conn').textContent='offline';$('#conn').className='bad'}
 }
 
-function setVal(f,v){cfg[f.k]=v;$('#savebar').classList.toggle('show',JSON.stringify(cfg)!==JSON.stringify(saved))}
+function setVal(f,v){
+  if(cfg[f.k]===v)return;
+  cfg[f.k]=v;saveRevision++;txt('saveState','Unsaved changes');
+  clearTimeout(saveTimer);saveTimer=setTimeout(saveSettings,650);
+}
 function field(f){
   const row=document.createElement('label');row.className='row';
   const c=conv(f.u);const sp=document.createElement('span');sp.textContent=f.l;
@@ -174,35 +192,50 @@ function render(){
     d.ontoggle=()=>d.open?openGroups.add(g):openGroups.delete(g);
     const s=document.createElement('summary');s.textContent=g;d.appendChild(s);
     if(g==='Wi-Fi')d.insertAdjacentHTML('beforeend','<div class="row"><span>Vario network</span><b id="w-ap">–</b></div>'+
-      '<div class="row"><span>Home network</span><b id="w-home">–</b></div><div class="row"><span>IP address on home network</span><b id="w-ip">–</b></div>');
+      '<div class="row"><span>Server network</span><b id="w-server">–</b></div><div class="row"><span>Server IP address</span><b id="w-server-ip">–</b></div>');
     groups[g].forEach(f=>d.appendChild(field(f)));root.appendChild(d);
   }
   showWifi();
 }
 let wifiInfo=null;
 function showWifi(){
-  const w=wifiInfo;if(!w||!document.getElementById('w-home'))return;
+  const w=wifiInfo;if(!w||!document.getElementById('w-server'))return;
   txt('w-ap',w.apIp+' · '+w.apClients+' connected');
   const q=w.rssi>-60?'good':w.rssi>-70?'fair':'weak';
-  let h=!w.homeSsid?'Off (not set)':w.home=='connected'?'Connected to '+w.homeSsid+' · signal '+q+' ('+w.rssi+' dBm)':
-    w.home=='connecting'?'Connecting to '+w.homeSsid+'…':w.homeSsid+' – '+w.home;
-  if(w.restart)h+=' · restart to apply changes';
-  txt('w-home',h);
-  txt('w-ip',w.homeIp?w.homeIp+' (paravario.local)':'–');
+  let status=!w.serverSsid?'Off (not set)':w.server=='connected'?'Connected to '+w.serverSsid+' · signal '+q+' ('+w.rssi+' dBm)':
+    w.server=='connecting'?'Connecting to '+w.serverSsid+'…':w.serverSsid+' – '+w.server;
+  if(w.restart)status+=' · restart to apply changes';
+  txt('w-server',status);
+  txt('w-server-ip',w.serverIp?w.serverIp+' (paravario.local)':'–');
 }
 async function loadSettings(){
   [schema,cfg]=await Promise.all([fetch('/api/schema').then(r=>r.json()),fetch('/api/settings').then(r=>r.json())]);
-  saved=JSON.parse(JSON.stringify(cfg));render();
+  render();
 }
-$('#save').onclick=async()=>{
+async function saveSettings(){
+  if(saveInFlight){saveAgain=true;return}
+  saveInFlight=true;saveAgain=false;
+  const revision=saveRevision;
+  txt('saveState','Saving…');
   try{
     const r=await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)});
     const j=await r.json();if(!r.ok)throw j.error;
-    cfg=j.settings;saved=JSON.parse(JSON.stringify(cfg));render();$('#savebar').classList.remove('show');
-    if(j.restart&&confirm('Saved. Some changes need a restart. Restart now?'))act('restart');else toast('Settings saved');
-  }catch(e){toast('Save failed: '+e)}
-};
-$('#revert').onclick=()=>{cfg=JSON.parse(JSON.stringify(saved));render();$('#savebar').classList.remove('show')};
+    restartRequired=restartRequired||j.restart;
+    if(revision===saveRevision){cfg=j.settings;txt('saveState',restartRequired?'Saved · restart required':'Saved')}
+    else saveAgain=true;
+  }catch(e){if(revision===saveRevision)txt('saveState','Save failed: '+e)}
+  finally{
+    saveInFlight=false;
+    if(saveAgain){saveAgain=false;saveSettings()}
+  }
+}
+
+function selectTab(name){
+  document.querySelectorAll('button[data-tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===name));
+  document.querySelectorAll('.page').forEach(p=>p.hidden=p.id!==name+'Page');
+  if(name==='system')loadLogs();
+}
+document.querySelectorAll('button[data-tab]').forEach(b=>b.onclick=()=>selectTab(b.dataset.tab));
 
 async function act(a){
   if(a==='defaults'&&!confirm('Reset all settings to defaults?'))return;
@@ -275,9 +308,9 @@ $('#fwgo').onclick=()=>{
 };
 async function boot(){
   await loadSettings().catch(()=>{});
-  poll();setInterval(poll,1000);setInterval(pollDbg,1000);loadLogs();
+  poll();setInterval(poll,1000);setInterval(pollDbg,1000);
   try{const s=await fetch('/api/status').then(r=>r.json());
-    if(s.debug){$('#dbg').open=true;$('h1').insertAdjacentHTML('beforeend','<span class="badge">DEBUG</span>');pollDbg()}}catch(e){}
+    if(s.debug){selectTab('system');$('#dbg').open=true;$('h1').insertAdjacentHTML('beforeend','<span class="badge">DEBUG</span>');pollDbg()}}catch(e){}
 }
 boot();
 </script></body></html>)HTML";

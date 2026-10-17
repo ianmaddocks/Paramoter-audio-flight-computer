@@ -81,6 +81,7 @@ void IgcLogger::update(const NavState& nav, Gps& gps) {
                gps.time().minute(), gps.time().second(), latD, latM, lastLat_ < 0 ? 'S' : 'N', lonD,
                lonM, lastLon_ < 0 ? 'W' : 'E', nav.fix ? 'A' : 'V', (int)lroundf(nav.altStdM),
                (int)lroundf(nav.gpsAltM));
+  file_.printf("LXPVSAT,%02u\r\n", (unsigned)nav.sats);
   if (nav.ms - lastFlushMs_ >= 10000) {
     lastFlushMs_ = nav.ms;
     file_.flush();

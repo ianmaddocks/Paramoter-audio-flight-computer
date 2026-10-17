@@ -28,42 +28,37 @@ DNSServer dns;
 bool restartPending = false;
 uint32_t restartAtMs = 0;
 
-// Home Wi-Fi (station) alongside the vario's own access point, so a PC on the home network
-// can reach the page and /api/ota. Only on the ground: dropped at takeoff, and abandoned if
-// the network is not joined within kHomeTimeoutMs (it keeps scanning otherwise, which
-// disturbs the access point and Bluetooth).
-constexpr uint32_t kHomeTimeoutMs = 30000;
-enum class Home : uint8_t { Off, Connecting, Connected };
-Home home = Home::Off;
-uint32_t homeSinceMs = 0;
-const char* homeWhyOff = "not set";  // shown on the page while Off
-char homeSsidUsed[33] = "";          // network joined at boot; settings changes need a restart
+// Server Wi-Fi runs alongside the vario AP only during its configured boot window.
+enum class ServerWifi : uint8_t { Off, Connecting, Connected };
+ServerWifi serverWifi = ServerWifi::Off;
+uint32_t serverWindowStartedMs = 0;
+int32_t serverWindowUsedMin = 0;
+const char* serverWhyOff = "not set";
+char serverSsidUsed[33] = "";
+char serverPassUsed[65] = "";
 
-void homeStop(const char* why) {
+void serverStop(const char* why) {
   WiFi.disconnect();
   WiFi.mode(WIFI_AP);
-  home = Home::Off;
-  homeWhyOff = why;
-  LOGI("WEB", "Home Wi-Fi off (%s)", why);
+  serverWifi = ServerWifi::Off;
+  serverWhyOff = why;
+  LOGI("WEB", "Server Wi-Fi off (%s)", why);
 }
 
-void homeUpdate(uint32_t now) {
-  if (home == Home::Off) return;
-  if (app.nav.flying) return homeStop("off while flying");
+void serverUpdate(uint32_t now) {
+  if (serverWifi == ServerWifi::Off) return;
+  if (app.nav.flying) return serverStop("off while flying");
+  if (now - serverWindowStartedMs >= (uint32_t)serverWindowUsedMin * 60000UL) {
+    return serverStop("connection window ended");
+  }
   bool up = WiFi.status() == WL_CONNECTED;
-  if (home == Home::Connecting && up) {
-    home = Home::Connected;
-    LOGI("WEB", "Joined '%s' as %s (http://paravario.local)", g_cfg.homeSsid,
+  if (serverWifi == ServerWifi::Connecting && up) {
+    serverWifi = ServerWifi::Connected;
+    LOGI("WEB", "Joined server network '%s' as %s (http://paravario.local)", g_cfg.serverSsid,
          WiFi.localIP().toString().c_str());
-  } else if (home == Home::Connected && !up) {
-    home = Home::Connecting;
-    homeSinceMs = now;
-    LOGW("WEB", "Lost home Wi-Fi, retrying");
-  } else if (home == Home::Connecting && now - homeSinceMs >= kHomeTimeoutMs) {
-    wl_status_t st = WiFi.status();
-    homeStop(st == WL_CONNECT_FAILED ? "could not connect - check the password"
-             : st == WL_NO_SSID_AVAIL ? "network not found"
-                                      : "could not connect");
+  } else if (serverWifi == ServerWifi::Connected && !up) {
+    serverWifi = ServerWifi::Connecting;
+    LOGW("WEB", "Lost server Wi-Fi, retrying within connection window");
   }
 }
 
@@ -151,13 +146,16 @@ void handleStatus() {
   JsonObject wifi = doc["wifi"].to<JsonObject>();
   wifi["apIp"] = WiFi.softAPIP().toString();
   wifi["apClients"] = WiFi.softAPgetStationNum();
-  wifi["homeSsid"] = homeSsidUsed;
-  wifi["home"] = home == Home::Connected ? "connected" : home == Home::Connecting ? "connecting" : homeWhyOff;
-  if (home == Home::Connected) {
-    wifi["homeIp"] = WiFi.localIP().toString();
+  wifi["serverSsid"] = serverSsidUsed;
+  wifi["server"] = serverWifi == ServerWifi::Connected ? "connected" : serverWifi == ServerWifi::Connecting ? "connecting" : serverWhyOff;
+  if (serverWifi == ServerWifi::Connected) {
+    wifi["serverIp"] = WiFi.localIP().toString();
     wifi["rssi"] = WiFi.RSSI();
   }
-  if (strcmp(homeSsidUsed, g_cfg.homeSsid) != 0) wifi["restart"] = true;
+  if (strcmp(serverSsidUsed, g_cfg.serverSsid) != 0 || strcmp(serverPassUsed, g_cfg.serverPass) != 0 ||
+      serverWindowUsedMin != g_cfg.serverConnectWindowMin) {
+    wifi["restart"] = true;
+  }
   doc["ble"] = app.ble.clients();
   doc["logging"] = app.logger.active();
   sendJson(doc);
@@ -181,9 +179,11 @@ void handlePostSettings() {
     sendError(400, "invalid JSON");
     return;
   }
+  Settings previous = g_cfg;
   bool restart = settings::fromJson(in.as<JsonObjectConst>());
   LOGI("WEB", "settings saved%s", restart ? " (restart needed)" : "");
   if (!settings::save()) {
+    g_cfg = previous;
     sendError(500, "save failed");
     return;
   }
@@ -386,18 +386,22 @@ class RedirectToUi : public RequestHandler {
 }  // namespace
 
 void begin() {
-  bool joinHome = g_cfg.homeSsid[0] != 0;
+  serverWindowStartedMs = millis();
+  serverWindowUsedMin = g_cfg.serverConnectWindowMin;
+  strlcpy(serverSsidUsed, g_cfg.serverSsid, sizeof(serverSsidUsed));
+  strlcpy(serverPassUsed, g_cfg.serverPass, sizeof(serverPassUsed));
+  bool joinServer = serverSsidUsed[0] != 0 && serverWindowUsedMin > 0;
+  serverWhyOff = serverWindowUsedMin <= 0 ? "connection window disabled" : "not set";
   WiFi.setHostname("paravario");
-  WiFi.mode(joinHome ? WIFI_AP_STA : WIFI_AP);
+  WiFi.mode(joinServer ? WIFI_AP_STA : WIFI_AP);
   const char* pass = strlen(g_cfg.wifiPass) >= 8 ? g_cfg.wifiPass : nullptr;
   WiFi.softAP(g_cfg.wifiSsid, pass);
   dns.start(53, "*", WiFi.softAPIP());
-  if (joinHome) {
-    WiFi.begin(g_cfg.homeSsid, g_cfg.homePass);
-    strlcpy(homeSsidUsed, g_cfg.homeSsid, sizeof(homeSsidUsed));
-    home = Home::Connecting;
-    homeSinceMs = millis();
-    LOGI("WEB", "Joining home Wi-Fi '%s'", g_cfg.homeSsid);
+  if (joinServer) {
+    WiFi.begin(g_cfg.serverSsid, g_cfg.serverPass);
+    serverWifi = ServerWifi::Connecting;
+    LOGI("WEB", "Joining server network '%s' for up to %ld min", g_cfg.serverSsid,
+         (long)serverWindowUsedMin);
   }
   if (MDNS.begin("paravario")) MDNS.addService("http", "tcp", 80);
 
@@ -420,7 +424,7 @@ void begin() {
 void update() {
   dns.processNextRequest();
   server.handleClient();
-  homeUpdate(millis());
+  serverUpdate(millis());
   if (restartPending && (int32_t)(millis() - restartAtMs) >= 0) ESP.restart();
 }
 

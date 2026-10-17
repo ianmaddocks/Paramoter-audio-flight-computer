@@ -83,8 +83,9 @@ struct Settings {
 
   char wifiSsid[33] = "ParaVario";
   char wifiPass[65] = "";
-  char homeSsid[33] = "";  // joined on the ground for updates from a PC; blank = off
-  char homePass[65] = "";
+  char serverSsid[33] = "";
+  char serverPass[65] = "";
+  int32_t serverConnectWindowMin = 5;
 
   float battDivider = 2.0f;
   float battCal = 1.0f;
