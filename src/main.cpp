@@ -43,6 +43,9 @@ void traceNav() {
   LOGD("NAV", "baro=%d p=%.0f t=%.1f std=%.1f msl=%.1f agl=%.1f vs=%+.2f fly=%d ft=%lu", n.baroOk,
        n.pressurePa, n.tempC, n.altStdM, n.altMslM, n.aglM, n.varioMs, n.flying,
        (unsigned long)n.flightTimeS);
+  LOGD("BARO", "rawStd=%.3f filtStd=%.3f raw-filt=%.3f dt=%.4f settled=%d", app.baro.rawAltStdM(),
+       app.baro.altStdM(), app.baro.rawAltStdM() - app.baro.altStdM(), app.baro.sampleDtS(),
+       app.baro.settled());
   LOGD("NAV", "lz=%d %.6f,%.6f elev=%.1f wind=%s %.0f/%.1f mode=%s/%s mute=%d batt=%.2fV heap=%u",
        n.lzValid, n.lzLat, n.lzLon, n.lzElevM, app.wind.sourceName(), app.wind.fromDeg(),
        app.wind.speedMs(), app.emergency.active() ? "emergency" : app.approach.active() ? "approach" : "none",

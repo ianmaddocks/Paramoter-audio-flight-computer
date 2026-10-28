@@ -19,6 +19,8 @@ class Baro {
   bool ok() const { return ok_; }
   float pressurePa() const { return pressurePa_; }
   float tempC() const { return tempC_; }
+  float rawAltStdM() const { return rawAltStdM_; }
+  float sampleDtS() const { return sampleDtS_; }
   float altStdM() const { return kf_.h; }
   float varioMs() const { return kf_.v; }
   // False after power-on (or sensor reset) until the vario reading has settled; see update().
@@ -38,6 +40,8 @@ class Baro {
   uint32_t lastRetryMs_ = 0;
   float pressurePa_ = 0;
   float tempC_ = 0;
+  float rawAltStdM_ = 0;
+  float sampleDtS_ = 0;
   uint16_t warmupLeft_ = 0;
   bool settled_ = false;
   uint32_t settleStartMs_ = 0;

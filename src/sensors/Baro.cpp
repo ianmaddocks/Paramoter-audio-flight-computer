@@ -91,12 +91,14 @@ void Baro::update(uint32_t nowMs) {
 
   pressurePa_ = pa;
   tempC_ = t.temperature;
+  rawAltStdM_ = pressureToAltStd(pa);
+  sampleDtS_ = dt;
   lastGoodMs_ = nowMs;
   if (warmupLeft_) {
     --warmupLeft_;
     return;
   }
-  kf_.update(pressureToAltStd(pa), dt, g_cfg.varioAccelNoise, kMeasVar);
+  kf_.update(rawAltStdM_, dt, g_cfg.varioAccelNoise, kMeasVar);
   ok_ = true;
   updateSettled(nowMs);
 }
