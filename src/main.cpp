@@ -215,7 +215,8 @@ void setup() {
   app.button.begin(pins::BUTTON);
   app.ble.begin();
   webui::begin();
-  restoreFlightState();
+  // Disabled: do not resume a previously saved flight on power-up.
+  // restoreFlightState();
 
   speech::say(Priority::Normal, "system_ready");
   LOGI("APP", "ParaVario ready, free heap %u", ESP.getFreeHeap());

@@ -24,12 +24,16 @@ def git_version():
 
 projenv.Append(CPPDEFINES=[("PV_VERSION", env.StringifyMacro(git_version()))])
 
+# Single source for the update password: custom_ota_password in platformio.ini.
+OTA_PASSWORD = env.GetProjectOption("custom_ota_password", "")
+projenv.Append(CPPDEFINES=[("OTA_PASSWORD", env.StringifyMacro(OTA_PASSWORD))])
+
 
 AP_ADDRESS = "192.168.4.1"  # the vario's own access point
 
 
 def find_vario(hosts):
-    """First host answering on port 80: the home-network name, then the vario's own AP."""
+    """First host answering on port 80: the server-network name, then the vario's own AP."""
     for host in hosts:
         try:
             socket.create_connection((host, 80), timeout=4).close()
@@ -49,7 +53,7 @@ def ota_upload(source, target, env):
     hosts = list(dict.fromkeys(h for h in hosts if h))
     host = find_vario(hosts)
     if not host:
-        print("OTA failed: vario not found at %s.\nJoin the vario's Wi-Fi, or set its home "
+        print("OTA failed: vario not found at %s.\nJoin the vario's Wi-Fi, or set its server "
               "network in the web page (Wi-Fi settings) and power it on near this PC."
               % " or ".join(hosts))
         return 1
@@ -62,7 +66,8 @@ def ota_upload(source, target, env):
     body += data + ("\r\n--%s--\r\n" % boundary).encode()
     url = "http://%s/api/ota?md5=%s%s" % (host, md5, "&target=fs" if fs else "")
     req = urllib.request.Request(url, data=body, headers={
-        "Content-Type": "multipart/form-data; boundary=" + boundary})
+        "Content-Type": "multipart/form-data; boundary=" + boundary,
+        "X-OTA-Password": OTA_PASSWORD})
     print("Uploading %s (%d bytes) to %s over Wi-Fi..." % (name, len(data), host))
     try:
         with urllib.request.urlopen(req, timeout=180) as r:

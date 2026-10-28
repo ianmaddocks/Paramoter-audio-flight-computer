@@ -56,7 +56,8 @@ button.on{outline:2px solid var(--acc)}
 #dbglog .E{color:var(--bad)}#dbglog .W{color:var(--warn)}#dbglog .D{color:var(--mut)}
 .prog{height:8px;background:var(--bg);border:1px solid var(--bd);border-radius:4px;overflow:hidden;margin:10px 0 6px}
 #fwbar{height:100%;width:0;background:var(--acc);transition:width .2s}
-#fwfile{width:100%;font:inherit;margin-bottom:8px}#fwgo{width:100%}
+#fwfile,#fwpass{width:100%;font:inherit;margin-bottom:8px}#fwgo{width:100%}
+#fwpass{padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--fg)}
 .badge{font-size:11px;background:var(--warn);color:#000;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle}
 </style></head><body>
 <header><h1>ParaVario</h1><span id="conn">connecting…</span></header>
@@ -99,8 +100,9 @@ button.on{outline:2px solid var(--acc)}
 <section class="card"><h2>Firmware update</h2>
 <p class="mut" id="fwver"></p>
 <input type="file" id="fwfile" accept=".bin">
+<input type="password" id="fwpass" placeholder="Update password" autocomplete="off">
 <button class="pri" id="fwgo">Install update</button>
-<div class="prog"><div id="fwbar"></div></div><p class="mut" id="fwmsg">Choose firmware.bin (program) or littlefs.bin (voice clips &ndash; erases flight logs). Not available in flight.</p>
+<div class="prog"><div id="fwbar"></div></div><p class="mut" id="fwmsg">Choose firmware.bin (program) or littlefs.bin (voice clips &ndash; erases flight logs) and enter the update password.</p>
 </section>
 <section class="card"><h2>System</h2><div class="btns">
 <button data-a="restart">Restart</button>
@@ -155,7 +157,6 @@ async function poll(){
     txt('ready-s',s.gps.sats+' / '+s.minSats+' satellites');
     txt('t-batt',s.batt.v<2.5?'USB':s.batt.pct+'%');txt('t-batts',s.batt.v.toFixed(2)+' V');
     txt('fwver','Installed: '+(s.version||'unknown')+(s.debug?' (debug build)':' (release build)'));
-    if(!fwBusy)$('#fwgo').disabled=s.flying;
     txt('sys','Uptime '+fT(s.uptime)+' · heap '+Math.round(s.heap/1024)+' kB · BLE clients '+s.ble+' · baro '+(s.baro.ok?(s.baro.pressure/100).toFixed(1)+' hPa':'missing'));
     wifiInfo=s.wifi;showWifi();
   }catch(e){$('#conn').textContent='offline';$('#conn').className='bad'}
@@ -294,10 +295,11 @@ let fwBusy=false;
 function setFw(p,m){$('#fwbar').style.width=Math.round(p*100)+'%';txt('fwmsg',m)}
 $('#fwgo').onclick=()=>{
   const f=$('#fwfile').files[0];if(!f)return toast('Choose a .bin file first');
+  const pw=$('#fwpass').value;if(!pw)return toast('Enter the update password');
   const fs=/littlefs|spiffs/i.test(f.name);
   if(!confirm((fs?'Replace the voice clips with '+f.name+'? This erases the flight logs.':'Install firmware '+f.name+'?')+' The vario restarts afterwards.'))return;
   const fd=new FormData();fd.append('file',f,f.name);
-  const x=new XMLHttpRequest();x.open('POST','/api/ota'+(fs?'?target=fs':''));
+  const x=new XMLHttpRequest();x.open('POST','/api/ota'+(fs?'?target=fs':''));x.setRequestHeader('X-OTA-Password',pw);
   const done=m=>{fwBusy=false;$('#fwgo').disabled=false;setFw(0,m)};
   x.upload.onprogress=e=>{if(e.lengthComputable)setFw(e.loaded/e.total,'Uploading '+Math.round(e.loaded/e.total*100)+'%')};
   x.onload=()=>{let j={};try{j=JSON.parse(x.responseText)}catch(e){}

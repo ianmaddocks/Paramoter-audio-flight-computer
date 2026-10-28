@@ -20,6 +20,11 @@
 #define PV_VERSION "unknown"
 #endif
 
+// Set from custom_ota_password in platformio.ini by tools/pio_ota.py; empty rejects every upload.
+#ifndef OTA_PASSWORD
+#define OTA_PASSWORD ""
+#endif
+
 namespace webui {
 namespace {
 
@@ -317,9 +322,20 @@ void handleLogDelete() {
 }
 
 // Firmware or file-system image upload (multipart POST to /api/ota, ?target=fs for the
-// LittleFS image, optional ?md5=). Refused in flight; the vario restarts after a good image.
+// LittleFS image, optional ?md5=). Needs the X-OTA-Password header; allowed in flight so a
+// bad build can always be replaced. The vario restarts after a good image.
 String otaError;
 bool otaFs = false;
+bool otaOk = false;
+const char* kOtaHeaders[] = {"X-OTA-Password"};
+
+bool otaPasswordOk() {
+  const String given = server.header("X-OTA-Password");
+  const size_t n = strlen(OTA_PASSWORD);
+  uint8_t diff = given.length() != n;
+  for (size_t i = 0; i < n; ++i) diff |= (uint8_t)((i < given.length() ? given[i] : 0) ^ OTA_PASSWORD[i]);
+  return n > 0 && diff == 0;
+}
 
 void otaFail(const String& msg) {
   if (otaError.isEmpty()) otaError = msg;
@@ -330,9 +346,11 @@ void handleOtaUpload() {
   HTTPUpload& up = server.upload();
   if (up.status == UPLOAD_FILE_START) {
     otaError = "";
+    otaOk = false;
     otaFs = server.arg("target") == "fs";
-    if (app.nav.flying) {
-      otaError = "not allowed in flight";
+    if (!otaPasswordOk()) {
+      otaError = "wrong password";
+      LOGW("OTA", "Update rejected: wrong password");
       return;
     }
     LOGI("OTA", "%s update from '%s'", otaFs ? "File system" : "Firmware", up.filename.c_str());
@@ -347,17 +365,23 @@ void handleOtaUpload() {
     }
   } else if (up.status == UPLOAD_FILE_END) {
     if (otaError.isEmpty() && !Update.end(true)) otaFail(Update.errorString());
-    if (otaError.isEmpty()) LOGI("OTA", "Update OK, %u bytes", (unsigned)up.totalSize);
+    if (otaError.isEmpty()) {
+      otaOk = true;
+      LOGI("OTA", "Update OK, %u bytes", (unsigned)up.totalSize);
+    }
   } else if (up.status == UPLOAD_FILE_ABORTED) {
     otaFail("upload aborted");
   }
 }
 
 void handleOtaDone() {
-  if (!otaError.isEmpty() || !Update.isFinished()) {
+  const bool ok = otaOk && otaError.isEmpty();
+  otaOk = false;
+  if (!ok) {
     if (otaError.isEmpty()) otaError = "no image received";
     LOGE("OTA", "Update failed: %s", otaError.c_str());
-    sendError(otaError == "not allowed in flight" ? 409 : 500, otaError.c_str());
+    sendError(otaError == "wrong password" ? 401 : 500, otaError.c_str());
+    otaError = "";
     return;
   }
   JsonDocument doc;
@@ -417,6 +441,7 @@ void begin() {
   server.on("/api/log", HTTP_DELETE, handleLogDelete);
   server.on("/api/ota", HTTP_POST, handleOtaDone, handleOtaUpload);
   server.addHandler(new RedirectToUi());
+  server.collectHeaders(kOtaHeaders, 1);
   server.begin();
   LOGI("WEB", "Wi-Fi AP '%s' at %s", g_cfg.wifiSsid, WiFi.softAPIP().toString().c_str());
 }
