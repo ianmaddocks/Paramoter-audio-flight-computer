@@ -29,6 +29,7 @@ struct Field {
 };
 
 #define B(k, g, l) {#k, g, l, FT::Bool, "", &g_cfg.k, 0, 1, 0, nullptr, false}
+#define BR(k, g, l) {#k, g, l, FT::Bool, "", &g_cfg.k, 0, 1, 0, nullptr, true}
 #define I(k, g, l, u, mn, mx) {#k, g, l, FT::Int, u, &g_cfg.k, mn, mx, 0, nullptr, false}
 #define IR(k, g, l, u, mn, mx) {#k, g, l, FT::Int, u, &g_cfg.k, mn, mx, 0, nullptr, true}
 #define FL(k, g, l, u, mn, mx) {#k, g, l, FT::Float, u, &g_cfg.k, mn, mx, 0, nullptr, false}
@@ -65,13 +66,16 @@ const Field kFields[] = {
     FL(varioAccelNoise, "Vario", "Responsiveness (higher = faster, noisier)", "", 0.05f, 10.0f),
     I(varioSettleS, "Vario", "Settle time at power-on", "s", 0, 30),
 
-    B(boundaryEnabled, "Height calls", "Announce height boundaries"),
-    {"boundaries", "Height calls", "Boundaries", FT::List, "height", &g_cfg.boundaries, 0, 0,
+    // Each "Announce" switch sits above its list; the web page greys the list out while it is off
+    // (gate table in WebPage.h).
+    B(boundaryClimbing, "Height calls", "Announce when climbing"),
+    {"boundariesUp", "Height calls", "Boundaries when climbing", FT::List, "height", &g_cfg.boundariesUp, 0, 0,
+     sizeof(g_cfg.boundariesUp), nullptr, false},
+    B(boundaryDescending, "Height calls", "Announce when descending"),
+    {"boundaries", "Height calls", "Boundaries when descending", FT::List, "height", &g_cfg.boundaries, 0, 0,
      sizeof(g_cfg.boundaries), nullptr, false},
     FL(boundaryStepM, "Height calls", "Repeat every (above last boundary)", "height", 0.0f, 2000.0f),
     FL(boundaryHystM, "Height calls", "Hysteresis", "height", 0.0f, 50.0f),
-    B(boundaryClimbing, "Height calls", "Announce when climbing"),
-    B(boundaryDescending, "Height calls", "Announce when descending"),
     I(heightIntervalS, "Height calls", "Periodic height every (0 = off)", "s", 0, 3600),
     I(flightTimeIntervalMin, "Height calls", "Flight time every (0 = off)", "min", 0, 120),
 
@@ -80,7 +84,6 @@ const Field kFields[] = {
     FL(takeoffGainM, "Takeoff & landing", "Takeoff height gain", "height", 1.0f, 100.0f),
     FL(landingSpeedMs, "Takeoff & landing", "Landed below ground speed", "speed", 0.2f, 10.0f),
     I(landingTimeS, "Takeoff & landing", "Landed after", "s", 5, 300),
-    FL(landingMaxAglM, "Takeoff & landing", "Landed below height", "height", 1.0f, 300.0f),
 
     FL(glideRatio, "Glide", "Glide ratio (engine off)", ":1", 2.0f, 12.0f),
     FL(trimAirspeedMs, "Glide", "Trim airspeed (engine off)", "speed", 5.0f, 25.0f),
@@ -110,6 +113,7 @@ const Field kFields[] = {
     FL(windSpeedMs, "Wind", "Wind speed", "speed", 0.0f, 25.0f),
 
     IR(gpsRateHz, "GPS", "Update rate", "Hz", 1, 10),
+    BR(gpsLed, "GPS", "GPS module LED (time-pulse output)"),
     I(readyMinSats, "GPS", "Ready to fly: minimum satellites", "", 4, 20),
     FL(readyMaxHdop, "GPS", "Ready to fly: maximum HDOP", "", 0.5f, 10.0f),
 
@@ -122,7 +126,7 @@ const Field kFields[] = {
     SR(wifiPass, "Wi-Fi", "Password (8+ chars, blank = open)"),
     SR(serverSsid, "Wi-Fi", "Server network name (blank = off)"),
     SR(serverPass, "Wi-Fi", "Server network password"),
-    IR(serverConnectWindowMin, "Wi-Fi", "Server connection window after power-on (0 = off)", "min", 0, 60),
+    I(serverGiveUpS, "Wi-Fi", "Stop searching if server network not found after (0 = keep trying)", "s", 0, 600),
 
     FL(battDivider, "Battery", "Divider ratio", "", 1.0f, 10.0f),
     FL(battCal, "Battery", "Calibration factor", "", 0.8f, 1.2f),

@@ -127,9 +127,8 @@ FlightEvent Flight::update(uint32_t now, const Baro& baro, Gps& gps, NavState& n
 
   if (flying_ && ev == FlightEvent::None) {
     bool slow = n.fix ? n.speedMs < g_cfg.landingSpeedMs : fabsf(n.varioMs) < 0.3f;
-    bool low = n.aglM < g_cfg.landingMaxAglM;
     uint32_t needMs = (uint32_t)g_cfg.landingTimeS * 1000 * (n.fix ? 1 : 2);
-    if (slow && low) {
+    if (slow) {
       if (!stillSinceMs_) {
         stillSinceMs_ = now;
         LOGD("FLT", "landing candidate: gs %.1f m/s, agl %.1f m", n.speedMs, n.aglM);

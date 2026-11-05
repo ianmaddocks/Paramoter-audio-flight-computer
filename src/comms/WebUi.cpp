@@ -35,8 +35,7 @@ uint32_t restartAtMs = 0;
 // Server Wi-Fi runs alongside the vario AP only during its configured boot window.
 enum class ServerWifi : uint8_t { Off, Connecting, Connected };
 ServerWifi serverWifi = ServerWifi::Off;
-uint32_t serverWindowStartedMs = 0;
-int32_t serverWindowUsedMin = 0;
+uint32_t serverAttemptStartedMs = 0;  // start of the current search for the server network
 const char* serverWhyOff = "not set";
 char serverSsidUsed[33] = "";
 char serverPassUsed[65] = "";
@@ -51,9 +50,6 @@ void serverStop(const char* why) {
 
 void serverUpdate(uint32_t now) {
   if (serverWifi == ServerWifi::Off) return;
-  if (now - serverWindowStartedMs >= (uint32_t)serverWindowUsedMin * 60000UL) {
-    return serverStop("connection window ended");
-  }
   bool up = WiFi.status() == WL_CONNECTED;
   if (serverWifi == ServerWifi::Connecting && up) {
     serverWifi = ServerWifi::Connected;
@@ -61,7 +57,13 @@ void serverUpdate(uint32_t now) {
          WiFi.localIP().toString().c_str());
   } else if (serverWifi == ServerWifi::Connected && !up) {
     serverWifi = ServerWifi::Connecting;
-    LOGW("WEB", "Lost server Wi-Fi, retrying within connection window");
+    serverAttemptStartedMs = now;
+    LOGW("WEB", "Lost server Wi-Fi, retrying");
+  } else if (serverWifi == ServerWifi::Connecting && g_cfg.serverGiveUpS > 0 &&
+             now - serverAttemptStartedMs >= (uint32_t)g_cfg.serverGiveUpS * 1000UL) {
+    // The station radio scans and hops channels while it cannot find the network, which makes
+    // the vario's own Wi-Fi drop out. Without a server network, run the vario network alone.
+    return serverStop("not found, gave up (restart to retry)");
   }
 }
 
@@ -166,8 +168,7 @@ void handleStatus() {
     wifi["serverIp"] = WiFi.localIP().toString();
     wifi["rssi"] = WiFi.RSSI();
   }
-  if (strcmp(serverSsidUsed, g_cfg.serverSsid) != 0 || strcmp(serverPassUsed, g_cfg.serverPass) != 0 ||
-      serverWindowUsedMin != g_cfg.serverConnectWindowMin) {
+  if (strcmp(serverSsidUsed, g_cfg.serverSsid) != 0 || strcmp(serverPassUsed, g_cfg.serverPass) != 0) {
     wifi["restart"] = true;
   }
   doc["ble"] = app.ble.clients();
@@ -266,6 +267,24 @@ void handleDebugLog() {
   body += lines;
   server.sendHeader("Cache-Control", "no-store");
   server.send(200, "text/plain", body);
+}
+
+// Binary: u32 seq, f32 binHz, f32 toneHz (little endian), then mic::kSpectrumBins bytes
+// (dBFS = byte / 2.5 - 100). 204 when there is nothing newer than ?since=<seq>.
+void handleSpectrum() {
+  uint32_t since = server.hasArg("since") ? strtoul(server.arg("since").c_str(), nullptr, 10) : 0;
+  uint8_t buf[12 + mic::kSpectrumBins];
+  float binHz = 0, toneHz = 0;
+  uint32_t seq = mic::spectrum(buf + 12, &binHz, &toneHz);
+  server.sendHeader("Cache-Control", "no-store");
+  if (seq == 0 || seq == since) {
+    server.send(204);
+    return;
+  }
+  memcpy(buf, &seq, 4);
+  memcpy(buf + 4, &binHz, 4);
+  memcpy(buf + 8, &toneHz, 4);
+  server.send_P(200, "application/octet-stream", (const char*)buf, sizeof(buf));
 }
 
 // LittleFS.exists() logs an error for a missing path, so check with stat() instead.
@@ -419,12 +438,11 @@ class RedirectToUi : public RequestHandler {
 }  // namespace
 
 void begin() {
-  serverWindowStartedMs = millis();
-  serverWindowUsedMin = g_cfg.serverConnectWindowMin;
+  serverAttemptStartedMs = millis();
   strlcpy(serverSsidUsed, g_cfg.serverSsid, sizeof(serverSsidUsed));
   strlcpy(serverPassUsed, g_cfg.serverPass, sizeof(serverPassUsed));
-  bool joinServer = serverSsidUsed[0] != 0 && serverWindowUsedMin > 0;
-  serverWhyOff = serverWindowUsedMin <= 0 ? "connection window disabled" : "not set";
+  bool joinServer = serverSsidUsed[0] != 0;
+  serverWhyOff = "not set";
   WiFi.setHostname("paravario");
   WiFi.mode(joinServer ? WIFI_AP_STA : WIFI_AP);
   const char* pass = strlen(g_cfg.wifiPass) >= 8 ? g_cfg.wifiPass : nullptr;
@@ -433,8 +451,8 @@ void begin() {
   if (joinServer) {
     WiFi.begin(g_cfg.serverSsid, g_cfg.serverPass);
     serverWifi = ServerWifi::Connecting;
-    LOGI("WEB", "Joining server network '%s' for up to %ld min", g_cfg.serverSsid,
-         (long)serverWindowUsedMin);
+    LOGI("WEB", "Joining server network '%s' (giving up after %ld s)", g_cfg.serverSsid,
+         (long)g_cfg.serverGiveUpS);
   }
   if (MDNS.begin("paravario")) MDNS.addService("http", "tcp", 80);
 
@@ -446,6 +464,7 @@ void begin() {
   server.on("/api/action", HTTP_POST, handleAction);
   server.on("/api/logs", HTTP_GET, handleLogs);
   server.on("/api/debuglog", HTTP_GET, handleDebugLog);
+  server.on("/api/spectrum", HTTP_GET, handleSpectrum);
   server.on("/api/log", HTTP_GET, handleLogDownload);
   server.on("/api/log", HTTP_DELETE, handleLogDelete);
   server.on("/api/ota", HTTP_POST, handleOtaDone, handleOtaUpload);

@@ -6,67 +6,68 @@
 #include "Settings.h"
 #include "audio/Speech.h"
 
-void Announcer::parseIfChanged() {
-  if (strcmp(parsedFrom_, g_cfg.boundaries) == 0) return;
-  strlcpy(parsedFrom_, g_cfg.boundaries, sizeof(parsedFrom_));
-  count_ = 0;
-  const char* p = g_cfg.boundaries;
-  while (*p && count_ < kMaxBoundaries) {
+void Announcer::Boundaries::parseIfChanged(const char* src) {
+  if (strcmp(parsedFrom, src) == 0) return;
+  strlcpy(parsedFrom, src, sizeof(parsedFrom));
+  count = 0;
+  const char* p = src;
+  while (*p && count < kMaxBoundaries) {
     char* end;
     float f = strtof(p, &end);
     if (end == p) {
       ++p;
       continue;
     }
-    list_[count_++] = f;
+    list[count++] = f;
     p = end;
   }
 }
 
-// i-th boundary in ascending order; above the list, repeats every boundaryStepM.
-float Announcer::boundary(int i) const {
-  if (i < count_) return list_[i];
+float Announcer::Boundaries::at(int i) const {
+  if (i < count) return list[i];
   if (g_cfg.boundaryStepM <= 0) return INFINITY;
-  float last = count_ ? list_[count_ - 1] : 0.0f;
-  return last + (i - count_ + 1) * g_cfg.boundaryStepM;
+  float last = count ? list[count - 1] : 0.0f;
+  return last + (i - count + 1) * g_cfg.boundaryStepM;
 }
 
-int Announcer::bandFor(float h) const {
+int Announcer::Boundaries::bandFor(float h) const {
   int b = 0;
-  while (b < 500 && boundary(b) <= h) ++b;
+  while (b < 500 && at(b) <= h) ++b;
   return b;
 }
 
 void Announcer::onTakeoff(const NavState& nav) {
-  parseIfChanged();
-  band_ = bandFor(nav.aglM);
+  up_.parseIfChanged(g_cfg.boundariesUp);
+  down_.parseIfChanged(g_cfg.boundaries);
+  up_.band = up_.bandFor(nav.aglM);
+  down_.band = down_.bandFor(nav.aglM);
   lastHeightMs_ = nav.ms;
   nextFlightTimeS_ = g_cfg.flightTimeIntervalMin * 60;
 }
 
 void Announcer::update(const NavState& nav, bool guidanceActive) {
   if (!nav.flying) return;
-  parseIfChanged();
+  up_.parseIfChanged(g_cfg.boundariesUp);
+  down_.parseIfChanged(g_cfg.boundaries);
   const float h = nav.aglM;
   const float hyst = g_cfg.boundaryHystM;
 
-  // A band changes only once the boundary is passed by the hysteresis margin.
+  // Each list tracks its own band; a band changes only once a boundary is passed by the
+  // hysteresis margin. The climbing list speaks on the way up and moves back silently on the
+  // way down (so it can speak again on the next climb); the descending list is the mirror image.
+  float crossedUp = NAN, crossedDown = NAN;
+  while (up_.at(up_.band) + hyst <= h) crossedUp = up_.at(up_.band++);
+  while (up_.band > 0 && h <= up_.at(up_.band - 1) - hyst) --up_.band;
+  while (down_.at(down_.band) + hyst <= h) ++down_.band;
+  while (down_.band > 0 && h <= down_.at(down_.band - 1) - hyst) crossedDown = down_.at(--down_.band);
+
+  if (!isnan(crossedUp)) LOGD("ANN", "climbed through boundary %.1f m (agl %.1f m, band %d)", crossedUp, h, up_.band);
+  if (!isnan(crossedDown)) LOGD("ANN", "descended through boundary %.1f m (agl %.1f m, band %d)", crossedDown, h, down_.band);
+
   float crossed = NAN;
-  bool climbing = false;
-  while (boundary(band_) + hyst <= h) {
-    crossed = boundary(band_++);
-    climbing = true;
-  }
-  while (band_ > 0 && h <= boundary(band_ - 1) - hyst) {
-    crossed = boundary(--band_);
-    climbing = false;
-  }
+  if (!isnan(crossedUp) && g_cfg.boundaryClimbing) crossed = crossedUp;
+  else if (!isnan(crossedDown) && g_cfg.boundaryDescending) crossed = crossedDown;
   if (!isnan(crossed)) {
-    LOGD("ANN", "%s boundary %.1f m (agl %.1f m, band %d)", climbing ? "climbed through" : "descended through",
-         crossed, h, band_);
-  }
-  if (!isnan(crossed) && g_cfg.boundaryEnabled &&
-      (climbing ? g_cfg.boundaryClimbing : g_cfg.boundaryDescending)) {
     audio::Utterance u(audio::Priority::Normal);
     speech::addHeight(u, crossed);
     audio::say(u);

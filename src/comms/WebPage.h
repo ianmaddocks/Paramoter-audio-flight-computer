@@ -10,15 +10,13 @@ static const char kIndexHtml[] PROGMEM = R"HTML(<!doctype html>
 @media(prefers-color-scheme:dark){:root{--bg:#0e1013;--card:#191c21;--fg:#e9ebef;--mut:#9aa1ab;--acc:#5aa7ff;--bad:#ff6b6b;--ok:#4cc38a;--warn:#f0b44c;--bd:#2a2f37}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:0 12px 96px}
-header{display:flex;align-items:center;justify-content:space-between;padding:14px 2px 10px}
+footer{text-align:center;color:var(--mut);font-size:12px;padding:20px 0 4px}
 h1{font-size:20px;margin:0}
 h2{font-size:15px;margin:0 0 10px}
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--bd);margin:0 -12px 10px;padding:0 12px}
 .tabs button{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;color:var(--mut);padding:10px 12px}
 .tabs button[aria-selected=true]{border-bottom-color:var(--acc);color:var(--acc)}
 div.page[hidden]{display:none}
-#conn{font-size:13px;color:var(--mut)}
-#conn.ok{color:var(--ok)}#conn.bad{color:var(--bad)}
 .tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .tile{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px 12px;min-width:0}
 .tile .k{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
@@ -37,12 +35,12 @@ button.dng{color:var(--bad)}
 button.on{outline:2px solid var(--acc)}
 .row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid var(--bd)}
 .row:first-of-type{border-top:0}
-.row span{flex:1;min-width:0}
+.row span{flex:1 1 40%;min-width:0}
 .row small{color:var(--mut);margin-left:4px}
 .row input[type=number],.row input[type=text],.row input[type=password],.row select{width:9.5em;max-width:50vw;font:inherit;padding:7px 8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--fg)}
 .row input[type=checkbox]{width:22px;height:22px}
-.row b{font-weight:600;text-align:right;min-width:0;overflow-wrap:anywhere}
-.mode-emergency{color:var(--bad)}.mode-approach{color:var(--warn)}
+.row input:disabled{opacity:.45}
+.row b{font-weight:600;text-align:right;flex:0 1 auto;max-width:60%;min-width:0;overflow-wrap:anywhere}
 .log{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--bd);gap:8px}
 .log a{color:var(--acc);word-break:break-all}
 .mut{color:var(--mut);font-size:13px}
@@ -50,6 +48,7 @@ button.on{outline:2px solid var(--acc)}
 #toast.show{opacity:.92}
 .ready{display:flex;justify-content:space-between;align-items:center;gap:10px;border-radius:12px;padding:12px 14px;margin-bottom:8px;font-size:16px;color:#fff}
 .ready.ok{background:var(--ok)}.ready.wait{background:var(--warn)}.ready.hide{display:none}
+.ready.appr{background:var(--acc)}.ready.emerg{background:var(--bad)}
 .ready span{font-size:14px;opacity:.95;text-align:right}
 .dbgbar{display:flex;gap:8px;margin:0 12px 8px}.dbgbar button{flex:1;padding:8px}
 #dbglog{margin:0 12px 6px;max-height:55vh;overflow:auto;font:11px/1.35 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-all;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:8px}
@@ -58,27 +57,29 @@ button.on{outline:2px solid var(--acc)}
 #fwbar{height:100%;width:0;background:var(--acc);transition:width .2s}
 #fwfile,#fwpass{width:100%;font:inherit;margin-bottom:8px}#fwgo{width:100%}
 #fwpass{padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--fg)}
+#specCv{width:100%;height:280px;display:block}
+.specbar{display:flex;gap:8px;align-items:center;margin-top:8px}
+.specbar select{padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
 .badge{font-size:11px;background:var(--warn);color:#000;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle}
 </style></head><body>
-<header><div><h1>ParaVario</h1><small class="mut" id="hver"></small></div><span id="conn">connecting…</span></header>
 <nav class="tabs" role="tablist" aria-label="Main views">
 <button type="button" role="tab" aria-selected="true" data-tab="flight">Flight</button>
 <button type="button" role="tab" aria-selected="false" data-tab="settings">Settings</button>
+<button type="button" role="tab" aria-selected="false" data-tab="spectrum">Spectrum</button>
 <button type="button" role="tab" aria-selected="false" data-tab="system">Logs &amp; system</button>
 </nav>
 <div id="flightPage" class="page" role="tabpanel">
 <div id="ready" class="ready wait"><b id="ready-t">Checking…</b><span id="ready-s"></span></div>
 <section class="tiles">
-<div class="tile big"><div class="k">Height AGL</div><div class="v" id="t-agl">–</div><div class="s" id="t-msl"></div></div>
+<div class="tile"><div class="k">Height AGL</div><div class="v" id="t-agl">–</div><div class="s" id="t-msl"></div></div>
 <div class="tile"><div class="k">Vario</div><div class="v" id="t-vario">–</div><div class="s" id="t-mute"></div></div>
 <div class="tile"><div class="k">Ground speed</div><div class="v" id="t-speed">–</div><div class="s" id="t-track"></div></div>
-<div class="tile"><div class="k">Flight</div><div class="v" id="t-flight">–</div><div class="s" id="t-ftime"></div></div>
-<div class="tile"><div class="k">Mode</div><div class="v" id="t-mode">–</div><div class="s" id="t-modes"></div></div>
+<div class="tile"><div class="k">Flight time</div><div class="v" id="t-flight">–</div><div class="s" id="t-ftime"></div></div>
 <div class="tile"><div class="k">Landing zone</div><div class="v" id="t-lz">–</div><div class="s" id="t-lzs"></div></div>
 <div class="tile"><div class="k">Wind</div><div class="v" id="t-wind">–</div><div class="s" id="t-winds"></div></div>
 <div class="tile"><div class="k">GPS</div><div class="v" id="t-gps">–</div><div class="s" id="t-gpss"></div></div>
 <div class="tile"><div class="k">Battery</div><div class="v" id="t-batt">–</div><div class="s" id="t-batts"></div></div>
-<div class="tile"><div class="k">Engine</div><div class="v" id="t-rpm">–</div><div class="s" id="t-rpms"></div></div>
+<div class="tile"><div class="k">Engine RPM</div><div class="v" id="t-rpm">–</div><div class="s" id="t-rpms"></div></div>
 <div class="tile"><div class="k">Mic noise</div><div class="v" id="t-noise">–</div><div class="s" id="t-noises"></div></div>
 </section>
 <section class="card"><h2>Actions</h2><div class="btns">
@@ -93,6 +94,13 @@ button.on{outline:2px solid var(--acc)}
 <div id="settingsPage" class="page" role="tabpanel" hidden>
 <section id="settings"></section>
 <p id="saveState" class="mut" role="status" aria-live="polite"></p>
+</div>
+<div id="spectrumPage" class="page" role="tabpanel" hidden>
+<section class="card"><h2>Microphone spectrum</h2>
+<canvas id="specCv"></canvas>
+<div class="specbar"><button id="specpause">Pause</button>
+<label class="mut">Floor <select id="specfloor"><option value="100">-100 dBFS</option><option value="80">-80 dBFS</option><option value="60">-60 dBFS</option></select></label></div>
+<p class="mut" id="specinfo">Waiting for data…</p></section>
 </div>
 <div id="systemPage" class="page" role="tabpanel" hidden>
 <section class="card"><h2>Flight logs</h2><div id="logs" class="mut">Loading…</div></section>
@@ -111,6 +119,7 @@ button.on{outline:2px solid var(--acc)}
 <button data-a="defaults" class="dng">Factory defaults</button>
 </div><p class="mut" id="sys"></p></section>
 </div>
+<footer id="hver"></footer>
 <div id="toast"></div>
 <script>
 const $=s=>document.querySelector(s);
@@ -139,24 +148,31 @@ function txt(id,v){const e=document.getElementById(id);if(e.textContent!==v)e.te
 async function poll(){
   try{
     const r=await fetch('/api/status',{cache:'no-store'});const s=await r.json();
-    $('#conn').textContent='live';$('#conn').className='ok';
     txt('t-agl',fH(s.agl));txt('t-msl',fH(s.altMsl)+' MSL');
     txt('t-vario',(s.vario>=0?'+':'')+s.vario.toFixed(1)+' m/s');txt('t-mute',s.muted?'muted':'');
     txt('t-speed',s.gps.fix?fS(s.gps.speed):'–');txt('t-track',s.gps.fix?'track '+Math.round(s.gps.track)+'°':'');
-    txt('t-flight',s.flying?'Flying':'Ground');txt('t-ftime',s.flightTime?fT(s.flightTime)+(s.logging?' · logging':''):'');
-    const m=$('#t-mode');m.className='v mode-'+s.mode;
-    txt('t-mode',s.mode=='none'?'Normal':s.mode=='approach'?'Approach':'Emergency');
-    txt('t-modes',s.mode=='approach'?s.approach:s.mode=='emergency'&&s.range!=null?'range '+fD(s.range):'');
+    txt('t-flight',s.flying?'Flying':'Grounded');txt('t-ftime',s.flightTime?fT(s.flightTime)+(s.logging?' · logging':''):'');
     $('#b-approach').classList.toggle('on',s.mode=='approach');$('#b-emergency').classList.toggle('on',s.mode=='emergency');
     $('#b-mute').textContent=s.muted?'Unmute vario':'Mute vario';
     txt('t-lz',!s.lz.valid?'not set':s.lz.dist!=null?fD(s.lz.dist):'set');
     txt('t-lzs',s.lz.valid?(s.lz.brg!=null?Math.round(s.lz.brg)+'° · ':'')+fH(s.lz.elev)+' MSL':'');
     txt('t-wind',s.wind.valid?Math.round(s.wind.from)+'°':'unknown');txt('t-winds',s.wind.valid?fS(s.wind.speed)+' · '+s.wind.src:'');
     txt('t-gps',!s.gps.link?'no data':s.gps.sats+' sats');
-    txt('t-gpss',(s.gps.fix?'Fix':'Searching')+' · HDOP '+(s.gps.hdop<99?s.gps.hdop.toFixed(1):'–'));
-    const rd=$('#ready');rd.className='ready '+(s.flying?'hide':s.ready?'ok':'wait');
-    txt('ready-t',s.ready?'Ready to fly':s.notReady);
-    txt('ready-s',s.gps.sats+' / '+s.minSats+' satellites');
+    const h=s.gps.hdop,gq=!s.gps.fix||!(h<=20)?'none':h<=2?'strong':h<=5?'good':h<=10?'ok':'poor';
+    txt('t-gpss',(s.gps.fix?'Fix':'Searching')+' · signal '+gq);
+    // The banner doubles as the guidance-mode indicator: Emergency / Approach take it over
+    // (even in flight, when the ready banner is normally hidden).
+    const rd=$('#ready');
+    if(s.mode=='emergency'){
+      rd.className='ready emerg';txt('ready-t','Emergency');
+      txt('ready-s',s.range!=null?'range '+fD(s.range):'');
+    }else if(s.mode=='approach'){
+      rd.className='ready appr';txt('ready-t','Approach');txt('ready-s',s.approach);
+    }else{
+      rd.className='ready '+(s.flying?'hide':s.ready?'ok':'wait');
+      txt('ready-t',s.ready?'Ready to fly':s.notReady);
+      txt('ready-s',s.gps.sats+' / '+s.minSats+' satellites');
+    }
     txt('t-batt',s.batt.v<2.5?'USB':s.batt.pct+'%');txt('t-batts',s.batt.v.toFixed(2)+' V');
     if(s.mic){
       txt('t-rpm',!s.mic.ok?'no mic':s.mic.rpm>0?Math.round(s.mic.rpm)+' rpm':'off');
@@ -168,7 +184,7 @@ async function poll(){
     txt('hver','v'+(s.version||'unknown')+(s.debug?' debug':''));
     txt('sys','Uptime '+fT(s.uptime)+' · heap '+Math.round(s.heap/1024)+' kB · BLE clients '+s.ble+' · baro '+(s.baro.ok?(s.baro.pressure/100).toFixed(1)+' hPa':'missing'));
     wifiInfo=s.wifi;showWifi();
-  }catch(e){$('#conn').textContent='offline';$('#conn').className='bad'}
+  }catch(e){}
 }
 
 function setVal(f,v){
@@ -176,18 +192,22 @@ function setVal(f,v){
   cfg[f.k]=v;saveRevision++;txt('saveState','Unsaved changes');
   clearTimeout(saveTimer);saveTimer=setTimeout(saveSettings,650);
 }
+// Text boxes that are greyed out while their "Announce" checkbox is off.
+const GATE={boundariesUp:'boundaryClimbing',boundaries:'boundaryDescending'};
 function field(f){
   const row=document.createElement('label');row.className='row';
   const c=conv(f.u);const sp=document.createElement('span');sp.textContent=f.l;
   if(c.s&&f.t!=='bool'&&f.t!=='enum'&&f.t!=='str'){const sm=document.createElement('small');sm.textContent='('+c.s+')';sp.appendChild(sm)}
   if(f.r){const sm=document.createElement('small');sm.textContent='· restart';sp.appendChild(sm)}
   let i;
-  if(f.t==='bool'){i=document.createElement('input');i.type='checkbox';i.checked=!!cfg[f.k];i.onchange=()=>setVal(f,i.checked)}
+  if(f.t==='bool'){i=document.createElement('input');i.type='checkbox';i.checked=!!cfg[f.k];
+    i.onchange=()=>{setVal(f,i.checked);document.querySelectorAll('input[data-gate="'+f.k+'"]').forEach(x=>x.disabled=!i.checked)}}
   else if(f.t==='enum'){i=document.createElement('select');f.o.split('|').forEach((o,n)=>i.add(new Option(o,n)));i.value=cfg[f.k];
     i.onchange=()=>{setVal(f,+i.value);if(/Unit$/.test(f.k))render()}}
   else if(f.t==='str'){i=document.createElement('input');i.type=/Pass$/.test(f.k)?'password':'text';i.maxLength=f.n;i.value=cfg[f.k];i.onchange=()=>setVal(f,i.value)}
   else if(f.t==='list'){i=document.createElement('input');i.type='text';i.inputMode='decimal';
     i.value=String(cfg[f.k]).split(',').filter(x=>x).map(v=>Math.round(v*c.f)).join(', ');
+    if(GATE[f.k]){i.dataset.gate=GATE[f.k];i.disabled=!cfg[GATE[f.k]]}
     i.onchange=()=>setVal(f,i.value.split(/[ ,]+/).map(parseFloat).filter(v=>!isNaN(v)&&v>0).map(v=>(v/c.f).toFixed(2)).join(','))}
   else{i=document.createElement('input');i.type='number';i.step='any';i.inputMode='decimal';
     const d=f.t==='double'?7:f.t==='int'?0:c.d;i.value=rnd(cfg[f.k]*c.f,d);
@@ -244,7 +264,51 @@ function selectTab(name){
   document.querySelectorAll('button[data-tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===name));
   document.querySelectorAll('.page').forEach(p=>p.hidden=p.id!==name+'Page');
   if(name==='system')loadLogs();
+  const was=specOn;specOn=name==='spectrum';if(specOn&&!was)specLoop();
 }
+let specSeq=0,specOn=false,specPaused=false,specBusy=false,specData=null,specLast=0,specFps=0;
+async function specLoop(){
+  if(!specOn)return;
+  if(!specPaused&&!specBusy&&!document.hidden){
+    specBusy=true;
+    try{
+      const r=await fetch('/api/spectrum?since='+specSeq,{cache:'no-store'});
+      if(r.status===200){
+        const b=await r.arrayBuffer(),dv=new DataView(b),now=performance.now();
+        specSeq=dv.getUint32(0,true);
+        specData={hz:dv.getFloat32(4,true),tone:dv.getFloat32(8,true),db:new Uint8Array(b,12)};
+        if(specLast)specFps=specFps?specFps*.7+300/(now-specLast):1000/(now-specLast);
+        specLast=now;drawSpec();
+      }
+    }catch(e){}finally{specBusy=false}
+  }
+  setTimeout(specLoop,40);
+}
+function drawSpec(){
+  const d=specData;if(!d)return;
+  const c=$('#specCv'),dpr=window.devicePixelRatio||1,W=c.clientWidth,H=c.clientHeight;
+  if(c.width!==Math.round(W*dpr)||c.height!==Math.round(H*dpr)){c.width=Math.round(W*dpr);c.height=Math.round(H*dpr)}
+  const g=c.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+  const cs=getComputedStyle(document.body),acc=cs.getPropertyValue('--acc'),mut=cs.getPropertyValue('--mut'),bd=cs.getPropertyValue('--bd'),warn=cs.getPropertyValue('--warn');
+  const L=40,R=12,T=6,B=20,pw=W-L-R,ph=H-T-B,n=d.db.length,fmax=d.hz*n,floor=+$('#specfloor').value;
+  const X=f=>L+f/fmax*pw,Y=db=>T+Math.min(1,Math.max(0,-db/floor))*ph;
+  g.font='11px system-ui,sans-serif';g.lineWidth=1;g.fillStyle=mut;g.strokeStyle=bd;
+  g.textAlign='right';g.textBaseline='middle';
+  for(let db=0;db>=-floor;db-=20){const y=Math.round(Y(db))+.5;g.beginPath();g.moveTo(L,y);g.lineTo(W-R,y);g.stroke();g.fillText(db,L-4,y)}
+  g.textAlign='center';g.textBaseline='top';
+  for(let f=0;f<=fmax;f+=100){const x=Math.round(X(f))+.5;g.beginPath();g.moveTo(x,T);g.lineTo(x,T+ph);g.stroke();g.fillText(f>=1000?f/1000+'k':f,x,T+ph+4)}
+  g.beginPath();g.moveTo(X(0),T+ph);
+  let pk=1;
+  for(let k=0;k<n;k++){const db=d.db[k]/2.5-100;g.lineTo(X((k+.5)*d.hz),Y(db));if(k>0&&d.db[k]>d.db[pk])pk=k}
+  g.lineTo(X(fmax),T+ph);g.closePath();g.globalAlpha=.25;g.fillStyle=acc;g.fill();g.globalAlpha=1;
+  g.strokeStyle=acc;g.lineWidth=1.5;g.beginPath();
+  for(let k=0;k<n;k++){const x=X((k+.5)*d.hz),y=Y(d.db[k]/2.5-100);k?g.lineTo(x,y):g.moveTo(x,y)}
+  g.stroke();
+  if(d.tone>0){g.strokeStyle=warn;g.setLineDash([4,4]);g.beginPath();g.moveTo(X(d.tone),T);g.lineTo(X(d.tone),T+ph);g.stroke();g.setLineDash([])}
+  txt('specinfo','Peak '+rnd((pk+.5)*d.hz,0)+' Hz at '+rnd(d.db[pk]/2.5-100,0)+' dBFS · bin '+rnd(d.hz,1)+' Hz · '+rnd(specFps,1)+' updates/s'+(d.tone>0?' · speaker tone '+rnd(d.tone,0)+' Hz (dashed)':''));
+}
+$('#specpause').onclick=()=>{specPaused=!specPaused;$('#specpause').textContent=specPaused?'Resume':'Pause'};
+$('#specfloor').onchange=drawSpec;
 document.querySelectorAll('button[data-tab]').forEach(b=>b.onclick=()=>selectTab(b.dataset.tab));
 
 async function act(a){
@@ -321,7 +385,7 @@ async function boot(){
   await loadSettings().catch(()=>{});
   poll();setInterval(poll,1000);setInterval(pollDbg,1000);
   try{const s=await fetch('/api/status').then(r=>r.json());
-    if(s.debug){selectTab('system');$('#dbg').open=true;$('h1').insertAdjacentHTML('beforeend','<span class="badge">DEBUG</span>');pollDbg()}}catch(e){}
+    if(s.debug){selectTab('system');$('#dbg').open=true;pollDbg()}}catch(e){}
 }
 boot();
 </script></body></html>)HTML";

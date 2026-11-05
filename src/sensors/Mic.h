@@ -25,6 +25,14 @@ float rpm();
 float rpmRaw();
 float rpmConfidence();
 
+// Latest FFT spectrum for the web UI's Spectrum tab. 512 bins, 0..Nyquist, each a byte:
+// dBFS = byte / 2.5 - 100 (0 = below -100 dBFS, 250 = a full-scale sine). Computed before the
+// speaker-tone notch, so it shows everything the mic hears. The spectrum is only computed while
+// something keeps calling this (it stops ~3 s after the last call), so flight use pays nothing.
+// Returns a sequence number that increments with every new spectrum (0 = none yet).
+constexpr int kSpectrumBins = 512;
+uint32_t spectrum(uint8_t* out, float* binHz, float* toneHz);
+
 // Battery divider input in mV (before the divider ratio). -1 if the DMA sampler is not running.
 int32_t batteryMilliVolts();
 

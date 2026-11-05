@@ -87,8 +87,8 @@ The phone has no internet while it's on this network, so turn mobile data on if 
 
 | Section | Contents |
 |---|---|
-| Ready banner | Green **Ready to fly**, or amber with what's missing and the satellite count. Hidden while flying. |
-| Tiles | Height above the LZ (and above sea level), vario, ground speed and track, flight state and time, mode, LZ distance and bearing, wind, GPS satellites and HDOP, battery. Refreshed every second. |
+| Banner | Green **Ready to fly**, or amber with what's missing and the satellite count. Hidden while flying, except during guidance: blue **Approach** with the current circuit leg, or red **Emergency** with the glide range. |
+| Tiles | Height above the LZ (and above sea level), vario, ground speed and track, flight state and time, LZ distance and bearing, wind, GPS satellites and signal quality (strong, good, ok, poor, none), battery. Refreshed every second. |
 | Actions | Landing approach, Emergency glide, Mute vario (same as the button), **Test voice**, **Set LZ here**, **LZ = takeoff**. |
 | Settings | Collapsible groups (see below). Change values, then tap **Save settings** at the bottom. Settings marked *restart* apply after a restart, which the page offers. |
 | Flight logs | IGC files for each flight. Tap a name to download or Delete to remove. The oldest logs are deleted automatically when space runs low. |
@@ -132,8 +132,8 @@ The defaults below are shown in the default units (feet, metres, km/h).
 ### Height calls
 | Setting | Default | Notes |
 |---|---|---|
-| Announce height boundaries | On | |
-| Boundaries | 50, 100, 150, 250, 350, 500, 750, 1000 ft | Comma-separated, in your height unit. |
+| Boundaries when climbing | 50, 100, 250, 500, 750, 1000 ft | Comma-separated, in your height unit. Spoken as you climb through each one. |
+| Boundaries when descending | 50, 100, 150, 250, 350, 500, 750, 1000 ft | Comma-separated, in your height unit. Spoken as you descend through each one. |
 | Repeat every (above last boundary) | 500 ft | 0 = no calls above the last boundary. |
 | Hysteresis | 10 ft | Stops repeat calls while hovering near a boundary. |
 | Announce when climbing / descending | On / On | |
@@ -147,8 +147,7 @@ The defaults below are shown in the default units (feet, metres, km/h).
 | Takeoff speed held for | 5 s | |
 | Takeoff height gain | 33 ft | Needed as well as the speed. |
 | Landed below ground speed | 5 km/h | |
-| Landed after | 30 s | |
-| Landed below height | 98 ft | |
+| Landed after | 30 s | Landing is declared once the ground speed has stayed below the limit for this long. |
 
 ### Glide
 | Setting | Default | Notes |

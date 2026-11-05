@@ -38,7 +38,9 @@ struct Settings {
   float varioAccelNoise = 1.0f;
   int32_t varioSettleS = 5;  // vario held at 0 after power-on until this long without movement
 
-  bool boundaryEnabled = true;
+  // Climbing: 50, 100, 250, 500, 750, 1000 ft.
+  char boundariesUp[128] = "15.24,30.48,76.2,152.4,228.6,304.8";
+  // Descending (key kept as "boundaries" so values saved before the split carry over).
   char boundaries[128] = "15.24,30.48,45.72,76.2,106.68,152.4,228.6,304.8";
   float boundaryStepM = 152.4f;
   float boundaryHystM = 3.0f;
@@ -52,7 +54,6 @@ struct Settings {
   float takeoffGainM = 10.0f;
   float landingSpeedMs = 5.0f / 3.6f;
   int32_t landingTimeS = 30;
-  float landingMaxAglM = 30.0f;
 
   float glideRatio = 5.0f;
   float trimAirspeedMs = 38.0f / 3.6f;
@@ -82,6 +83,8 @@ struct Settings {
   float windSpeedMs = 0.0f;
 
   int32_t gpsRateHz = 5;
+  // u-blox time-pulse output, which drives the positioning LED on most M10 breakouts.
+  bool gpsLed = false;
   int32_t readyMinSats = 6;
   float readyMaxHdop = 2.0f;
 
@@ -94,7 +97,9 @@ struct Settings {
   char wifiPass[65] = "";
   char serverSsid[33] = "";
   char serverPass[65] = "";
-  int32_t serverConnectWindowMin = 5;
+  // While the vario searches for the server network its own network is unreliable (one radio,
+  // channel hopping), so give up after this long without a connection. 0 = keep trying.
+  int32_t serverGiveUpS = 30;
 
   float battDivider = 2.0f;
   float battCal = 1.0f;

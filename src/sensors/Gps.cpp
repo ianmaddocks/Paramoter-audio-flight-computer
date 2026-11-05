@@ -26,6 +26,7 @@ constexpr uint32_t CFG_MSGOUT_GSA_UART1 = 0x209100c0;
 constexpr uint32_t CFG_MSGOUT_GSV_UART1 = 0x209100c5;
 constexpr uint32_t CFG_MSGOUT_GLL_UART1 = 0x209100ca;
 constexpr uint32_t CFG_MSGOUT_VTG_UART1 = 0x209100b1;
+constexpr uint32_t CFG_TP_TP1_ENA = 0x10050007;  // time-pulse output (drives the LED on most breakouts)
 constexpr uint8_t DYNMODEL_AIRBORNE_1G = 6;
 
 uint8_t keySize(uint32_t key) {
@@ -92,6 +93,10 @@ void Gps::sendConfig() {
           {CFG_MSGOUT_GSV_UART1, 0},
           {CFG_MSGOUT_GLL_UART1, 0},
           {CFG_MSGOUT_VTG_UART1, 0}});
+  delay(20);
+  // Its own message: the receiver rejects a whole VALSET if it dislikes one key, and this one
+  // is cosmetic, so it must not take the settings above down with it.
+  valset({{CFG_TP_TP1_ENA, g_cfg.gpsLed ? 1u : 0u}});
 }
 
 void Gps::update(uint32_t nowMs) {
