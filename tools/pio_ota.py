@@ -1,9 +1,11 @@
 # PlatformIO extra script (all envs):
-#  - defines PV_VERSION from "git describe" so the web page shows which build is installed
+#  - generates BuildVersion.h: PV_VERSION = build time (yyyymmdd-hhmmss, local), PV_GIT = git
+#    describe, so the web page and boot log show which build is installed
 #  - for envs with "upload_protocol = custom", uploads firmware.bin / littlefs.bin over Wi-Fi
 #    to the vario's /api/ota endpoint (the same one the phone page uses)
 Import("env", "projenv")
 
+import datetime
 import hashlib
 import os
 import socket
@@ -22,7 +24,20 @@ def git_version():
         return "unknown"
 
 
-projenv.Append(CPPDEFINES=[("PV_VERSION", env.StringifyMacro(git_version()))])
+# A header (not a -D flag) so only the files that include it recompile when the stamp changes.
+def write_version_header():
+    gen_dir = os.path.join(env.subst("$BUILD_DIR"), "generated")
+    os.makedirs(gen_dir, exist_ok=True)
+    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    text = ('#pragma once\n#define PV_VERSION "%s"\n#define PV_GIT "%s"\n'
+            % (stamp, git_version()))
+    with open(os.path.join(gen_dir, "BuildVersion.h"), "w", newline="\n") as f:
+        f.write(text)
+    projenv.Append(CPPPATH=[gen_dir])
+    print("Firmware version %s" % stamp)
+
+
+write_version_header()
 
 # Single source for the update password: custom_ota_password in platformio.ini.
 OTA_PASSWORD = env.GetProjectOption("custom_ota_password", "")

@@ -303,6 +303,13 @@ void setTone(float hz, uint16_t onMs, uint16_t offMs) {
   portEXIT_CRITICAL(&gToneMux);
 }
 
+float toneHz() {
+  portENTER_CRITICAL(&gToneMux);
+  float hz = gTone.hz;
+  portEXIT_CRITICAL(&gToneMux);
+  return hz;
+}
+
 void setVolumes(uint8_t speechPct, uint8_t tonePct) {
   gSpeechVol = speechPct;
   gToneVol = tonePct;

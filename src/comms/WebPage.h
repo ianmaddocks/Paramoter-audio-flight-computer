@@ -60,7 +60,7 @@ button.on{outline:2px solid var(--acc)}
 #fwpass{padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--fg)}
 .badge{font-size:11px;background:var(--warn);color:#000;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle}
 </style></head><body>
-<header><h1>ParaVario</h1><span id="conn">connecting…</span></header>
+<header><div><h1>ParaVario</h1><small class="mut" id="hver"></small></div><span id="conn">connecting…</span></header>
 <nav class="tabs" role="tablist" aria-label="Main views">
 <button type="button" role="tab" aria-selected="true" data-tab="flight">Flight</button>
 <button type="button" role="tab" aria-selected="false" data-tab="settings">Settings</button>
@@ -78,6 +78,8 @@ button.on{outline:2px solid var(--acc)}
 <div class="tile"><div class="k">Wind</div><div class="v" id="t-wind">–</div><div class="s" id="t-winds"></div></div>
 <div class="tile"><div class="k">GPS</div><div class="v" id="t-gps">–</div><div class="s" id="t-gpss"></div></div>
 <div class="tile"><div class="k">Battery</div><div class="v" id="t-batt">–</div><div class="s" id="t-batts"></div></div>
+<div class="tile"><div class="k">Engine</div><div class="v" id="t-rpm">–</div><div class="s" id="t-rpms"></div></div>
+<div class="tile"><div class="k">Mic noise</div><div class="v" id="t-noise">–</div><div class="s" id="t-noises"></div></div>
 </section>
 <section class="card"><h2>Actions</h2><div class="btns">
 <button data-a="approach" id="b-approach">Landing approach</button>
@@ -156,7 +158,14 @@ async function poll(){
     txt('ready-t',s.ready?'Ready to fly':s.notReady);
     txt('ready-s',s.gps.sats+' / '+s.minSats+' satellites');
     txt('t-batt',s.batt.v<2.5?'USB':s.batt.pct+'%');txt('t-batts',s.batt.v.toFixed(2)+' V');
-    txt('fwver','Installed: '+(s.version||'unknown')+(s.debug?' (debug build)':' (release build)'));
+    if(s.mic){
+      txt('t-rpm',!s.mic.ok?'no mic':s.mic.rpm>0?Math.round(s.mic.rpm)+' rpm':'off');
+      txt('t-rpms',s.mic.ok?'est '+Math.round(s.mic.raw)+' · conf '+s.mic.conf.toFixed(1):'');
+      txt('t-noise',s.mic.noise!=null?s.mic.noise.toFixed(0)+' dBFS':'–');
+      txt('t-noises',s.mic.ok?'vario vol '+s.mic.vol+'%':'');
+    }
+    txt('fwver','Installed: '+(s.version||'unknown')+(s.git?' · git '+s.git:'')+(s.debug?' (debug build)':' (release build)'));
+    txt('hver','v'+(s.version||'unknown')+(s.debug?' debug':''));
     txt('sys','Uptime '+fT(s.uptime)+' · heap '+Math.round(s.heap/1024)+' kB · BLE clients '+s.ble+' · baro '+(s.baro.ok?(s.baro.pressure/100).toFixed(1)+' hPa':'missing'));
     wifiInfo=s.wifi;showWifi();
   }catch(e){$('#conn').textContent='offline';$('#conn').className='bad'}

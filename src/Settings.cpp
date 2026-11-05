@@ -44,6 +44,15 @@ const Field kFields[] = {
 
     I(speechVolume, "Audio", "Speech volume", "%", 0, 100),
     I(varioVolume, "Audio", "Vario volume", "%", 0, 100),
+    B(autoVolume, "Audio", "Raise volume with background noise"),
+    FL(noiseQuietDb, "Audio", "Noise for set volume (see Mic tile)", "dBFS", -90.0f, 0.0f),
+    FL(noiseLoudDb, "Audio", "Noise for full volume", "dBFS", -90.0f, 0.0f),
+    I(noiseReleaseS, "Audio", "Volume fall time after noise drops", "s", 1, 60),
+
+    FL(rpmPulsesPerRev, "Engine RPM", "Sound pulses per revolution (2-stroke = 1, 4-stroke = 0.5)", "", 0.25f, 8.0f),
+    I(rpmMin, "Engine RPM", "Lowest RPM", "rpm", 300, 20000),
+    I(rpmMax, "Engine RPM", "Highest RPM", "rpm", 1000, 30000),
+    FL(rpmMinConfidence, "Engine RPM", "Minimum confidence (see Mic tile)", "", 1.0f, 20.0f),
 
     B(varioEnabled, "Vario", "Vario beeps enabled"),
     B(varioOnlyInFlight, "Vario", "Only when flying"),

@@ -6,9 +6,11 @@
 #include "Log.h"
 #include "Pins.h"
 #include "Settings.h"
+#include "Version.h"
 #include "audio/Audio.h"
 #include "audio/Speech.h"
 #include "comms/WebUi.h"
+#include "sensors/Mic.h"
 
 using audio::Priority;
 
@@ -203,13 +205,14 @@ void setup() {
   Serial.setTxBufferSize(2048);  // before begin(), which otherwise allocates 256 bytes
   Serial.begin(115200);
   Serial.setTxTimeoutMs(0);  // never block when no USB host is listening
-  LOGI("APP", "ParaVario starting (%s build), reset reason %d", dlog::kDebugBuild ? "debug" : "release",
-       (int)esp_reset_reason());
+  LOGI("APP", "ParaVario %s (%s, %s build), reset reason %d", PV_VERSION, PV_GIT,
+       dlog::kDebugBuild ? "debug" : "release", (int)esp_reset_reason());
   settings::load();
   if (!LittleFS.begin(true)) LOGE("APP", "LittleFS mount failed");
 
   audio::begin();
   audio::setVolumes(g_cfg.speechVolume, g_cfg.varioVolume);
+  mic::begin();  // before battery: the mic ADC DMA also samples the battery pin
 
   Wire.begin(pins::I2C_SDA, pins::I2C_SCL, 400000);
   app.baro.begin(Wire);
@@ -249,7 +252,7 @@ void loop() {
 
   if (now - lastToneMs >= kToneTickMs) {
     lastToneMs = now;
-    audio::setVolumes(g_cfg.speechVolume, g_cfg.varioVolume);
+    audio::setVolumes(mic::compensatedVolume(g_cfg.speechVolume), mic::compensatedVolume(g_cfg.varioVolume));
     updateVarioTone();
   }
 

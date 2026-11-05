@@ -12,13 +12,12 @@
 
 #include "App.h"
 #include "Settings.h"
+#include "Version.h"
 #include "audio/Speech.h"
 #include "comms/WebPage.h"
 #include "nav/Geo.h"
+#include "sensors/Mic.h"
 
-#ifndef PV_VERSION
-#define PV_VERSION "unknown"
-#endif
 
 // Set from custom_ota_password in platformio.ini by tools/pio_ota.py; empty rejects every upload.
 #ifndef OTA_PASSWORD
@@ -102,6 +101,7 @@ void handleStatus() {
   doc["heap"] = ESP.getFreeHeap();
   doc["debug"] = dlog::kDebugBuild;
   doc["version"] = PV_VERSION;
+  doc["git"] = PV_GIT;
   doc["flying"] = n.flying;
   doc["flightTime"] = n.flightTimeS;
   doc["agl"] = n.aglM;
@@ -128,6 +128,15 @@ void handleStatus() {
   JsonObject batt = doc["batt"].to<JsonObject>();
   batt["v"] = app.battery.volts();
   batt["pct"] = app.battery.percent();
+
+  JsonObject micj = doc["mic"].to<JsonObject>();
+  micj["ok"] = mic::running();
+  float nd = mic::noiseDb();
+  if (!isnan(nd)) micj["noise"] = nd;
+  micj["vol"] = mic::compensatedVolume(g_cfg.varioVolume);
+  micj["rpm"] = mic::rpm();
+  micj["raw"] = mic::rpmRaw();
+  micj["conf"] = mic::rpmConfidence();
 
   JsonObject wind = doc["wind"].to<JsonObject>();
   wind["valid"] = app.wind.valid();

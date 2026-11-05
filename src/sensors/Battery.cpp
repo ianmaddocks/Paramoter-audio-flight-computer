@@ -4,18 +4,29 @@
 
 #include "Pins.h"
 #include "Settings.h"
+#include "sensors/Mic.h"
 
+// mic::begin() must run first: while its ADC DMA is running it owns ADC1 and samples the
+// battery pin too; analogRead is only used if the DMA sampler failed to start.
 void Battery::begin() {
-  analogSetPinAttenuation(pins::BATT_ADC, ADC_11db);
+  if (!mic::running()) analogSetPinAttenuation(pins::BATT_ADC, ADC_11db);
   lastMs_ = 0;
 }
 
 void Battery::update(uint32_t nowMs) {
   if (lastMs_ && nowMs - lastMs_ < 1000) return;
   lastMs_ = nowMs;
-  uint32_t sum = 0;
-  for (int i = 0; i < 16; ++i) sum += analogReadMilliVolts(pins::BATT_ADC);
-  float v = sum / 16.0f / 1000.0f * g_cfg.battDivider * g_cfg.battCal;
+  float mv;
+  if (mic::running()) {
+    int32_t m = mic::batteryMilliVolts();
+    if (m < 0) return;
+    mv = (float)m;
+  } else {
+    uint32_t sum = 0;
+    for (int i = 0; i < 16; ++i) sum += analogReadMilliVolts(pins::BATT_ADC);
+    mv = sum / 16.0f;
+  }
+  float v = mv / 1000.0f * g_cfg.battDivider * g_cfg.battCal;
   volts_ = volts_ == 0 ? v : volts_ + (v - volts_) * 0.2f;
 }
 

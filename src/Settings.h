@@ -17,6 +17,15 @@ struct Settings {
 
   int32_t speechVolume = 90;
   int32_t varioVolume = 60;
+  bool autoVolume = true;
+  float noiseQuietDb = -45.0f;  // dBFS at the mic: at or below this the set volumes are used
+  float noiseLoudDb = -15.0f;   // at or above this both volumes go to 100 %
+  int32_t noiseReleaseS = 5;
+
+  float rpmPulsesPerRev = 1.0f;  // single-cylinder two-stroke fires once per revolution
+  int32_t rpmMin = 1200;
+  int32_t rpmMax = 10000;
+  float rpmMinConfidence = 3.0f;
 
   bool varioEnabled = true;
   bool varioOnlyInFlight = true;

@@ -30,5 +30,7 @@ bool speaking();
 // hz = 0 silences. offMs = 0 gives a continuous tone.
 void setTone(float hz, uint16_t onMs, uint16_t offMs);
 void setVolumes(uint8_t speechPct, uint8_t tonePct);
+// Current vario tone frequency (0 = off), so the microphone can ignore the speaker.
+float toneHz();
 
 }  // namespace audio
