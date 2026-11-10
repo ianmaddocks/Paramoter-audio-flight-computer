@@ -46,7 +46,7 @@ const Field kFields[] = {
     I(speechVolume, "Audio", "Speech volume", "%", 0, 100),
     I(varioVolume, "Audio", "Vario volume", "%", 0, 100),
     B(autoVolume, "Audio", "Raise volume with background noise"),
-    FL(noiseQuietDb, "Audio", "Noise for set volume (see Mic tile)", "dBFS", -90.0f, 0.0f),
+    FL(noiseQuietDb, "Audio", "Noise for set volume (see Background noise tile)", "dBFS", -90.0f, 0.0f),
     FL(noiseLoudDb, "Audio", "Noise for full volume", "dBFS", -90.0f, 0.0f),
     I(noiseReleaseS, "Audio", "Volume fall time after noise drops", "s", 1, 60),
 
@@ -131,8 +131,13 @@ const Field kFields[] = {
     FL(battDivider, "Battery", "Divider ratio", "", 1.0f, 10.0f),
     FL(battCal, "Battery", "Calibration factor", "", 0.8f, 1.2f),
     FL(battLowV, "Battery", "Low battery warning", "V", 3.0f, 4.0f),
+    FL(battFullV, "Battery", "Voltage shown as 100%", "V", 4.02f, 4.25f),
+    B(battLearn, "Battery", "Learn discharge to estimate minutes left and refine %"),
+    I(battRuntimeMin, "Battery", "Runtime on a full battery, used until learned", "min", 30, 1440),
 
     B(igcEnabled, "Logging", "Record IGC flight logs"),
+    B(igcQnhAlt, "Logging", "IGC pressure altitude referenced to GPS (off = true 1013 hPa, can be negative)"),
+    I(igcPreS, "Logging", "Keep this much track before takeoff (RAM only, 0 = off)", "s", 0, 120),
     S(pilotName, "Logging", "Pilot name"),
     S(gliderType, "Logging", "Wing / motor"),
 };

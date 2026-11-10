@@ -80,7 +80,7 @@ button.on{outline:2px solid var(--acc)}
 <div class="tile"><div class="k">GPS</div><div class="v" id="t-gps">–</div><div class="s" id="t-gpss"></div></div>
 <div class="tile"><div class="k">Battery</div><div class="v" id="t-batt">–</div><div class="s" id="t-batts"></div></div>
 <div class="tile"><div class="k">Engine RPM</div><div class="v" id="t-rpm">–</div><div class="s" id="t-rpms"></div></div>
-<div class="tile"><div class="k">Mic noise</div><div class="v" id="t-noise">–</div><div class="s" id="t-noises"></div></div>
+<div class="tile"><div class="k">Background noise</div><div class="v" id="t-noise">–</div><div class="s" id="t-noises"></div></div>
 </section>
 <section class="card"><h2>Actions</h2><div class="btns">
 <button data-a="approach" id="b-approach">Landing approach</button>
@@ -173,7 +173,7 @@ async function poll(){
       txt('ready-t',s.ready?'Ready to fly':s.notReady);
       txt('ready-s',s.gps.sats+' / '+s.minSats+' satellites');
     }
-    txt('t-batt',s.batt.v<2.5?'USB':s.batt.pct+'%');txt('t-batts',s.batt.v.toFixed(2)+' V');
+    txt('t-batt',s.batt.v<2.5?'USB':s.batt.pct+'%');txt('t-batts',s.batt.v.toFixed(2)+' V'+(s.batt.min!=null?' · ~'+(s.batt.min>=60?Math.floor(s.batt.min/60)+' h ':'')+(s.batt.min%60)+' min':''));
     if(s.mic){
       txt('t-rpm',!s.mic.ok?'no mic':s.mic.rpm>0?Math.round(s.mic.rpm)+' rpm':'off');
       txt('t-rpms',s.mic.ok?'est '+Math.round(s.mic.raw)+' · conf '+s.mic.conf.toFixed(1):'');

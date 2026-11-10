@@ -35,7 +35,18 @@ uint32_t battLowSinceMs = 0;
 uint32_t lastBattCallMs = 0;
 uint32_t lastSaveMs = 0;
 uint32_t lastTraceMs = 0;
+uint32_t lastVolLogMs = 0;
+constexpr uint32_t kVolLogIntervalMs = 5000;
 int lastBleClients = 0;
+
+// Power-on sequence: a climb beep at the vario volume (so the pilot can judge the level),
+// a pause, then "Ready". The normal vario tone is held off until it has finished.
+constexpr uint32_t kStartBeepMs = 250;
+constexpr uint32_t kStartWaitMs = 1000;
+constexpr float kStartBeepClimbMs = 2.0f;  // beep as if climbing at this rate
+enum class Startup : uint8_t { Beep, Wait, Done };
+Startup startup = Startup::Beep;
+uint32_t startupMs = 0;
 
 void traceNav() {
 #if PV_DEBUG
@@ -122,6 +133,24 @@ void updateVarioTone() {
     audio::setTone(hz, 0, 0);
   } else {
     audio::setTone(0, 0, 0);
+  }
+}
+
+void updateStartup(uint32_t now) {
+  if (startup == Startup::Done) return;
+  if (startup == Startup::Beep) {
+    if (!startupMs) {
+      startupMs = now ? now : 1;
+      float hz = constrain(g_cfg.varioBaseHz + g_cfg.varioHzPerMs * kStartBeepClimbMs, 200.0f, 2500.0f);
+      audio::setTone(hz, 0, 0);  // continuous until stopped below
+    } else if (now - startupMs >= kStartBeepMs) {
+      audio::setTone(0, 0, 0);
+      startup = Startup::Wait;
+      startupMs = now;
+    }
+  } else if (now - startupMs >= kStartWaitMs) {
+    speech::say(Priority::Normal, "ready");
+    startup = Startup::Done;
   }
 }
 
@@ -224,7 +253,7 @@ void setup() {
   // Disabled: do not resume a previously saved flight on power-up.
   // restoreFlightState();
 
-  speech::say(Priority::Normal, "system_ready");
+  // The ready beep and "Ready" are played from loop() by updateStartup().
   LOGI("APP", "ParaVario ready, free heap %u", ESP.getFreeHeap());
 }
 
@@ -252,8 +281,18 @@ void loop() {
 
   if (now - lastToneMs >= kToneTickMs) {
     lastToneMs = now;
-    audio::setVolumes(mic::compensatedVolume(g_cfg.speechVolume), mic::compensatedVolume(g_cfg.varioVolume));
-    updateVarioTone();
+    uint8_t speechVol = mic::compensatedVolume(g_cfg.speechVolume);
+    uint8_t varioVol = mic::compensatedVolume(g_cfg.varioVolume);
+    audio::setVolumes(speechVol, varioVol);
+    if (dlog::kDebugBuild && now - lastVolLogMs >= kVolLogIntervalMs) {
+      lastVolLogMs = now;
+      LOGD("VOL", "noise %.1f dBFS, auto %s: speech %u%% (set %u%%, %+d), vario %u%% (set %u%%, %+d)",
+           mic::noiseDb(), g_cfg.autoVolume ? "on" : "off", speechVol, g_cfg.speechVolume,
+           (int)speechVol - (int)g_cfg.speechVolume, varioVol, g_cfg.varioVolume,
+           (int)varioVol - (int)g_cfg.varioVolume);
+    }
+    updateStartup(now);
+    if (startup == Startup::Done) updateVarioTone();
   }
 
   if (now - lastTickMs >= kTickMs) {

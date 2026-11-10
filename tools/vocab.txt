@@ -46,6 +46,7 @@ minutes|minutes
 oclock|o'clock
 
 system_ready|Vario ready
+ready|Ready
 gps_fix|GPS fix
 no_gps|No GPS
 takeoff|Take off

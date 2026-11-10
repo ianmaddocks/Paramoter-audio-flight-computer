@@ -12,6 +12,10 @@ namespace {
 constexpr float kStillSpeedMs = 2.0f;
 constexpr float kOffsetTauS = 120.0f;
 constexpr float kGroundTauS = 5.0f;
+constexpr int kMinAltSats = 6;
+constexpr float kMinGpsAltM = -500.0f;
+constexpr float kMaxGpsAltM = 9000.0f;
+constexpr float kMaxDatumJumpM = 200.0f;  // GPS altitude this far from the baro datum is rejected
 }  // namespace
 
 FlightEvent Flight::update(uint32_t now, const Baro& baro, Gps& gps, NavState& n) {
@@ -21,18 +25,26 @@ FlightEvent Flight::update(uint32_t now, const Baro& baro, Gps& gps, NavState& n
 
   n.ms = now;
   n.fix = gps.fix();
+  n.sats = gps.sats();
+  n.hdop = gps.hdop();
   if (n.fix) {
     n.lat = gps.lat();
     n.lon = gps.lon();
-    n.speedMs = gps.speedMs();
-    n.trackDeg = gps.courseDeg();
+    // A weak fix (few satellites, poor accuracy) reports speed noise of tens of km/h while
+    // stationary: only trust speed and course from a decent fix.
+    bool speedOk = n.sats >= kMinAltSats && n.hdop < 3.0f;
+    n.speedMs = speedOk ? gps.speedMs() : 0.0f;
+    if (speedOk) n.trackDeg = gps.courseDeg();
   } else {
     n.speedMs = 0;
   }
-  n.sats = gps.sats();
-  n.hdop = gps.hdop();
   n.gpsGood = n.fix && n.sats >= g_cfg.readyMinSats && n.hdop <= g_cfg.readyMaxHdop && gps.steady(now);
-  bool gpsAltOk = n.fix && gps.altValid() && n.hdop < 3.0f;
+  // A weak fix (indoors, few satellites) can report absurd altitudes (tens of km): only trust GPS
+  // altitude from a decent fix, within a believable range, and, once the baro datum is set,
+  // close to what the baro implies.
+  bool gpsAltOk = n.fix && gps.altValid() && n.hdop < 3.0f && n.sats >= kMinAltSats &&
+                  gps.altM() > kMinGpsAltM && gps.altM() < kMaxGpsAltM;
+  if (gpsAltOk && offsetInit_ && n.baroOk && fabsf(gps.altM() - n.altStdM - offset_) > kMaxDatumJumpM) gpsAltOk = false;
   if (gpsAltOk) n.gpsAltM = gps.altM();
 
   n.baroOk = baro.ok();

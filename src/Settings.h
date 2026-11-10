@@ -104,8 +104,13 @@ struct Settings {
   float battDivider = 2.0f;
   float battCal = 1.0f;
   float battLowV = 3.5f;
+  float battFullV = 4.09f;
+  bool battLearn = true;
+  int32_t battRuntimeMin = 360;
 
   bool igcEnabled = true;
+  int32_t igcPreS = 30;
+  bool igcQnhAlt = true;
   char pilotName[32] = "";
   char gliderType[32] = "Paramotor";
 };

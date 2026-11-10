@@ -58,11 +58,38 @@ void IgcLogger::start(Gps& gps) {
   file_.print("HFGPSRECEIVER:u-blox,M10\r\n");
   file_.print("HFPRSPRESSALTSENSOR:Infineon,DPS310\r\n");
   lastRecordMs_ = lastFlushMs_ = 0;
-  LOGI("IGC", "Logging to %s", path);
+  // The history leading up to takeoff, oldest first.
+  int n = preCount_;
+  for (int i = 0; i < n; ++i) writeSample(pre_[(preHead_ + i) % kMaxPreSamples]);
+  preCount_ = preHead_ = 0;
+  LOGI("IGC", "Logging to %s (%d s of pre-takeoff history)", path, n);
+}
+
+void IgcLogger::writeSample(const Sample& s) {
+  int32_t alat = abs(s.latMin), alon = abs(s.lonMin);
+  file_.printf("B%02u%02u%02u%02d%05d%c%03d%05d%c%c%05d%05d\r\n", s.hour, s.min, s.sec, (int)(alat / 60000),
+               (int)(alat % 60000), s.latMin < 0 ? 'S' : 'N', (int)(alon / 60000), (int)(alon % 60000),
+               s.lonMin < 0 ? 'W' : 'E', s.valid ? 'A' : 'V', (int)s.altStd, (int)s.altGps);
+  file_.printf("LXPVSAT,%02u\r\n", (unsigned)s.sats);
+}
+
+// Keeps only the newest igcPreS samples; the buffer lives in RAM and is never written to flash.
+void IgcLogger::pushPre(const Sample& s) {
+  int cap = constrain((int)g_cfg.igcPreS, 0, kMaxPreSamples);
+  if (cap == 0) {
+    preCount_ = preHead_ = 0;
+    return;
+  }
+  while (preCount_ >= cap) {
+    preHead_ = (preHead_ + 1) % kMaxPreSamples;
+    --preCount_;
+  }
+  pre_[(preHead_ + preCount_) % kMaxPreSamples] = s;
+  ++preCount_;
 }
 
 void IgcLogger::update(const NavState& nav, Gps& gps) {
-  if (!file_ || !gps.timeValid()) return;
+  if ((!file_ && !g_cfg.igcEnabled) || !gps.timeValid()) return;
   if (nav.ms - lastRecordMs_ < 1000) return;
   lastRecordMs_ = nav.ms;
   if (nav.fix) {
@@ -71,17 +98,24 @@ void IgcLogger::update(const NavState& nav, Gps& gps) {
   } else if (lastLat_ == 0 && lastLon_ == 0) {
     return;
   }
-  double alat = fabs(lastLat_), alon = fabs(lastLon_);
-  int latD = (int)alat, lonD = (int)alon;
-  int latM = (int)lround((alat - latD) * 60000.0);
-  int lonM = (int)lround((alon - lonD) * 60000.0);
-  if (latM >= 60000) { ++latD; latM -= 60000; }
-  if (lonM >= 60000) { ++lonD; lonM -= 60000; }
-  file_.printf("B%02d%02d%02d%02d%05d%c%03d%05d%c%c%05d%05d\r\n", gps.time().hour(),
-               gps.time().minute(), gps.time().second(), latD, latM, lastLat_ < 0 ? 'S' : 'N', lonD,
-               lonM, lastLon_ < 0 ? 'W' : 'E', nav.fix ? 'A' : 'V', (int)lroundf(nav.altStdM),
-               (int)lroundf(nav.gpsAltM));
-  file_.printf("LXPVSAT,%02u\r\n", (unsigned)nav.sats);
+  auto metres = [](float m) { return isfinite(m) ? (int32_t)constrain(lroundf(m), -9999L, 99999L) : 0; };
+  Sample s;
+  s.hour = gps.time().hour();
+  s.min = gps.time().minute();
+  s.sec = gps.time().second();
+  s.sats = nav.sats;
+  s.valid = nav.fix;
+  s.latMin = (int32_t)lround(lastLat_ * 60000.0);
+  s.lonMin = (int32_t)lround(lastLon_ * 60000.0);
+  // Viewers reject the negative values a true 1013.25 hPa altitude gives on a high-pressure day,
+  // so by default log the baro altitude referenced to GPS (QNH-style), never below zero.
+  s.altStd = g_cfg.igcQnhAlt ? max<int32_t>(0, metres(nav.altMslM)) : metres(nav.altStdM);
+  s.altGps = metres(nav.gpsAltM);
+  if (!file_) {
+    pushPre(s);
+    return;
+  }
+  writeSample(s);
   if (nav.ms - lastFlushMs_ >= 10000) {
     lastFlushMs_ = nav.ms;
     file_.flush();

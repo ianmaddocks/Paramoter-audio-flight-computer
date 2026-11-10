@@ -130,6 +130,8 @@ void handleStatus() {
   JsonObject batt = doc["batt"].to<JsonObject>();
   batt["v"] = app.battery.volts();
   batt["pct"] = app.battery.percent();
+  int battMin = app.battery.minutesLeftOrUnknown();
+  if (battMin >= 0) batt["min"] = battMin;
 
   JsonObject micj = doc["mic"].to<JsonObject>();
   micj["ok"] = mic::running();
