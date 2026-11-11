@@ -158,6 +158,8 @@ void flightTick(uint32_t now) {
     verifyResume();
   }
   app.announcer.update(app.nav, app.approach.active() || app.emergency.active());
+  app.glide.update(now, app.nav);
+  app.heightHistory.update(now, app.nav.aglM);
   alerts::update(now, app.nav, app.battery.volts());
   if (app.nav.flying && now - lastSaveMs >= kSaveIntervalMs) saveFlightState();
   trace::update(now);
@@ -212,6 +214,8 @@ void testResetFlight() {
   app.announcer = Announcer();
   app.approach = Approach();
   app.emergency = Emergency();
+  app.glide = Glide();
+  app.heightHistory = HeightHistory();
   app.varioMuted = false;
   alerts::reset();
   trace::reset();

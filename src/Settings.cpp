@@ -91,6 +91,8 @@ const Field kFields[] = {
     FL(landingSpeedMs, "Takeoff & landing", "Landed below ground speed", "speed", 0.2f, 10.0f),
     I(landingTimeS, "Takeoff & landing", "Landed after", "s", 5, 300),
 
+    I(glideShortS, "Glide", "Glide ratio tile: average over", "s", 1, 10),
+    I(glideLongS, "Glide", "Glide ratio tile: second average over", "s", 10, 120),
     FL(glideRatio, "Glide", "Glide ratio (engine off)", ":1", 2.0f, 12.0f),
     FL(trimAirspeedMs, "Glide", "Trim airspeed (engine off)", "speed", 5.0f, 25.0f),
 
@@ -123,12 +125,12 @@ const Field kFields[] = {
     I(readyMinSats, "GPS", "Ready to fly: minimum satellites", "", 4, 20),
     FL(readyMaxHdop, "GPS", "Ready to fly: maximum HDOP", "", 0.5f, 10.0f),
 
-    SR(bleName, "Bluetooth", "Device name"),
+    SR(bleName, "Bluetooth", "Device name (ParaVario = unit code added, e.g. ParaVario-A1B2)"),
     I(bleRateHz, "Bluetooth", "Vario sentences ($LK8EX1, $LXWP0) rate", "Hz", 1, 10),
     B(bleGps, "Bluetooth", "Send pseudo-GPS ($GPGGA, $GPRMC)"),
     I(bleGpsRateHz, "Bluetooth", "Pseudo-GPS rate", "Hz", 1, 10),
 
-    SR(wifiSsid, "Wi-Fi", "Network name"),
+    SR(wifiSsid, "Wi-Fi", "Network name (ParaVario = unit code added, e.g. ParaVario-A1B2)"),
     SR(wifiPass, "Wi-Fi", "Password (8+ chars, blank = open)"),
     SR(serverSsid, "Wi-Fi", "Server network name (blank = off)"),
     SR(serverPass, "Wi-Fi", "Server network password"),
@@ -293,6 +295,40 @@ bool fromJson(JsonObjectConst obj) {
     if (changed && f.restart) restart = true;
   }
   return restart;
+}
+
+namespace {
+constexpr char kDefaultName[] = "ParaVario";
+
+// Last two bytes of the factory MAC address as four hex digits, fixed for the life of the unit.
+const char* unitSuffix() {
+  static char suffix[5] = "";
+  if (!suffix[0]) {
+    const uint64_t mac = ESP.getEfuseMac();  // byte 0 of the address in the low bits
+    snprintf(suffix, sizeof(suffix), "%02X%02X", (unsigned)((mac >> 32) & 0xFF), (unsigned)((mac >> 40) & 0xFF));
+  }
+  return suffix;
+}
+
+// `configured` as is, unless it is the default name (or empty): then the default plus the suffix.
+const char* uniqueName(const char* configured, char* out, size_t size) {
+  if (configured[0] && strcmp(configured, kDefaultName) != 0) {
+    strlcpy(out, configured, size);
+  } else {
+    snprintf(out, size, "%s-%s", kDefaultName, unitSuffix());
+  }
+  return out;
+}
+}  // namespace
+
+const char* bleName() {
+  static char name[sizeof(g_cfg.bleName)];
+  return uniqueName(g_cfg.bleName, name, sizeof(name));
+}
+
+const char* apSsid() {
+  static char name[sizeof(g_cfg.wifiSsid)];
+  return uniqueName(g_cfg.wifiSsid, name, sizeof(name));
 }
 
 int schemaCount() { return sizeof(kFields) / sizeof(kFields[0]); }

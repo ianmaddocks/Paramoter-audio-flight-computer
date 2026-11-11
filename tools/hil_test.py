@@ -496,7 +496,7 @@ def near(value, target, tol, what):
 # --------------------------------------------------------------------------------------------
 # Settings the tests run with (the vario's own are restored afterwards).
 TEST_SETTINGS = dict(
-    heightUnit=0, distUnit=0, speedUnit=0, autoVolume=False, volumeRampPctS=500, noiseQuietDb=-50, noiseLoudDb=-30,
+    heightUnit=0, distUnit=0, speedUnit=0, autoVolume=False, volumeRampPctS=500, glideShortS=1, glideLongS=20, noiseQuietDb=-50, noiseLoudDb=-30,
     varioEnabled=True, varioOnlyInFlight=False, varioClimbBeeps=True, varioSinkAlarm=True,
     climbThreshold=0.3, sinkThreshold=-2.0, varioBaseHz=700, varioHzPerMs=100, varioAccelNoise=1.0,
     boundariesUp="15.24,30.48", boundaries="15.24,30.48", boundaryStepM=152.4, boundaryHystM=3.0,
@@ -961,6 +961,45 @@ def t_speech(v, a):
 # --------------------------------------------------------------------------------------------
 # Web page tests: the real page in a headless browser, checked against simulated inputs.
 
+def t_glide(v, a):
+    """Glide ratio tile: ground speed over sink rate, short and long averages, none when level or climbing."""
+    on_ground_with_fix(v)
+    v.set(glideShortS=1, glideLongS=20)
+    st = v.status()
+    if "glide" not in st or st["glide"]:
+        raise Fail(f"glide values reported on the ground: {st.get('glide')}")
+    m = take_off(v, climb_to=GROUND_M + 80, vz=4)
+    v.expect("SIM", r"reached target", m, timeout=40, what="climb to 80 m")
+    time.sleep(3)
+    if v.status()["glide"].get("now") is not None:
+        raise Fail(f"glide ratio reported while level: {v.status()['glide']}")
+    v.sim(speed=10, vz=-1.5, to=GROUND_M + 25)  # 10 m/s forward, 1.5 m/s down: 6.7 : 1
+    v.wait_nav(lambda n: abs(float(n["vs"]) + 1.5) < 0.15, 12, "sinking at 1.5 m/s")
+    time.sleep(2)
+    g = v.status()["glide"]
+    if "now" not in g:
+        raise Fail(f"no glide ratio while descending: {g}")
+    near(g["now"], 6.67, 1.0, "glide ratio over 1 s")
+    time.sleep(25)  # the 20 s window now holds nothing but descent
+    g = v.status()["glide"]
+    if "avg" not in g:
+        raise Fail(f"no long average after 25 s of steady descent: {g}")
+    near(g["avg"], 6.67, 0.8, "glide ratio over 20 s")
+    note = f"{g['now']:.1f} : 1 now, {g['avg']:.1f} : 1 over 20 s (true 6.7)"
+    if a.ui:
+        p = v.page()
+        p.tab("flight")
+        p.wait_text("t-glide", r"^6\.\d : 1$", 8, "glide ratio tile")
+        p.wait_text("t-glides", r"^20 s avg 6\.\d : 1$", 8, "long average under the glide tile")
+    v.sim(vz=1.5, to=GROUND_M + 60)
+    v.wait_nav(lambda n: float(n["vs"]) > 1.2, 12, "climbing")
+    time.sleep(3)
+    if v.status()["glide"].get("now") is not None:
+        raise Fail(f"glide ratio reported while climbing: {v.status()['glide']}")
+    v.set(glideLongS=TEST_SETTINGS["glideLongS"])
+    return note
+
+
 def t_volume_ramp(v, a):
     """A volume change is applied gradually at the configured rate, never as a jump."""
     reset(v, baro="on", alt=GROUND_M, vz=0)
@@ -1040,6 +1079,8 @@ def t_variant_no_gps(v, a):
                 raise Fail(f"web page: still shown without a GPS: {hidden}")
             p.wait_text("t-flight", r"^Flying$", 6)
             p.wait_text("t-agl", r"^1[23]\d ft$", 6, "height shown without a GPS")
+            check_tile_layout(p, gps=False, mic=True)
+            check_height_graph(p)
             p.check_fits("flight tab without GPS")
             p.tab("settings")
             groups = p.js("[...document.querySelectorAll('#settings summary')].map(s=>s.textContent)")
@@ -1105,11 +1146,51 @@ def t_variant_no_mic(v, a):
             if shown or p.js("document.querySelector('button[data-tab=spectrum]').offsetParent!==null"):
                 raise Fail(f"web page: still shown without a microphone: {shown or 'Spectrum tab'}")
             p.wait_text("t-batt", r"^(\d+%|USB)$", 6)
+            check_tile_layout(p, gps=True, mic=False)
             p.check_fits("flight tab without microphone")
         return f"volume back to the set 40/20 % at -20 dBFS noise, {len(keys)} settings listed, no spectrum"
     finally:
         v.sim(hasMic=1, noise="off")
         v.set(autoVolume=False, speechVolume=a.volume, varioVolume=a.volume)
+
+
+def check_tile_layout(p, gps, mic):
+    """Flight tab: tiles in their groups, graph beside Height, a lone last tile full width."""
+    info = p.js("""(()=>{const vis=e=>getComputedStyle(e).display!=='none';
+      const ids=s=>[...document.getElementById(s).children].filter(vis).map(e=>e.querySelector('.v')?e.querySelector('.v').id:'graph');
+      const g=document.getElementById('tile-hgraph');
+      return {main:ids('tilesMain'),more:ids('tilesMore'),
+        graphAfter:g.previousElementSibling.id,
+        heightBig:document.getElementById('tile-height').classList.contains('big'),
+        wide:[...document.querySelectorAll('#tilesMore .wide')].map(e=>e.querySelector('.v').id),
+        graphPixels:(()=>{const c=document.getElementById('hgCv');if(!c.width)return -1;
+          const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let n=0;for(let i=3;i<d.length;i+=4)if(d[i])n++;return n})(),
+        graphW:document.getElementById('hgCv').clientWidth,tileW:document.getElementById('tile-height').clientWidth}})()""")
+    want_main = ["t-agl", "graph", "t-vario"] + (["t-speed", "t-glide"] if gps else []) + ["t-flight"] + \
+                (["t-lz", "t-wind"] if gps else [])
+    if info["main"] != want_main:
+        raise Fail(f"web page: top tiles are {info['main']}, expected {want_main}")
+    want_more = (["t-gps"] if gps else []) + ["t-batt"] + (["t-rpm", "t-noise"] if mic else [])
+    if info["more"] != want_more:
+        raise Fail(f"web page: lower tile group is {info['more']}, expected {want_more}")
+    if info["heightBig"] or info["graphAfter"] != "tile-height":
+        raise Fail(f"web page: with an even number of cells the graph belongs beside Height (big={info['heightBig']}, "
+                   f"graph follows {info['graphAfter']})")
+    if len(want_more) % 2 == 1 and info["wide"] != [want_more[-1]]:
+        raise Fail(f"web page: lone last tile {want_more[-1]} not full width (wide: {info['wide']})")
+    if len(want_more) % 2 == 0 and info["wide"]:
+        raise Fail(f"web page: tiles wrongly full width: {info['wide']}")
+    if abs(info["graphW"] - info["tileW"]) > 40:
+        raise Fail(f"web page: graph {info['graphW']} px wide beside a Height tile {info['tileW']} px wide")
+    return info
+
+
+def check_height_graph(p):
+    """The graph has been fed from /api/height and has drawn something."""
+    p.wait("hgData&&hgData.a.length>=2", 10, "height history fetched for the graph")
+    p.wait("(()=>{const c=document.getElementById('hgCv');if(!c.width)return false;"
+           "const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;"
+           "for(let i=3;i<d.length;i+=4)if(d[i])return true;return false})()", 6, "height graph drawn")
 
 
 def t_ui_flight(v, a):
@@ -1142,7 +1223,11 @@ def t_ui_flight(v, a):
     p.wait_text("t-noises", rf"^vario vol {a.volume}%$")
     p.wait_text("t-rpm", r"^(off|\d+ rpm)$")
     p.wait_text("hver", rf"^v{re.escape(st['version'])} debug$")
+    check_height_graph(p)
     p.check_fits("flight tab")
+    p.wait_text("t-glide", r"^–$")
+    p.wait_text("t-glides", r"^20 s avg –$")
+    check_tile_layout(p, gps=True, mic=True)
 
     v.sim(speed=12)
     p.wait_text("t-speed", r"^43 km/h$", 8, "12 m/s shown in km/h")
@@ -1162,7 +1247,7 @@ def t_ui_flight(v, a):
     p.wait_text("ready-t", r"^Waiting for satellites$")
     p.wait_text("ready-s", r"^4 / 6 satellites$")
     p.wait_text("t-speed", r"^0 km/h$", 8, "weak-fix speed shown as 0")
-    return "banner and 10 tiles correct; speed, vario, battery and GPS changes followed"
+    return "banner, 11 tiles, height graph and layout correct; speed, vario, battery and GPS changes followed"
 
 
 def t_ui_actions(v, a):
@@ -1298,7 +1383,7 @@ def t_ui_settings(v, a):
         missing = p.js("schema.filter(f=>!tInput(f.k)).map(f=>f.k)")
         if missing:
             raise Fail(f"web page: no input found for {missing}")
-        p.wait_text("w-ap", r"^192\.168\.4\.1 · \d+ connected$", 4)
+        p.wait_text("w-ap", r"^ParaVario-[0-9A-F]{4} · 192\.168\.4\.1 · \d+ connected$", 4)
         p.wait_text("w-server", r"\S")
 
         # Number, saved as typed.
@@ -1488,7 +1573,7 @@ TESTS = [
     ("vario_sink", t_vario_sink), ("mute", t_mute), ("auto_volume", t_auto_volume),
     ("gps_states", t_gps_states), ("flight", t_flight), ("baro_only", t_baro_only),
     ("guidance", t_guidance), ("battery", t_battery), ("battery_learner", t_battery_learner),
-    ("speech", t_speech), ("volume_ramp", t_volume_ramp),
+    ("speech", t_speech), ("volume_ramp", t_volume_ramp), ("glide", t_glide),
     ("variant_no_gps", t_variant_no_gps), ("variant_no_mic", t_variant_no_mic),
     ("ui_flight", t_ui_flight), ("ui_actions", t_ui_actions), ("ui_guidance", t_ui_guidance),
     ("ui_settings", t_ui_settings), ("ui_spectrum", t_ui_spectrum), ("ui_system", t_ui_system),

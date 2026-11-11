@@ -129,6 +129,12 @@ void handleStatus() {
     gps["speed"] = n.speedMs;
     gps["track"] = n.trackDeg;
     gps["alt"] = n.gpsAltM;
+    // Glide ratio (ground distance per height lost) over the two windows; a key is left out
+    // when there is no glide to report (level, climbing, not flying, too little data yet).
+    JsonObject glide = doc["glide"].to<JsonObject>();
+    const float g1 = app.glide.shortRatio(millis()), g2 = app.glide.longRatio(millis());
+    if (!isnan(g1)) glide["now"] = g1;
+    if (!isnan(g2)) glide["avg"] = g2;
   }
 
   JsonObject baro = doc["baro"].to<JsonObject>();
@@ -174,6 +180,8 @@ void handleStatus() {
   doc["approach"] = app.approach.phaseName();
   if (app.emergency.active()) doc["range"] = app.emergency.lastRangeM();
   JsonObject wifi = doc["wifi"].to<JsonObject>();
+  wifi["apSsid"] = settings::apSsid();
+  wifi["bleName"] = settings::bleName();
   wifi["apIp"] = WiFi.softAPIP().toString();
   wifi["apClients"] = WiFi.softAPgetStationNum();
   wifi["serverSsid"] = serverSsidUsed;
@@ -399,6 +407,20 @@ void handleSpectrum() {
   server.send_P(200, "application/octet-stream", (const char*)buf, sizeof(buf));
 }
 
+// Binary: u16 sample count, u16 seconds between samples, then that many int16 heights above
+// ground in quarter metres, oldest first (the last ten minutes, for the flight tab's graph).
+void handleHeight() {
+  uint8_t buf[4 + 2 * HeightHistory::kSamples];
+  int16_t samples[HeightHistory::kSamples];
+  const uint16_t n = (uint16_t)app.heightHistory.copy(samples);
+  const uint16_t stepS = HeightHistory::kStepMs / 1000;
+  memcpy(buf, &n, 2);
+  memcpy(buf + 2, &stepS, 2);
+  memcpy(buf + 4, samples, 2 * n);
+  server.sendHeader("Cache-Control", "no-store");
+  server.send_P(200, "application/octet-stream", (const char*)buf, 4 + 2 * n);
+}
+
 // LittleFS.exists() logs an error for a missing path, so check with stat() instead.
 bool fsExists(const String& path) {
   struct stat st;
@@ -573,7 +595,7 @@ void begin() {
   WiFi.setHostname("paravario");
   WiFi.mode(joinServer ? WIFI_AP_STA : WIFI_AP);
   const char* pass = strlen(g_cfg.wifiPass) >= 8 ? g_cfg.wifiPass : nullptr;
-  WiFi.softAP(g_cfg.wifiSsid, pass);
+  WiFi.softAP(settings::apSsid(), pass);
   dns.start(53, "*", WiFi.softAPIP());
   if (joinServer) {
     WiFi.begin(g_cfg.serverSsid, g_cfg.serverPass);
@@ -592,6 +614,7 @@ void begin() {
   server.on("/api/logs", HTTP_GET, handleLogs);
   server.on("/api/debuglog", HTTP_GET, handleDebugLog);
   server.on("/api/spectrum", HTTP_GET, handleSpectrum);
+  server.on("/api/height", HTTP_GET, handleHeight);
 #if PV_TEST
   server.on("/api/sim", HTTP_GET, handleSim);
 #endif
@@ -601,7 +624,7 @@ void begin() {
   server.addHandler(new RedirectToUi());
   server.collectHeaders(kOtaHeaders, 1);
   server.begin();
-  LOGI("WEB", "Wi-Fi AP '%s' at %s", g_cfg.wifiSsid, WiFi.softAPIP().toString().c_str());
+  LOGI("WEB", "Wi-Fi AP '%s' at %s", settings::apSsid(), WiFi.softAPIP().toString().c_str());
 }
 
 // Serving a request needs a few kB (reply text, JSON) on top of whatever the Wi-Fi driver is

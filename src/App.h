@@ -4,6 +4,8 @@
 #include "flight/Approach.h"
 #include "flight/Emergency.h"
 #include "flight/Flight.h"
+#include "flight/Glide.h"
+#include "flight/HeightHistory.h"
 #include "flight/Wind.h"
 #include "input/Button.h"
 #include "logging/IgcLogger.h"
@@ -28,6 +30,8 @@ struct App {
   // read it.
   NavState nav;
   Flight flight;
+  Glide glide;                  // glide ratio tile
+  HeightHistory heightHistory;  // rolling height graph
   Wind wind;
   Announcer announcer;
   Approach approach;

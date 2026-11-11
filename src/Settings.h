@@ -58,6 +58,8 @@ struct Settings {
   float landingSpeedMs = 5.0f / 3.6f;
   int32_t landingTimeS = 30;
 
+  int32_t glideShortS = 1;   // glide ratio tile: main value averaged over this many seconds
+  int32_t glideLongS = 60;   // ... and the smaller value over this many
   float glideRatio = 5.0f;
   float trimAirspeedMs = 38.0f / 3.6f;
 
@@ -129,6 +131,11 @@ void toJson(JsonObject obj);
 void toJsonString(String& out);
 // Applies known keys, clamped to their limits. Returns true if a changed key needs a restart.
 bool fromJson(JsonObjectConst obj);
+// Names this unit advertises. A name left at the default "ParaVario" gets "-" and the last two
+// bytes of the unit's MAC address added (for example "ParaVario-A1B2"), so several units near
+// each other are told apart. A name the pilot has changed is used exactly as typed.
+const char* bleName();
+const char* apSsid();
 // The settings table for the web page, one entry at a time so it can be sent in small pieces.
 int schemaCount();
 // Fills `o` with the description of setting `index` for the settings page. Returns false (and

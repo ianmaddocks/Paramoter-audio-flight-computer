@@ -69,6 +69,7 @@ before flying.
 | `battery_learner` | the discharge learner, on two simulated discharges (in RAM) |
 | `speech` | test phrase: clip sequence, and heard by the microphone |
 | `volume_ramp` | a volume change is applied gradually at the set rate, never as a jump |
+| `glide` | glide ratio from speed and sink: 1 s and long average, none when level or climbing |
 | `variant_no_gps` | vario without a GPS: ready, takeoff, height, landing, no GPS calls or log, page and settings trimmed |
 | `variant_no_mic` | vario without a microphone: set volume used, battery still read, page and settings trimmed |
 | `ui_flight` | banner and every tile on the flight tab |

@@ -10,6 +10,7 @@ struct NavState {
   double lat = 0.0;
   double lon = 0.0;
   float speedMs = 0.0f;
+  bool speedOk = false;  // speedMs and trackDeg come from a trustworthy fix (enough satellites, low HDOP)
   float trackDeg = 0.0f;
   float gpsAltM = 0.0f;
   uint8_t sats = 0;

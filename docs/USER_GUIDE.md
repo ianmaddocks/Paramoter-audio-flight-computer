@@ -87,7 +87,7 @@ Glide range uses the glide ratio and trim airspeed settings, adjusted for the es
 
 ## The web page
 
-1. On your phone, join the Wi-Fi network **ParaVario** (default password **paramotor**).
+1. On your phone, join the Wi-Fi network **ParaVario-XXXX** (default password **paramotor**), where XXXX is a code unique to your unit (the last four digits of its MAC address), so several varios nearby can be told apart. The same code is in its Bluetooth name.
 2. The page usually opens by itself. If it doesn't, open **http://192.168.4.1** in a browser.
 
 The phone has no internet while it's on this network, so turn mobile data on if you need both.
@@ -95,7 +95,8 @@ The phone has no internet while it's on this network, so turn mobile data on if 
 | Section | Contents |
 |---|---|
 | Banner | Green **Ready to fly**, or amber with what's missing and the satellite count. Hidden while flying, except during guidance: blue **Approach** with the current circuit leg, or red **Emergency** with the glide range. |
-| Tiles | Height above the LZ (and above sea level), vario, ground speed and track, flight state and time, LZ distance and bearing, wind, GPS satellites and signal quality (strong, good, ok, poor, none), battery. Refreshed every second. |
+| Tiles | Refreshed every second. Top group: height above the LZ (and above sea level) with a rolling graph of the last 10 minutes beside it, vario, ground speed and track, **glide ratio**, flight state and time, LZ distance and bearing, wind. Under the Actions: GPS satellites and signal quality (strong, good, ok, poor, none), battery, engine RPM, background noise. |
+| Glide ratio | Ground distance covered per unit of height lost, e.g. `6.7 : 1`. The big value is the average over the last second, the small one the average over the last 60 seconds (both windows are in the Glide settings). Shows `–` when level or climbing, and `>50` above 50. Needs a GPS. |
 | Actions | Landing approach, Emergency glide, Mute vario (same as the button), **Test voice**, **Set LZ here**, **LZ = takeoff**. |
 | Settings | Collapsible groups (see below). Change values, then tap **Save settings** at the bottom. Settings marked *restart* apply after a restart, which the page offers. |
 | Flight logs | IGC files for each flight. Tap a name to download or Delete to remove. The oldest logs are deleted automatically when space runs low. |
@@ -215,7 +216,7 @@ The LZ, ground height and flight state are saved to the vario's memory, so a res
 ### Bluetooth (FlyGaggle)
 | Setting | Default | Notes |
 |---|---|---|
-| Device name | ParaVario | *Restart.* Name shown when pairing. |
+| Device name | ParaVario | *Restart.* Name shown when pairing. While it is left as "ParaVario" the unit code is added (for example ParaVario-A1B2); a name you type is used exactly as typed. |
 | Vario sentences rate | 5 Hz | `$LK8EX1` and `$LXWP0`. |
 | Send pseudo-GPS | On | `$GPGGA` / `$GPRMC`, with barometric altitude. |
 | Pseudo-GPS rate | 1 Hz | |
@@ -223,7 +224,7 @@ The LZ, ground height and flight state are saved to the vario's memory, so a res
 ### Wi-Fi
 | Setting | Default | Notes |
 |---|---|---|
-| Network name | ParaVario | *Restart.* |
+| Network name | ParaVario | *Restart.* While it is left as "ParaVario" the unit code is added (for example ParaVario-A1B2); a name you type is used exactly as typed. |
 | Password | paramotor | *Restart.* At least 8 characters; blank = open network. |
 | Home network to join for updates | – | *Restart.* Your home Wi-Fi name (2.4 GHz). When set, the vario also joins it at power-on, so a PC on that network can open **http://paravario.local** and upload firmware from VS Code without switching networks. Its own network stays on. It gives up after 30 s if the network isn't found, and disconnects at takeoff. Blank = off. |
 | Home network password | – | *Restart.* |

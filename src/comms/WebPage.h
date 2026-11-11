@@ -61,6 +61,11 @@ button.on{outline:2px solid var(--acc)}
 .specbar{display:flex;gap:8px;align-items:center;margin-top:8px}
 .specbar select{padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
 body.nogps .needgps,body.nomic .needmic{display:none}
+.tile.wide{grid-column:span 2}
+.tile.graph{display:flex;flex-direction:column;padding:6px 8px}
+.tile.graph .k{margin-bottom:2px}
+#hgCv{width:100%;height:60px;flex:1 1 auto;display:block}
+.tiles.more{margin-top:10px}
 .badge{font-size:11px;background:var(--warn);color:#000;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle}
 </style></head><body>
 <nav class="tabs" role="tablist" aria-label="Main views">
@@ -71,17 +76,15 @@ body.nogps .needgps,body.nomic .needmic{display:none}
 </nav>
 <div id="flightPage" class="page" role="tabpanel">
 <div id="ready" class="ready wait"><b id="ready-t">Checking…</b><span id="ready-s"></span></div>
-<section class="tiles">
-<div class="tile"><div class="k">Height AGL</div><div class="v" id="t-agl">–</div><div class="s" id="t-msl"></div></div>
-<div class="tile"><div class="k">Vario</div><div class="v" id="t-vario">–</div><div class="s" id="t-mute"></div></div>
+<section class="tiles" id="tilesMain">
+<div class="tile" id="tile-height"><div class="k">Height AGL</div><div class="v" id="t-agl">–</div><div class="s" id="t-msl"></div></div>
+<div class="tile graph" id="tile-hgraph"><div class="k">Height · last 10 min</div><canvas id="hgCv"></canvas></div>
+<div class="tile" id="tile-vario"><div class="k">Vario</div><div class="v" id="t-vario">–</div><div class="s" id="t-mute"></div></div>
 <div class="tile needgps"><div class="k">Ground speed</div><div class="v" id="t-speed">–</div><div class="s" id="t-track"></div></div>
+<div class="tile needgps"><div class="k">Glide ratio</div><div class="v" id="t-glide">–</div><div class="s" id="t-glides"></div></div>
 <div class="tile"><div class="k">Flight time</div><div class="v" id="t-flight">–</div><div class="s" id="t-ftime"></div></div>
 <div class="tile needgps"><div class="k">Landing zone</div><div class="v" id="t-lz">–</div><div class="s" id="t-lzs"></div></div>
 <div class="tile needgps"><div class="k">Wind</div><div class="v" id="t-wind">–</div><div class="s" id="t-winds"></div></div>
-<div class="tile needgps"><div class="k">GPS</div><div class="v" id="t-gps">–</div><div class="s" id="t-gpss"></div></div>
-<div class="tile"><div class="k">Battery</div><div class="v" id="t-batt">–</div><div class="s" id="t-batts"></div></div>
-<div class="tile needmic"><div class="k">Engine RPM</div><div class="v" id="t-rpm">–</div><div class="s" id="t-rpms"></div></div>
-<div class="tile needmic"><div class="k">Background noise</div><div class="v" id="t-noise">–</div><div class="s" id="t-noises"></div></div>
 </section>
 <section class="card"><h2>Actions</h2><div class="btns">
 <button data-a="approach" id="b-approach" class="needgps">Landing approach</button>
@@ -91,6 +94,12 @@ body.nogps .needgps,body.nomic .needmic{display:none}
 <button data-a="lz_here" class="needgps">Set LZ here</button>
 <button data-a="lz_takeoff" class="needgps">LZ = takeoff</button>
 </div></section>
+<section class="tiles more" id="tilesMore">
+<div class="tile needgps"><div class="k">GPS</div><div class="v" id="t-gps">–</div><div class="s" id="t-gpss"></div></div>
+<div class="tile"><div class="k">Battery</div><div class="v" id="t-batt">–</div><div class="s" id="t-batts"></div></div>
+<div class="tile needmic"><div class="k">Engine RPM</div><div class="v" id="t-rpm">–</div><div class="s" id="t-rpms"></div></div>
+<div class="tile needmic"><div class="k">Background noise</div><div class="v" id="t-noise">–</div><div class="s" id="t-noises"></div></div>
+</section>
  </div>
 <div id="settingsPage" class="page" role="tabpanel" hidden>
 <section id="settings"></section>
@@ -146,15 +155,65 @@ function fT(s){const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return(
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),2200)}
 function txt(id,v){const e=document.getElementById(id);if(e.textContent!==v)e.textContent=v}
 
+// Tile layout. Hidden tiles (hardware not fitted) do not count.
+//  - Main group: if its cells (tiles plus the height graph) come to an odd number, the Height
+//    tile takes the full width and the graph moves under it, beside Vario; otherwise the graph
+//    sits beside the Height tile.
+//  - Lower group: a tile left alone on the last row takes the full width.
+const shown=e=>getComputedStyle(e).display!=='none';
+function layout(){
+  const main=$('#tilesMain'),h=$('#tile-height'),g=$('#tile-hgraph'),v=$('#tile-vario');
+  const full=[...main.children].filter(shown).length%2===1;
+  h.classList.toggle('big',full);
+  (full?v:h).after(g);
+  const more=[...$('#tilesMore').children];
+  more.forEach(e=>e.classList.remove('wide'));
+  const vis=more.filter(shown);
+  if(vis.length%2===1)vis[vis.length-1].classList.add('wide');
+  drawHeight();
+}
+let layKey='';
+const fR=r=>r>=50?'>50 : 1':r.toFixed(1)+' : 1';
+
+// Rolling height graph: the vario keeps the last ten minutes, fetched every few seconds.
+let hgData=null,hgBusy=false;
+async function pollHeight(){
+  if(hgBusy||document.hidden||$('#flightPage').hidden)return;hgBusy=true;
+  try{
+    const b=await fetch('/api/height',{cache:'no-store'}).then(r=>r.arrayBuffer());
+    const dv=new DataView(b),n=dv.getUint16(0,true),a=new Array(n);
+    for(let i=0;i<n;i++)a[i]=dv.getInt16(4+2*i,true)/4;
+    hgData={step:dv.getUint16(2,true),a};drawHeight();
+  }catch(e){}finally{hgBusy=false}
+}
+function drawHeight(){
+  const c=$('#hgCv');if(!c||!shown(c)||!c.clientWidth)return;
+  const dpr=window.devicePixelRatio||1,W=c.clientWidth,H=c.clientHeight;
+  if(c.width!==Math.round(W*dpr)||c.height!==Math.round(H*dpr)){c.width=Math.round(W*dpr);c.height=Math.round(H*dpr)}
+  const g=c.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+  const d=hgData;if(!d||d.a.length<2)return;
+  const cs=getComputedStyle(document.body),acc=cs.getPropertyValue('--acc'),mut=cs.getPropertyValue('--mut'),bd=cs.getPropertyValue('--bd');
+  const lo=Math.min(0,...d.a),hi=Math.max(...d.a,lo+30),N=300;
+  const X=i=>W-(d.a.length-1-i)*W/(N-1),Y=m=>H-4-(m-lo)/(hi-lo)*(H-14);
+  g.strokeStyle=bd;g.lineWidth=1;g.beginPath();g.moveTo(0,Math.round(Y(0))+.5);g.lineTo(W,Math.round(Y(0))+.5);g.stroke();
+  g.beginPath();g.moveTo(X(0),Y(lo));d.a.forEach((m,i)=>g.lineTo(X(i),Y(m)));g.lineTo(X(d.a.length-1),Y(lo));g.closePath();
+  g.globalAlpha=.25;g.fillStyle=acc;g.fill();g.globalAlpha=1;
+  g.strokeStyle=acc;g.lineWidth=1.5;g.beginPath();d.a.forEach((m,i)=>i?g.lineTo(X(i),Y(m)):g.moveTo(X(i),Y(m)));g.stroke();
+  g.fillStyle=mut;g.font='10px system-ui,sans-serif';g.textAlign='left';g.textBaseline='top';g.fillText(fH(hi),2,0);
+}
+setInterval(pollHeight,3000);addEventListener('resize',drawHeight);
+
 async function poll(){
   try{
     const r=await fetch('/api/status',{cache:'no-store'});const s=await r.json();
     // Optional hardware: tiles, buttons and tabs for parts that are not fitted are hidden.
     const hw=s.hw||{gps:true,mic:true},G=s.gps||{};
     document.body.classList.toggle('nogps',!hw.gps);document.body.classList.toggle('nomic',!hw.mic);
+    const k=hw.gps+'/'+hw.mic;if(k!==layKey){layKey=k;layout()}
     txt('t-agl',fH(s.agl));txt('t-msl',fH(s.altMsl)+' MSL');
     txt('t-vario',(s.vario>=0?'+':'')+s.vario.toFixed(1)+' m/s');txt('t-mute',s.muted?'muted':'');
-    txt('t-speed',G.fix?fS(G.speed):'–');txt('t-track',G.fix?'track '+Math.round(G.track)+'°':'');
+    txt('t-speed',G.fix?fS(G.speed):'–');
+    const L=s.glide||{};txt('t-glide',L.now!=null?fR(L.now):'–');txt('t-glides',(cfg.glideLongS||60)+' s avg '+(L.avg!=null?fR(L.avg):'–'));txt('t-track',G.fix?'track '+Math.round(G.track)+'°':'');
     txt('t-flight',s.flying?'Flying':'Grounded');txt('t-ftime',s.flightTime?fT(s.flightTime)+(s.logging?' · logging':''):'');
     $('#b-approach').classList.toggle('on',s.mode=='approach');$('#b-emergency').classList.toggle('on',s.mode=='emergency');
     $('#b-mute').textContent=s.muted?'Unmute vario':'Mute vario';
@@ -234,7 +293,7 @@ function render(){
 let wifiInfo=null;
 function showWifi(){
   const w=wifiInfo;if(!w||!document.getElementById('w-server'))return;
-  txt('w-ap',w.apIp+' · '+w.apClients+' connected');
+  txt('w-ap',(w.apSsid?w.apSsid+' · ':'')+w.apIp+' · '+w.apClients+' connected');
   const q=w.rssi>-60?'good':w.rssi>-70?'fair':'weak';
   let status=!w.serverSsid?'Off (not set)':w.server=='connected'?'Connected to '+w.serverSsid+' · signal '+q+' ('+w.rssi+' dBm)':
     w.server=='connecting'?'Connecting to '+w.serverSsid+'…':w.serverSsid+' – '+w.server;
@@ -392,4 +451,5 @@ async function boot(){
     if(s.debug){selectTab('system');$('#dbg').open=true;pollDbg()}}catch(e){}
 }
 boot();
+layout();pollHeight();
 </script></body></html>)HTML";

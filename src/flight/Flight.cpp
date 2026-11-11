@@ -27,12 +27,14 @@ FlightEvent Flight::update(uint32_t now, const Baro& baro, const GpsData& gps, N
   n.fix = gps.fix;
   n.sats = gps.sats;
   n.hdop = gps.hdop;
+  n.speedOk = false;
   if (n.fix) {
     n.lat = gps.lat;
     n.lon = gps.lon;
     // A weak fix (few satellites, poor accuracy) reports speed noise of tens of km/h while
     // stationary: only trust speed and course from a decent fix.
     bool speedOk = n.sats >= kMinAltSats && n.hdop < 3.0f;
+    n.speedOk = speedOk;
     n.speedMs = speedOk ? gps.speedMs : 0.0f;
     if (speedOk) n.trackDeg = gps.courseDeg;
   } else {

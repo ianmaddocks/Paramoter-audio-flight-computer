@@ -64,7 +64,7 @@ void formatCoord(double deg, int degDigits, char pos, char neg, char* out, size_
 }  // namespace
 
 void BleFeed::begin() {
-  NimBLEDevice::init(g_cfg.bleName);
+  NimBLEDevice::init(settings::bleName());
   NimBLEDevice::setPower(ESP_PWR_LVL_P9);
   server_ = NimBLEDevice::createServer();
   server_->setCallbacks(new ServerCallbacks());
@@ -83,10 +83,10 @@ void BleFeed::begin() {
   NimBLEAdvertising* adv = NimBLEDevice::getAdvertising();
   adv->addServiceUUID(kNusService);
   NimBLEAdvertisementData scanResp;
-  scanResp.setName(g_cfg.bleName);
+  scanResp.setName(settings::bleName());
   adv->setScanResponseData(scanResp);
   adv->start();
-  LOGI("BLE", "advertising as \"%s\"", g_cfg.bleName);
+  LOGI("BLE", "advertising as \"%s\"", settings::bleName());
 }
 
 int BleFeed::clients() const { return server_ ? server_->getConnectedCount() : 0; }
