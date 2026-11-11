@@ -17,6 +17,19 @@ namespace variosound {
 // Call every few tens of milliseconds.
 void update(uint32_t nowMs, const NavState& nav, bool muted);
 
+#if PV_TEST
+// How the power-on sequence went, measured on the vario itself so a test can read it from the status
+// reply however long after the restart it first reaches the vario (the debug log only keeps the last
+// few seconds).
+struct BootInfo {
+  bool done;           // "Ready" has been spoken
+  float beepHz;        // pitch of the start-up beep
+  uint32_t beepMs;     // how long the beep lasted
+  uint32_t readyGapMs; // from the end of the beep to "Ready" being spoken
+};
+BootInfo bootInfo();
+#endif
+
 // Test build: forget what was last written to the debug log.
 void resetLog();
 

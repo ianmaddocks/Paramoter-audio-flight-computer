@@ -16,6 +16,7 @@
 #include "Hardware.h"
 #include "Settings.h"
 #include "Version.h"
+#include "app/VarioSound.h"
 #include "audio/Speech.h"
 #include "audio/Volume.h"
 #include "comms/WebPage.h"
@@ -100,6 +101,14 @@ void handleStatus() {
   doc["debug"] = dlog::kDebugBuild;
 #if PV_TEST
   doc["test"] = true;
+  {
+    const variosound::BootInfo b = variosound::bootInfo();
+    JsonObject bj = doc["boot"].to<JsonObject>();
+    bj["done"] = b.done;
+    bj["hz"] = b.beepHz;
+    bj["beepMs"] = b.beepMs;
+    bj["readyGapMs"] = b.readyGapMs;
+  }
 #endif
   doc["version"] = PV_VERSION;
   doc["git"] = PV_GIT;

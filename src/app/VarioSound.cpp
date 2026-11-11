@@ -21,6 +21,11 @@ uint32_t startupMs = 0;
 const char* lastMode = "";
 float lastHz = 0;
 
+#if PV_TEST
+uint32_t gBeepStartMs = 0, gBeepEndMs = 0, gReadyMs = 0;
+float gBeepHz = 0;
+#endif
+
 // Debug log of what the tone generator was last told (mode change, or pitch moved 10 Hz), so the
 // test runner can follow the vario sound from the log.
 void logTone(const char* mode, float hz) {
@@ -42,16 +47,26 @@ void updateStartup(uint32_t now) {
       startupMs = now ? now : 1;
       const float hz = climbHz(kStartBeepClimbMs);
       audio::setTone(hz, 0, 0);  // continuous until stopped below
+#if PV_TEST
+      gBeepStartMs = startupMs;
+      gBeepHz = hz;
+#endif
       logTone("startup", hz);
     } else if (now - startupMs >= kStartBeepMs) {
       audio::setTone(0, 0, 0);
       logTone("off", 0);
       startup = Startup::Wait;
       startupMs = now;
+#if PV_TEST
+      gBeepEndMs = now;
+#endif
     }
   } else if (now - startupMs >= kStartWaitMs) {
     speech::say(audio::Priority::Normal, "ready");
     startup = Startup::Done;
+#if PV_TEST
+    gReadyMs = now;
+#endif
   }
 }
 
@@ -79,6 +94,17 @@ void update(uint32_t nowMs, const NavState& nav, bool muted) {
   if (startup != Startup::Done) updateStartup(nowMs);
   else updateTone(nav, muted);
 }
+
+#if PV_TEST
+BootInfo bootInfo() {
+  BootInfo b = {};
+  b.done = startup == Startup::Done;
+  b.beepHz = gBeepHz;
+  b.beepMs = gBeepEndMs - gBeepStartMs;
+  b.readyGapMs = gReadyMs ? gReadyMs - gBeepEndMs : 0;
+  return b;
+}
+#endif
 
 void resetLog() {
   lastMode = "";

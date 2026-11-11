@@ -56,7 +56,7 @@ before flying.
 
 | Test | Checks |
 |---|---|
-| `boot` | start-up beep, pause, "Ready" |
+| `boot` | start-up beep, pause, "Ready" (timed by the vario itself and read from its status reply) |
 | `settings` | settings API round trip and limits |
 | `vario_climb`, `vario_sink` | tone pitch in the log, and heard by the microphone |
 | `mute` | mute silences the tone and says so |

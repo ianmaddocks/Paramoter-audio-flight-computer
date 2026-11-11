@@ -544,14 +544,20 @@ def take_off(v, climb_to=GROUND_M + 60, vz=2.0):
 
 # --------------------------------------------------------------------------------------------
 def t_boot(v, a):
-    """Restart: build is the test build, start-up beep then 'Ready' a second later."""
+    """Restart: build is the test build, start-up beep then 'Ready' a second later.
+
+    The vario times its own power-on sequence and reports it in the status reply. The debug log
+    cannot be relied on here: the vario may take a good while to rejoin the Wi-Fi after a restart
+    (especially right after a firmware flash), and by then the log has moved on."""
+    before = v.status()["uptime"]
     v.action("restart")
-    time.sleep(6)
-    end = time.time() + 60
+    time.sleep(4)
+    end = time.time() + 90
+    st = None
     while True:
         try:
             st = json.loads(v._open("/api/status", tries=1)[1])
-            if st["uptime"] < 25:
+            if st["uptime"] < before or st["uptime"] < 30:
                 break
         except Fail:
             pass
@@ -560,17 +566,18 @@ def t_boot(v, a):
         time.sleep(2)
     if not st.get("test"):
         raise Fail("vario is not running the test build (pio run -e test -t upload)")
-    v.lines, v.next_seq = [], 0
-    beep, m1 = v.expect("TONE", r"^startup (\d+) Hz", 0, timeout=10, what="start-up beep")
-    near(m1.group(1), 900, 5, "start-up beep pitch (2 m/s climb)")
-    off, _ = v.expect("TONE", r"^off", 0, timeout=5)
-    say, _ = v.expect("SAY", r"\] ready$", 0, timeout=5, what="'Ready' spoken")
-    if not 0.2 <= off.t - beep.t <= 0.45:
-        raise Fail(f"beep lasted {off.t - beep.t:.2f} s, expected about 0.25 s")
-    if not 0.95 <= say.t - off.t <= 1.3:
-        raise Fail(f"'Ready' came {say.t - off.t:.2f} s after the beep, expected about 1 s")
-    v.expect("APP", r"ParaVario .* debug build", 0, timeout=3)
-    return f"beep {off.t - beep.t:.2f} s at {m1.group(1)} Hz, 'Ready' {say.t - off.t:.2f} s later"
+    if not st["debug"]:
+        raise Fail("the test build should report debug = true")
+    b = st["boot"]
+    if not b["done"]:
+        raise Fail(f"power-on sequence not finished after {st['uptime']} s: {b}")
+    near(b["hz"], 900, 5, "start-up beep pitch (2 m/s climb)")
+    if not 200 <= b["beepMs"] <= 450:
+        raise Fail(f"beep lasted {b['beepMs'] / 1000:.2f} s, expected about 0.25 s")
+    if not 950 <= b["readyGapMs"] <= 1300:
+        raise Fail(f"'Ready' came {b['readyGapMs'] / 1000:.2f} s after the beep, expected about 1 s")
+    return (f"beep {b['beepMs'] / 1000:.2f} s at {b['hz']:.0f} Hz, 'Ready' {b['readyGapMs'] / 1000:.2f} s later "
+            f"(vario answered again after {st['uptime']} s)")
 
 
 def t_settings(v, a):
