@@ -9,6 +9,7 @@ enum DistUnit : int32_t { DU_METRES = 0, DU_FEET = 1 };
 enum SpeedUnit : int32_t { SU_KMH = 0, SU_MPH = 1, SU_KNOTS = 2 };
 enum CircuitSide : int32_t { CS_PILOT = 0, CS_LEFT = 1, CS_RIGHT = 2 };
 enum LzMode : int32_t { LZ_TAKEOFF = 0, LZ_MANUAL = 1 };
+enum GpsModeSetting : int32_t { GPS_AUTO = 0, GPS_ALWAYS = 1, GPS_NOT_FITTED = 2 };
 
 struct Settings {
   int32_t heightUnit = HU_FEET;
@@ -87,6 +88,7 @@ struct Settings {
   float windFromDeg = 0.0f;
   float windSpeedMs = 0.0f;
 
+  int32_t gpsMode = GPS_AUTO;  // how the vario decides whether a GPS module is fitted (see Hardware.h)
   int32_t gpsRateHz = 5;
   // u-blox time-pulse output, which drives the positioning LED on most M10 breakouts.
   bool gpsLed = false;

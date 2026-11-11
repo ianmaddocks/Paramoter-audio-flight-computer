@@ -1,10 +1,10 @@
-# ParaVario user guide - Advanced vario (GPS and microphone)
+# ParaVario user guide - Advanced vario (with a GPS module)
 
 ParaVario is an audio vario and flight computer for paramotor flying. It beeps when you climb, calls out your height above the landing zone (LZ), talks you around a landing circuit, and guides you back to the LZ if the engine stops. It sends vario and GPS data to FlyGaggle over Bluetooth and has a settings page you open on your phone.
 
-This guide is for the **Advanced** vario, which has a GPS receiver and a microphone. A vario without them (the **Basic** vario) has its own guide, [User_Guide_(basic).md](User_Guide_(basic).md). Every tile, button and setting is explained in [Feature_Reference.md](Feature_Reference.md): Part 1 for what both versions have, Part 2 for what the GPS and microphone add. This guide shows how to use the vario; the reference explains what each control does.
+This guide is for the **Advanced** vario, which has a GPS module. A vario without one (the **Basic** vario) has its own guide, [User_Guide_(basic).md](User_Guide_(basic).md). Every tile, button and setting is explained in [Feature_Reference.md](Feature_Reference.md): Part 1 for what both versions have, Part 2 for what the GPS and microphone add. This guide shows how to use the vario; the reference explains what each control does.
 
-The version shown at the bottom of the web page ends in `-advanced` for this vario (`-basic` for the simpler one).
+There is only one program for both. The vario finds out at power-on whether a GPS module is fitted and shows the Advanced or the Basic features to match.
 
 ## Before you fly
 
@@ -13,14 +13,13 @@ The version shown at the bottom of the web page ends in `-advanced` for this var
 3. Optionally, open the web page on your phone (see [The web page](#the-web-page)). The banner at the top turns green and reads **Ready to fly** once the GPS has enough satellites, the barometer works and the landing zone is known. It shows the satellite count against the minimum, for example `7 / 6 satellites`. The banner is only a guide; whether to fly is your call.
 4. Take off. Takeoff is detected automatically and you hear **"Take off"**. The spot where you stood before the takeoff run becomes the landing zone, and its height becomes zero for all height calls. To use a different LZ, see [Landing zone](#landing-zone).
 
-## If a part is missing
+## If the GPS is missing or stops
 
-A vario built without the GPS or without the microphone (see [User_Guide_(basic).md](User_Guide_(basic).md)) simply leaves out what depends on it:
+A vario with no GPS module (see [User_Guide_(basic).md](User_Guide_(basic).md)) simply leaves out what depends on it: no speed, wind, landing zone, approach or emergency guidance and no flight log, and every press of the button mutes or unmutes the vario.
 
-- **No GPS:** no speed, wind, landing zone, approach or emergency guidance and no flight log; every press of the button mutes or unmutes the vario.
-- **No microphone:** the volume stays at the set value, and the Engine RPM and Background noise tiles and the Spectrum tab are hidden.
+How the vario knows: at power-on it listens for the GPS module. If it hears nothing for a few seconds it treats the GPS as not fitted. Once a GPS has been seen it is remembered, so a GPS that later goes quiet shows `GPS not responding` rather than disappearing. You can also set it by hand: **GPS module** in Settings, Advanced settings, GPS (Auto-detect, Always present or Not fitted).
 
-On a vario that has both, a GPS that stops working in flight leaves you with the vario, heights and height calls; "No GPS" is spoken after 5 seconds.
+A GPS that stops working in flight leaves you with the vario, heights and height calls; "No GPS" is spoken after 5 seconds.
 
 ## Button
 
@@ -120,12 +119,12 @@ Every setting, with its default, an example and what it does underneath, is in [
 
 | Settings group | Explained in |
 |---|---|
-| Units, Audio (volumes, volume change speed) | [Basic: Units and Audio](Feature_Reference.md#basic-settings-units-and-audio) |
-| Audio (raise volume with noise) | [Advanced: Units and Audio](Feature_Reference.md#adv-settings-units-and-audio) |
+| Units (height), Audio (volumes, volume change speed, raise volume with noise) | [Units and Audio](Feature_Reference.md#basic-settings-units-and-audio) |
+| Units (distance, speed) | [Advanced: Units and Audio](Feature_Reference.md#adv-settings-units-and-audio) |
 | Vario | [Basic: Vario](Feature_Reference.md#basic-settings-vario) |
 | Height calls | [Basic: Height calls](Feature_Reference.md#basic-settings-height-calls) |
 | Takeoff & landing | [Basic](Feature_Reference.md#basic-settings-takeoff-and-landing) and [Advanced](Feature_Reference.md#adv-settings-takeoff-and-landing) |
-| Engine RPM | [Advanced: Engine RPM](Feature_Reference.md#adv-settings-engine-rpm) |
+| Engine RPM | [Engine RPM](Feature_Reference.md#basic-settings-engine-rpm) |
 | Glide, Landing zone, Landing approach, Emergency, Wind | [Advanced](Feature_Reference.md#adv-settings-glide) |
 | GPS | [Advanced: GPS](Feature_Reference.md#adv-settings-gps) |
 | Bluetooth | [Basic](Feature_Reference.md#basic-settings-bluetooth) and [Advanced](Feature_Reference.md#adv-settings-bluetooth) |
@@ -138,7 +137,7 @@ Every setting, with its default, an example and what it does underneath, is in [
 - **Firmware (USB):** `pio run -e release_usb -t upload`. Use `-e debug_usb` for detailed logging.
 - **Firmware (Wi-Fi from VS Code):** connect the PC to the vario's Wi-Fi (or, if you have set the *Server network*, just power the vario on near the PC), then `pio run -e release -t upload` (or `-e debug`). The vario restarts when it is done.
 - **Firmware (phone):** build on the PC (`pio run -e release`) and copy `.pio/build/release/firmware.bin` to the phone. On the phone, join the vario's Wi-Fi, open **http://192.168.4.1** in the normal browser (the pop-up captive-portal window often can't pick files), then go to **Logs & system**, choose the file, enter the update password and tap **Install update**. Keep the phone close and the page open until it says *Installed*. A failed or interrupted upload leaves the old firmware running.
-- **Install the right program.** The version ends in `-advanced` for this vario. An `-basic` program does not use the GPS or microphone.
+- **One program for every vario.** The same `firmware.bin` goes on a vario with and without a GPS module.
 - **Voice clips:** edit `tools/vocab.txt` or add your own recordings to `tools/voice_custom/`, run `python tools/make_voice.py`, then `pio run -e release -t uploadfs`. You can also run `pio run -e release -t buildfs` and install `.pio/build/release/littlefs.bin` from the phone page. **This erases the flight logs stored on the vario, so download them first.** Settings are kept.
 - Firmware and voice-clip updates are refused while the vario is flying.
 - **Factory defaults:** web page, Logs & system tab, *Factory defaults*.

@@ -139,12 +139,9 @@ void handleButton(ButtonEvent ev) {
 void readSensors(uint32_t now) {
   sim::update(now);
   app.baro.update(now);
-  if (hw::hasGps()) {
-    app.gps.update(now);
-    app.gps.read(now, app.gpsData);
-  } else {
-    app.gpsData = GpsData();
-  }
+  app.gps.update(now);  // also keeps the "is a GPS fitted" detection going
+  if (hw::hasGps()) app.gps.read(now, app.gpsData);
+  else app.gpsData = GpsData();
   app.battery.update(now);
 }
 
@@ -192,6 +189,7 @@ void actionToggleMute() {
 
 const char* appNotReadyReason() {
   const NavState& n = app.nav;
+  if (hw::gpsState() == hw::GpsState::Unknown) return "Looking for GPS";
   if (hw::hasGps()) {
     if (!app.gpsData.link) return "GPS not responding";
     if (!n.fix || n.sats < g_cfg.readyMinSats) return "Waiting for satellites";
@@ -231,7 +229,7 @@ void appSetup() {
   Serial.setTxTimeoutMs(0);  // never block when no USB host is listening
   LOGI("APP", "ParaVario %s (%s, %s build), reset reason %d", PV_VERSION, PV_GIT,
        dlog::kDebugBuild ? "debug" : "release", (int)esp_reset_reason());
-  LOGI("APP", "Hardware: GPS %s, microphone %s", PV_HAS_GPS ? "fitted" : "not fitted",
+  LOGI("APP", "Hardware: microphone %s; GPS detected at start-up (setting \"GPS module\")",
        PV_HAS_MIC ? "fitted" : "not fitted");
   settings::load();
   if (!LittleFS.begin(true)) LOGE("APP", "LittleFS mount failed");

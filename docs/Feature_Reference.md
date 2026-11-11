@@ -2,26 +2,28 @@
 
 Every tile, button, sound and setting, explained. It applies to both versions of the vario:
 
-- **Basic**: barometer and speaker only (no GPS, no microphone). See [User_Guide_(basic).md](User_Guide_(basic).md).
-- **Advanced**: adds the GPS receiver and the microphone. See [User_Guide_(advanced).md](User_Guide_(advanced).md).
+- **Basic**: a vario with no GPS module (barometer, speaker and microphone). See [User_Guide_(basic).md](User_Guide_(basic).md).
+- **Advanced**: a vario with a GPS module as well. See [User_Guide_(advanced).md](User_Guide_(advanced).md).
 
-**Part 1** covers everything a Basic vario has, and an Advanced vario has it too. **Part 2** covers what the GPS and the microphone add; each of those features is marked *Advanced Feature*. On a vario without that part, the feature is simply not shown on the page.
+There is only one program: the vario finds out at power-on whether a GPS module is fitted and shows the Basic or the Advanced features accordingly.
+
+**Part 1** covers everything a Basic vario has, and an Advanced vario has it too (including the microphone features: background noise, engine RPM, automatic volume and the Spectrum tab). **Part 2** covers what the GPS adds; each of those features is marked *Advanced Feature*. On a vario without a GPS module they are simply not shown on the page.
 
 Heights in the examples use the default unit (feet). You can switch to metres in Settings.
 
 **Contents**
 
 - [Part 1 - Basic](#part-1---basic)
-  - [Tiles](#basic-tiles) · [Banner](#basic-banner) · [Buttons and actions](#basic-buttons) · [Sounds](#basic-sounds)
-  - [Settings: Units and Audio](#basic-settings-units-and-audio) · [Vario](#basic-settings-vario) · [Height calls](#basic-settings-height-calls) · [Takeoff and landing](#basic-settings-takeoff-and-landing) · [Bluetooth](#basic-settings-bluetooth) · [Wi-Fi](#basic-settings-wi-fi) · [Battery](#basic-settings-battery)
+  - [Tiles](#basic-tiles) · [Banner](#basic-banner) · [Buttons and actions](#basic-buttons) · [Sounds](#basic-sounds) · [Spectrum tab](#basic-spectrum)
+  - [Settings: Units and Audio](#basic-settings-units-and-audio) · [Engine RPM](#basic-settings-engine-rpm) · [Vario](#basic-settings-vario) · [Height calls](#basic-settings-height-calls) · [Takeoff and landing](#basic-settings-takeoff-and-landing) · [Bluetooth](#basic-settings-bluetooth) · [Wi-Fi](#basic-settings-wi-fi) · [Battery](#basic-settings-battery)
   - [Logs and system tab](#basic-system) · [Help tab](#basic-help)
 - [Part 2 - Advanced](#part-2---advanced)
-  - [Tiles](#adv-tiles) · [Banner](#adv-banner) · [Buttons and actions](#adv-buttons) · [Guidance](#adv-guidance) · [Sounds](#adv-sounds) · [Spectrum tab](#adv-spectrum)
-  - [Settings: Units and Audio](#adv-settings-units-and-audio) · [Engine RPM](#adv-settings-engine-rpm) · [Takeoff and landing](#adv-settings-takeoff-and-landing) · [Glide](#adv-settings-glide) · [Landing zone](#adv-settings-landing-zone) · [Landing approach](#adv-settings-landing-approach) · [Emergency](#adv-settings-emergency) · [Wind](#adv-settings-wind) · [GPS](#adv-settings-gps) · [Bluetooth](#adv-settings-bluetooth) · [Logging](#adv-settings-logging)
+  - [Tiles](#adv-tiles) · [Banner](#adv-banner) · [Buttons and actions](#adv-buttons) · [Guidance](#adv-guidance) · [Sounds](#adv-sounds)
+  - [Settings: Units and Audio](#adv-settings-units-and-audio) · [Takeoff and landing](#adv-settings-takeoff-and-landing) · [Glide](#adv-settings-glide) · [Landing zone](#adv-settings-landing-zone) · [Landing approach](#adv-settings-landing-approach) · [Emergency](#adv-settings-emergency) · [Wind](#adv-settings-wind) · [GPS](#adv-settings-gps) · [Bluetooth](#adv-settings-bluetooth) · [Logging](#adv-settings-logging)
 
 Settings are changed on the Settings tab of the web page. A change is saved a moment after you make it. A setting marked **restart** takes effect after the vario is restarted.
 
-The settings most pilots never need to change are collected in an **Advanced settings** section at the end of the list. It starts closed; tap it to open it. It holds the groups Battery, Wi-Fi, GPS, Engine RPM, Wind, Logging (including *Keep this much track before takeoff*) and Glide. A vario without a GPS or a microphone shows only those of them that apply to it.
+The settings most pilots never need to change are collected in an **Advanced settings** section at the end of the list. It starts closed; tap it to open it. It holds the groups Battery, Wi-Fi, GPS, Engine RPM, Wind, Logging (including *Keep this much track before takeoff*) and Glide. A vario with no GPS module shows only those that apply to it: Battery, Wi-Fi, Engine RPM, and the one GPS setting, *GPS module*.
 
 ---
 
@@ -64,6 +66,20 @@ How full the battery is, and roughly how long it will last.
 For example, `74%`, and under it `3.96 V · ~3 h 20 min`. When the vario is on USB power the tile says `USB`.
 
 The percentage comes from the battery voltage. After the vario has once been run until the battery was flat, it learns the real discharge curve of your battery and the percentage and minutes left become more accurate. See the *Battery* settings.
+
+### Engine RPM
+The engine speed, worked out from the sound the microphone hears.
+
+For example, `5400 rpm`. It says `off` when no engine sound is recognised. Under it, `est 5400 · conf 6.2` is the raw estimate and how sure the vario is of it.
+
+The microphone hears the engine's firing frequency and its harmonics, and the vario finds the pattern. If the *conf* number is low the reading is not shown. Tune it in the Engine RPM settings.
+
+### Background noise
+How loud it is around the vario, as heard by the microphone.
+
+For example, `-38 dBFS` with `vario vol 72%` under it: that is the noise level and the volume the vario beeps are currently played at. Use these numbers to set *Noise for set volume* and *Noise for full volume*.
+
+dBFS is a scale where 0 is the loudest the microphone can measure and about -90 is silence. Louder noise is a bigger number (closer to zero). The vario ignores its own speaker, so it does not turn itself up.
 
 <a id="basic-banner"></a>
 ## Banner (top of the Flight tab)
@@ -144,6 +160,16 @@ A warning when the battery is getting flat.
 
 You hear "Battery low" when the voltage falls below *Low battery warning*. It repeats every 5 minutes until you land and charge.
 
+<a id="basic-spectrum"></a>
+## Spectrum tab
+
+### Microphone spectrum
+A graph of the sounds the microphone hears, by pitch.
+
+Open the tab with the engine running. The tall spikes are the engine and its harmonics; use it to check the engine is picked up and to see how loud the noise is. The dashed line is the vario's own beep. *Pause* freezes the graph; *Floor* sets how deep it shows (down to -100 dBFS).
+
+The graph only works while the tab is open, so it costs nothing in flight.
+
 <a id="basic-settings-units-and-audio"></a>
 ## Settings: Units and Audio
 
@@ -165,9 +191,53 @@ Set it so the beeps are clear over your engine noise or wind but not painful. Th
 ### Fastest volume change
 Stops the volume from changing suddenly.
 
-If you change the volume (or, on an Advanced vario, the noise around you changes), the sound moves to the new volume smoothly instead of jumping. A lower number is gentler. Default: 40 % per second.
+If you change the volume (or the noise around you changes), the sound moves to the new volume smoothly instead of jumping. A lower number is gentler. Default: 40 % per second.
 
 At 40 %/s, going from 10 % to 100 % takes about 2 to 3 seconds. The step is also spread over a tenth of a second inside the audio output, so there is never a click.
+
+### Raise volume with background noise
+The vario gets louder when it is noisy around you (the microphone listens for the noise).
+
+On the ground it plays at your set volume. With the engine running it climbs towards full volume so you can still hear it. It never goes below your set volume. Default: On.
+
+Between the two noise levels you set (below), the volume rises in proportion. The change is always gradual (see *Fastest volume change*).
+
+### Noise for set volume (see Background noise tile)
+The noise level at or below which the normal volume is used.
+
+Read the Background noise tile when it is quiet (for example -45 dBFS) and enter that. Default: -45 dBFS.
+
+### Noise for full volume
+The noise level at which the volume reaches 100 %.
+
+Read the tile with the engine at full power in flight (for example -15 dBFS) and enter that. Halfway between the two noise levels you get half-way between your set volume and 100 %. Default: -15 dBFS.
+
+### Volume fall time after noise drops
+How slowly the volume comes back down after a loud moment.
+
+A short burst of noise (a gust, a shout) should not make the volume go up and down. With 5 s it takes about 5 s to follow the noise down. Default: 5 s.
+
+The volume rises with the noise within about a second, but only falls at this slower pace.
+
+<a id="basic-settings-engine-rpm"></a>
+## Settings: Engine RPM
+
+These settings tune the engine speed reading that is made from the microphone.
+
+### Sound pulses per revolution
+How many engine firings the microphone hears for each turn of the engine.
+
+A two-stroke engine fires once per turn: leave it at 1. A four-stroke fires every other turn: 0.5. Default: 1.
+
+### Lowest RPM / Highest RPM
+The range of speeds the vario looks for.
+
+If your engine idles at 2000 rpm and revs to 8000, set about 1500 and 9000. A narrow range avoids mistaking other sounds for the engine. Defaults: 1200 and 10000.
+
+### Minimum confidence
+How sure the vario must be before it shows an RPM.
+
+Watch the *conf* number under the Engine RPM tile with the engine running. Set this a little below it. Higher avoids false readings but may drop real ones. Default: 3.
 
 <a id="basic-settings-vario"></a>
 ## Settings: Vario
@@ -380,7 +450,7 @@ Installs a new program on the vario from your phone or computer.
 
 Choose the `firmware.bin` file, type the update password, tap *Install update*, and keep the page open until it says *Installed*. The vario restarts. If the upload is interrupted, the old program keeps running. It is not possible while flying.
 
-The version shown ends in `-basic` or `-advanced` so you can see which kind of program is installed. Install the one that matches your hardware.
+One program serves every vario: it finds out by itself whether a GPS module is fitted, so there is only one `firmware.bin` to install.
 
 ### Restart / Factory defaults
 Restart the vario, or put every setting back to its starting value.
@@ -400,13 +470,13 @@ The guides are fetched from GitHub, always in their latest version, and shown in
 ### Help links on the settings
 Open a group of settings and a **Help** link appears at the right-hand end of its title.
 
-Tap it to show the part of this reference that explains that group. Where a group has more to explain on this vario (for example the Audio group when a microphone is fitted), a second link, **More help**, follows the first.
+Tap it to show the part of this reference that explains that group. Where a group has more to explain on this vario (for example the Units group, which also has the GPS distance and speed units), a second link, **More help**, follows the first.
 
 ---
 
 # Part 2 - Advanced
 
-These features need the GPS receiver, the microphone, or both, and are marked *Advanced Feature*. Where it is not obvious, the text says which part is used.
+These features need a GPS module and are marked *Advanced Feature*. A vario finds out by itself whether a GPS module is fitted (see the *GPS module* setting); without one these features, and their settings, are simply not shown.
 
 <a id="adv-tiles"></a>
 ## Tiles (Flight tab)
@@ -455,24 +525,6 @@ How many satellites the GPS can see and how good the signal is.
 For example, `10 sats` with `Fix · signal strong`. `Searching` means no position yet; `no data` means the GPS is not talking to the vario. Signal reads strong, good, ok or poor.
 
 More satellites and a lower HDOP (a measure of how spread-out they are) mean better accuracy. See *Ready to fly: minimum satellites*.
-
-### Engine RPM
-*Advanced Feature*
-
-The engine speed, worked out from the sound the microphone hears.
-
-For example, `5400 rpm`. It says `off` when no engine sound is recognised. Under it, `est 5400 · conf 6.2` is the raw estimate and how sure the vario is of it.
-
-The microphone hears the engine's firing frequency and its harmonics, and the vario finds the pattern. If the *conf* number is low the reading is not shown. Tune it in the Engine RPM settings.
-
-### Background noise
-*Advanced Feature*
-
-How loud it is around the vario, as heard by the microphone.
-
-For example, `-38 dBFS` with `vario vol 72%` under it: that is the noise level and the volume the vario beeps are currently played at. Use these numbers to set *Noise for set volume* and *Noise for full volume*.
-
-dBFS is a scale where 0 is the loudest the microphone can measure and about -90 is silence. Louder noise is a bigger number (closer to zero). The vario ignores its own speaker, so it does not turn itself up.
 
 <a id="adv-banner"></a>
 ## Banner
@@ -585,18 +637,6 @@ With a GPS, takeoff is spotted from speed.
 
 You hear "Take off" when you have been running at takeoff speed for a few seconds and climbed a little.
 
-<a id="adv-spectrum"></a>
-## Spectrum tab
-
-### Microphone spectrum
-*Advanced Feature*
-
-A graph of the sounds the microphone hears, by pitch.
-
-Open the tab with the engine running. The tall spikes are the engine and its harmonics; use it to check the engine is picked up and to see how loud the noise is. The dashed line is the vario's own beep. *Pause* freezes the graph; *Floor* sets how deep it shows (down to -100 dBFS).
-
-The graph only works while the tab is open, so it costs nothing in flight.
-
 <a id="adv-settings-units-and-audio"></a>
 ## Settings: Units and Audio
 
@@ -613,60 +653,6 @@ Distances to the landing zone and in guidance are spoken and shown in this unit.
 Kilometres per hour, miles per hour or knots, for the page.
 
 Choose the one you think in; the Ground speed tile follows it. Takeoff and landing speeds are typed in this unit. Default: km/h.
-
-### Raise volume with background noise
-*Advanced Feature*
-
-The vario gets louder when it is noisy around you (the microphone listens for the noise).
-
-On the ground it plays at your set volume. With the engine running it climbs towards full volume so you can still hear it. It never goes below your set volume. Default: On.
-
-Between the two noise levels you set (below), the volume rises in proportion. The change is always gradual (see *Fastest volume change*).
-
-### Noise for set volume (see Background noise tile)
-*Advanced Feature*
-
-The noise level at or below which the normal volume is used.
-
-Read the Background noise tile when it is quiet (for example -45 dBFS) and enter that. Default: -45 dBFS.
-
-### Noise for full volume
-*Advanced Feature*
-
-The noise level at which the volume reaches 100 %.
-
-Read the tile with the engine at full power in flight (for example -15 dBFS) and enter that. Halfway between the two noise levels you get half-way between your set volume and 100 %. Default: -15 dBFS.
-
-### Volume fall time after noise drops
-*Advanced Feature*
-
-How slowly the volume comes back down after a loud moment.
-
-A short burst of noise (a gust, a shout) should not make the volume go up and down. With 5 s it takes about 5 s to follow the noise down. Default: 5 s.
-
-The volume rises with the noise within about a second, but only falls at this slower pace.
-
-<a id="adv-settings-engine-rpm"></a>
-## Settings: Engine RPM
-
-*Advanced Feature*
-
-These settings tune the engine speed reading that is made from the microphone.
-
-### Sound pulses per revolution
-How many engine firings the microphone hears for each turn of the engine.
-
-A two-stroke engine fires once per turn: leave it at 1. A four-stroke fires every other turn: 0.5. Default: 1.
-
-### Lowest RPM / Highest RPM
-The range of speeds the vario looks for.
-
-If your engine idles at 2000 rpm and revs to 8000, set about 1500 and 9000. A narrow range avoids mistaking other sounds for the engine. Defaults: 1200 and 10000.
-
-### Minimum confidence
-How sure the vario must be before it shows an RPM.
-
-Watch the *conf* number under the Engine RPM tile with the engine running. Set this a little below it. Higher avoids false readings but may drop real ones. Default: 3.
 
 <a id="adv-settings-takeoff-and-landing"></a>
 ## Settings: Takeoff and landing
@@ -820,6 +806,13 @@ The wind you enter when manual wind is on.
 ## Settings: GPS
 
 *Advanced Feature*
+
+### GPS module
+Whether the vario has a GPS module: found automatically, or set by hand.
+
+The vario listens to the GPS connection at power-on. If a GPS module is there it sends data at once, and the vario switches on everything that needs it: the GPS tiles, guidance, the flight log and these settings. If nothing is heard within a few seconds the vario treats the GPS as not fitted and hides all of that. It keeps listening, so a GPS that starts late is still found, and once a GPS has been seen the vario remembers it: if it later goes quiet the banner says `GPS not responding` instead of the GPS disappearing.
+
+You can overrule the automatic choice: **Always present** (for example to make a faulty GPS show as not responding) or **Not fitted** (to ignore a module you have disconnected). This is the only setting in this group that a vario without a GPS shows. Default: Auto-detect.
 
 ### Update rate
 How many times a second the GPS reports its position.

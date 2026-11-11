@@ -31,6 +31,8 @@ Useful options:
 | `--volume 30` | speech and vario volume used during the tests (default 20 %) |
 | `-v` | print every log line received |
 
+The suite runs with the setting *GPS module* on "Always present" so the GPS tests do not depend on what the vario has seen; `gps_detect` tests Auto-detect itself.
+
 The script saves the vario's settings first and puts them back afterwards, switches the
 simulation off, and deletes the flight logs the tests created. Flash the release build again
 before flying.
@@ -39,8 +41,8 @@ before flying.
 
 - **Simulated inputs** (`src/test/Sim.*`, compiled only with `PV_TEST=1`): barometer altitude,
   GPS (generated NMEA sentences fed through the real parser), battery voltage and background
-  noise level, and switches that make the vario behave as if built without a GPS or without a
-  microphone (`hasGps=0`, `hasMic=0`). They are set with `GET /api/sim?key=value&...`; `reset=1` returns the flight
+  noise level, and switches that make the vario behave as if it had no GPS module or no microphone
+  (`hasGps=0`, `hasMic=0`), and one that makes it forget that a GPS was ever seen (`gpsForget=1`). They are set with `GET /api/sim?key=value&...`; `reset=1` returns the flight
   logic to its power-on state. In every other build the hooks compile to nothing.
 - **Checks from the log.** The script reads the debug log feed (`/api/debuglog`) continuously
   and looks for the lines a behaviour produces: `SAY` (every phrase spoken, by clip name), `TONE`
@@ -70,7 +72,8 @@ before flying.
 | `speech` | test phrase: clip sequence, and heard by the microphone |
 | `volume_ramp` | a volume change is applied gradually at the set rate, never as a jump |
 | `glide` | glide ratio from speed and sink: 1 s and long average, none when level or climbing |
-| `variant_no_gps` | vario without a GPS: ready, takeoff, height, landing, no GPS calls or log, page and settings trimmed |
+| `gps_detect` | the vario finds out for itself whether a GPS is fitted (unknown, then not fitted after 10 s, found when one starts sending, kept when silent), by hand both ways, and the page and its settings list follow |
+| `variant_no_gps` | vario with no GPS: ready, takeoff, height, landing, no GPS calls or log, page and settings trimmed |
 | `variant_no_mic` | vario without a microphone: set volume used, battery still read, page and settings trimmed |
 | `ui_flight` | banner and every tile on the flight tab |
 | `ui_actions` | mute, test voice and landing-zone buttons |
@@ -78,7 +81,7 @@ before flying.
 | `ui_settings` | every setting shown; editing, units, greyed-out boxes, restart marks |
 | `ui_spectrum` | spectrum graph, tone marker, pause (skipped on a build made with `-DPV_HAS_SPECTRUM=0`) |
 | `ui_help` | Help tab and the Help links on the settings groups: the right guide for the hardware, links that stay in the docs folder and point at sections that exist |
-| `ui_system` | tabs, debug log viewer, firmware box, version line |
+| `ui_system` | tabs, logging viewer, firmware box, version line |
 | `ota_guard` | firmware upload refused without the right password |
 | `memory` | free memory not run down, and never dangerously low |
 

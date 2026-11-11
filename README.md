@@ -21,27 +21,31 @@ stops. It runs on a Seeed XIAO ESP32C3 and is built with PlatformIO.
 - **Bluetooth** to FlyGaggle and other apps (`$LK8EX1` and `$LXWP0` vario sentences).
 - A **web page** on the vario's own Wi-Fi network, opened on your phone: live height, a 10-minute height
   graph, vario, flight time and battery tiles; every setting; firmware update; a built-in Help tab.
-- A smooth volume control that never jumps, and a battery gauge that learns how long your battery lasts.
+- A **microphone** that listens to the noise around you: the speaker volume **rises with it**
+  (smoothly, never with a jump), the **engine RPM** is read from the engine sound, and there is a live
+  sound-spectrum page.
+- A battery gauge that learns how long your battery lasts.
 
-**Advanced version only (adds a GPS receiver and a microphone)**
+**Advanced version only (a GPS module fitted)**
 
-- With the **GPS**: ground speed, **glide ratio**, wind estimate, **landing zone**, a spoken **landing
-  approach circuit**, **emergency glide** guidance back to the landing zone, and **IGC flight logs**
-  (with the 30 seconds before takeoff included).
-- With the **microphone**: the speaker volume **rises with the noise around you** (smoothly), **engine
-  RPM** read from the engine sound, a background-noise tile and a live sound-spectrum page.
+- Ground speed, **glide ratio**, wind estimate, **landing zone**, a spoken **landing approach circuit**,
+  **emergency glide** guidance back to the landing zone, and **IGC flight logs** (with the 30 seconds
+  before takeoff included).
 
-## Two versions
+## Basic and Advanced: one program
+
+The only difference between the two is whether a **GPS module** is fitted. There is a single program:
+at power-on the vario listens for a GPS module and shows the Basic or the Advanced features to match,
+including the page, the settings and the Help. (A setting, *GPS module*, can overrule the automatic
+choice.)
 
 | | Basic | Advanced |
 |---|---|---|
-| Hardware | barometer and speaker | adds a u-blox M10 GPS and an analogue microphone |
-| Build | `pio run -e basic` | `pio run -e release` |
+| Hardware | barometer, speaker, microphone | adds a u-blox M10 GPS module |
+| Build | `pio run -e release` (the same for both) | |
 | Guide | [User_Guide_(basic).md](docs/User_Guide_(basic).md) | [User_Guide_(advanced).md](docs/User_Guide_(advanced).md) |
 
-Each is a separate build, and the version shown on the web page ends in `-basic` or `-advanced` so you
-can see which program a vario is running. The two share one code base (see
-[Hardware variants and build flags](#hardware-variants-and-build-flags)).
+How it works is described under [Hardware and build flags](#hardware-and-build-flags).
 
 ## Hardware
 
@@ -49,7 +53,8 @@ can see which program a vario is running. The two share one code base (see
 - **DPS310** barometer (I2C)
 - **MAX98357A** amplifier and a small speaker (I2S)
 - Battery with a voltage divider on an ADC pin, and a **push button**
-- *Advanced only:* a **u-blox M10 GPS** module (UART) and an **analogue microphone** module (ADC)
+- An **analogue microphone** module (ADC)
+- *Advanced only:* a **u-blox M10 GPS** module (UART)
 
 The pin assignments are in [src/Pins.h](src/Pins.h).
 
@@ -58,12 +63,11 @@ The pin assignments are in [src/Pins.h](src/Pins.h).
 1. Install [VS Code](https://code.visualstudio.com/) with the PlatformIO extension, and clone this repository.
 2. **Set your own update password**: change `custom_ota_password` in [platformio.ini](platformio.ini). It is
    asked for whenever new firmware is sent to the vario over Wi-Fi, so do not leave the shared one.
-3. **First install, over the USB cable.** Advanced: `pio run -e release_usb -t upload`. Basic:
-   `pio run -e basic_usb -t upload`. Then install the voice clips (they are in `data/`):
-   `pio run -e release_usb -t uploadfs` (or `-e basic_usb`).
+3. **First install, over the USB cable:** `pio run -e release_usb -t upload`, for a vario with or without a
+   GPS module. Then install the voice clips (they are in `data/`): `pio run -e release_usb -t uploadfs`.
 4. **Join the vario's Wi-Fi** (named `ParaVario-` followed by four characters unique to your unit; the
    default password is `paramotor`) and the page opens on your phone, or go to `http://192.168.4.1`.
-5. **Later updates go over Wi-Fi**: `pio run -e release -t upload` (or `-e basic`), from a PC joined to
+5. **Later updates go over Wi-Fi**: `pio run -e release -t upload`, from a PC joined to
    the vario's network, or on your home network once you have set the *Server network* in settings.
 
 To change what the voice says, see `tools/vocab.txt` and `tools/make_voice.py`. The full set of build,
@@ -73,8 +77,8 @@ update and maintenance steps is in the user guides.
 
 | Document | What it is |
 |---|---|
-| [User_Guide_(basic).md](docs/User_Guide_(basic).md) | How to fly and use the Basic vario (no GPS, no microphone) |
-| [User_Guide_(advanced).md](docs/User_Guide_(advanced).md) | How to fly and use the Advanced vario (GPS and microphone) |
+| [User_Guide_(basic).md](docs/User_Guide_(basic).md) | How to fly and use the Basic vario (no GPS module) |
+| [User_Guide_(advanced).md](docs/User_Guide_(advanced).md) | How to fly and use the Advanced vario (with a GPS module) |
 | [Feature_Reference.md](docs/Feature_Reference.md) | Every tile, button, sound and setting explained, Basic first, then Advanced |
 | [TESTING.md](docs/TESTING.md) | The hardware-in-the-loop test suite that checks the firmware on a real vario |
 | *Architecture* (below) | How the firmware is put together, for anyone changing it |
@@ -95,50 +99,53 @@ listens to the speaker through the microphone, and drives the web page in a head
 
 How the firmware is put together, for anyone changing it.
 
-### Hardware variants and build flags
+### Hardware and build flags
 
 Seeed XIAO ESP32C3 with a DPS310 barometer (I2C), a MAX98357A speaker amplifier (I2S), a battery
-divider on an ADC pin, a push button, and optionally a u-blox M10 GPS (UART) and an analogue
-microphone (ADC). Pin numbers are in `src/Pins.h`.
+divider on an ADC pin, an analogue microphone (ADC), a push button, and optionally a u-blox M10 GPS
+(UART). Pin numbers are in `src/Pins.h`.
 
-The GPS and the microphone are optional. Which are fitted is a build choice (`src/Hardware.h`):
+**The GPS is found at run time.** One firmware serves every vario (`src/Hardware.h`,
+`src/sensors/Gps.cpp`). The GPS driver listens on the serial port for valid NMEA sentences; a module
+sends them from power-on, so the GPS is *present* as soon as some arrive, and *absent* if a vario that
+has never seen one hears nothing for 10 s. It keeps listening, so a module that starts late is still
+found, and a GPS that has been seen once is remembered in flash, so one that later goes quiet shows
+"GPS not responding" instead of vanishing. The setting **GPS module** (Auto-detect, Always present,
+Not fitted) overrules the detection. Until the first sentence or the 10 s are up the state is
+*unknown*, and the banner says "Looking for GPS".
 
-| Build (`pio run -e ...`) | GPS | Microphone | Use |
-|---|---|---|---|
-| `release`, `debug` | yes | yes | full vario |
-| `basic`, `basic_usb` | no | no | simplest variant: barometer and speaker only (`basic_usb` is for the first install over the USB cable) |
-| `test` | yes | yes | debug build plus simulated sensors, for `tools/hil_test.py` |
+Everything that depends on the GPS asks `hw::hasGps()` (true only when present), at run time, so the
+page, the guidance, the flight log, Bluetooth, the button and the settings list follow what was found:
 
-`-DPV_HAS_GPS=0` and `-DPV_HAS_MIC=0` can also be used one at a time in a build of your own.
-`-DPV_HAS_SPECTRUM=0` leaves out just the microphone spectrum feature (the Spectrum tab with its page and
-script, `/api/spectrum` and the code that produces it); noise level, automatic volume and engine RPM are
-not affected. It is implied by `PV_HAS_MIC=0`, so the Basic builds contain none of the spectrum code or
-page text.
-
-The version string carries the variant: `20261111-131219-advanced` (both parts), `...-basic` (neither),
-`...-basic+gps` or `...-basic+mic` (one). It is built in `src/Version.h` from the same flags and appears in
-the boot log, the page footer and the status reply, so a glance shows which program a vario runs.
-
-What changes without the part:
-
-| | Without GPS | Without microphone |
+| | GPS present | GPS absent |
 |---|---|---|
-| Vario tone, height calls | unchanged | unchanged |
-| Height | above the takeoff point (barometer only) | unchanged |
-| Takeoff / landing | from height gain and a steady vario | unchanged |
-| Ready to fly | barometer working and settled | unchanged |
-| Speed, wind, landing zone, approach and emergency guidance, IGC log | not available | unchanged |
-| Bluetooth | vario sentences only (`$LK8EX1`, `$LXWP0`) | unchanged |
-| Volume | unchanged | the set volume (no rise with noise) |
-| Engine RPM, spectrum page | unchanged | not available |
-| Battery reading | unchanged | ordinary ADC reads instead of the microphone's sampler |
-| Push button | every press mutes / unmutes | unchanged |
-| Web page, settings | GPS tiles, buttons and settings hidden | noise/RPM tiles, Spectrum tab and settings hidden |
+| Vario tone, height calls | yes | yes |
+| Height | above the takeoff point, GPS-corrected sea level | above the takeoff point (barometer only) |
+| Takeoff / landing | speed and height gain | height gain and a steady vario |
+| Ready to fly | needs a fix and a landing zone | barometer working and settled |
+| Speed, wind, landing zone, approach and emergency guidance, IGC log | yes | not available |
+| Bluetooth | vario sentences and pseudo-GPS | vario sentences only (`$LK8EX1`, `$LXWP0`) |
+| Push button | single = approach, double = emergency, long = mute | every press mutes / unmutes |
+| Web page, settings | all | GPS tiles, buttons and settings hidden (except *GPS module*) |
 
-The code asks `hw::hasGps()` / `hw::hasMic()` instead of using `#if`, so there is one code path.
-In normal builds these are compile-time constants (unused branches are removed) and the drivers
-`sensors/Gps.cpp` and `sensors/Mic.cpp` are left out entirely. The test build can switch a fitted
-part "off" at run time, which is how the reduced variants are tested on a full vario.
+The page reads `hw.gps` from the status reply every second and shows or hides what depends on it
+(CSS classes `needgps`), rebuilds its Help links, and fetches the settings list again when the answer
+changes, because that list differs with and without a GPS.
+
+Build flags (`src/Hardware.h`) are only for the microphone: `-DPV_HAS_MIC=0` builds for a vario with
+no microphone (fixed volume, no engine RPM, no spectrum), and `-DPV_HAS_SPECTRUM=0` leaves out just
+the microphone spectrum feature (the Spectrum tab with its page and script, `/api/spectrum` and the
+code that produces it); noise level, automatic volume and engine RPM are not affected.
+
+| Build (`pio run -e ...`) | Use |
+|---|---|
+| `release`, `release_usb` | the vario firmware, uploaded over Wi-Fi or over the USB cable |
+| `debug`, `debug_usb` | the same with verbose logging |
+| `test` | debug build plus simulated sensors, for `tools/hil_test.py` |
+
+The test build can also pretend the GPS or the microphone is not fitted (`/api/sim?hasGps=0`,
+`hasMic=0`) and forget that a GPS was ever seen (`gpsForget=1`), which is how the detection and the
+reduced configurations are tested on a fully fitted vario.
 
 ### Layout
 
@@ -146,7 +153,7 @@ part "off" at run time, which is how the reduced variants are tested on a full v
 src/
   main.cpp            Arduino setup()/loop(), nothing else
   App.h               the App struct: all sensors, flight logic and outputs
-  Hardware.h          optional hardware (GPS, microphone)
+  Hardware.h          which hardware is present (GPS found at run time, microphone flag)
   Settings.*          every tunable, with its web-page description; stored in NVS as JSON
   Log.*               log ring buffer (serial + the web page's Logging section)
   Pins.h, Version.h

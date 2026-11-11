@@ -1,17 +1,18 @@
-# ParaVario user guide - Basic vario (no GPS, no microphone)
+# ParaVario user guide - Basic vario (no GPS module)
 
-This guide is for the Basic ParaVario: a barometer and a speaker, nothing else. It is the simplest version, and it is a very good vario.
+This guide is for the Basic ParaVario: a vario with no GPS module. It has a barometer, a speaker and a microphone, and it is a very good vario.
 
 - It **beeps when you climb**, gives a **sink warning**, and **calls out your height** as you pass set heights.
 - It notices **takeoff and landing by itself** and tells you your **flight time**.
 - It sends vario data to **FlyGaggle** (or another app) over Bluetooth.
+- Its **volume follows the noise around you** (the microphone), and it can read the **engine RPM** from the engine sound.
 - It has a **settings page** you open on your phone.
 
-It does **not** have a GPS or a microphone, so there is no speed, wind, landing zone, landing-approach or emergency guidance, no flight log, and the volume does not follow the noise around you. (The Advanced vario adds all of those; see [User_Guide_(advanced).md](User_Guide_(advanced).md).)
+It does **not** have a GPS module, so there is no speed, wind, landing zone, landing-approach or emergency guidance and no flight log. (A vario with a GPS module, the Advanced vario, adds all of those; see [User_Guide_(advanced).md](User_Guide_(advanced).md).)
+
+There is only one program for both. The vario finds out at power-on whether a GPS module is fitted, and shows the Basic or the Advanced features to match: the page and its Help follow automatically. (If a vario that has a GPS is not being recognised, or you have taken one off, the setting **GPS module** in Settings, Advanced settings, GPS, can be set by hand.)
 
 Every tile, button and setting is explained in [Feature_Reference.md](Feature_Reference.md), Part 1. This guide tells you how to use the vario; the reference tells you what each control does. Links below point to the entries you are most likely to want.
-
-To check which version of the program is installed, look at the version at the bottom of the web page: it ends in `-basic` for this version (and `-advanced` for the GPS and microphone version).
 
 ## Before you fly
 
@@ -74,8 +75,8 @@ There are four tabs:
 
 | Tab | What is there |
 |---|---|
-| **Flight** | The ready banner; tiles for **Height**, a **height graph** of the last 10 minutes, **Vario**, **Flight time**, and **Battery**; and buttons for **Mute vario**, **Test voice** and **Full screen** (hides the browser's bars). Refreshed every second. |
-| **Settings** | Every setting, in groups. Change a value and it is saved a moment later. A setting marked *restart* takes effect after a restart. The rarely needed groups (Battery and Wi-Fi on this version) are inside **Advanced settings** at the end. |
+| **Flight** | The ready banner; tiles for **Height**, a **height graph** of the last 10 minutes, **Vario**, **Flight time**, **Battery**, **Engine RPM** and **Background noise**; and buttons for **Mute vario**, **Test voice** and **Full screen** (hides the browser's bars). Refreshed every second. |
+| **Settings** | Every setting, in groups. Change a value and it is saved a moment later. A setting marked *restart* takes effect after a restart. The rarely needed groups (Battery, Wi-Fi, Engine RPM and the GPS module choice on this version) are inside **Advanced settings** at the end. |
 | **Logs & system** | The **Logging** section (live messages from the vario, for finding problems), firmware update, **Restart** and **Factory defaults**. (The flight-log list is empty on this version, because logs need a GPS.) |
 | **Help** | Opens this guide and the feature reference on GitHub (the latest version; the phone needs internet, so turn mobile data on). Each group on the Settings tab also has a **Help** link to its entry in the reference. |
 
@@ -111,11 +112,11 @@ The Battery tile shows the percentage, the voltage, and an estimate of the time 
 
 ## Maintenance
 
-- **First install (USB cable):** from the project folder, `pio run -e basic_usb -t upload`.
-- **Updates over Wi-Fi from the computer:** join the vario's Wi-Fi (or, if you have set the *Server network*, just power the vario on near your computer), then `pio run -e basic -t upload`. The vario restarts when it is done.
-- **Updates from the phone:** build with `pio run -e basic`, copy `.pio/build/basic/firmware.bin` to the phone, join the vario's Wi-Fi, open **http://192.168.4.1** in the normal browser, go to the **Logs & system** tab, choose the file, enter the update password and tap **Install update**. Keep the phone close and the page open until it says *Installed*. A failed or interrupted upload leaves the old program running. Updates are refused while the vario is flying.
-- **Install the right program.** The version ends in `-basic` for this vario. Do not install an `-advanced` program on it (it would wait for a GPS that is not there).
-- **Voice clips:** edit `tools/vocab.txt`, run `python tools/make_voice.py`, then `pio run -e basic -t uploadfs`. This erases stored flight logs (there are none on this version). Settings are kept.
+- **First install (USB cable):** from the project folder, `pio run -e release_usb -t upload`.
+- **Updates over Wi-Fi from the computer:** join the vario's Wi-Fi (or, if you have set the *Server network*, just power the vario on near your computer), then `pio run -e release -t upload`. The vario restarts when it is done.
+- **Updates from the phone:** build with `pio run -e release`, copy `.pio/build/release/firmware.bin` to the phone, join the vario's Wi-Fi, open **http://192.168.4.1** in the normal browser, go to the **Logs & system** tab, choose the file, enter the update password and tap **Install update**. Keep the phone close and the page open until it says *Installed*. A failed or interrupted upload leaves the old program running. Updates are refused while the vario is flying.
+- **One program for every vario.** The same `firmware.bin` goes on a vario with and without a GPS module.
+- **Voice clips:** edit `tools/vocab.txt`, run `python tools/make_voice.py`, then `pio run -e release -t uploadfs`. This erases stored flight logs (there are none on this version). Settings are kept.
 - **Factory defaults:** web page, Logs & system tab, *Factory defaults*.
 
 ## Troubleshooting

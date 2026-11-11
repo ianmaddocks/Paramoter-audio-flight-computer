@@ -13,20 +13,6 @@
 #define PV_GIT ""
 #endif
 
-// Which hardware variant this firmware is for, from the PV_HAS_GPS / PV_HAS_MIC build flags:
-//   advanced   GPS and microphone fitted      (-e release, debug, test)
-//   basic      neither: barometer and speaker (-e basic)
-// A build with only one of the two parts is labelled "basic+gps" or "basic+mic".
-#if PV_HAS_GPS && PV_HAS_MIC
-#define PV_VARIANT "advanced"
-#elif !PV_HAS_GPS && !PV_HAS_MIC
-#define PV_VARIANT "basic"
-#elif PV_HAS_GPS
-#define PV_VARIANT "basic+gps"
-#else
-#define PV_VARIANT "basic+mic"
-#endif
-
 // Where the Help tab gets the guides: the docs folder of the project on GitHub, always the latest
 // version. The page fetches the Markdown from PV_HELP_RAW_URL (GitHub's raw file server) and shows
 // it itself, as plain content; PV_HELP_WEB_URL is the same folder as GitHub shows it, used as the
@@ -40,5 +26,6 @@
 #define PV_HELP_WEB_URL "https://github.com/ianmaddocks/Paramoter-audio-flight-computer/blob/main/docs/"
 #endif
 
-// What the boot log, web page and status report as the version, e.g. 20261111-131219-advanced.
-#define PV_VERSION PV_STAMP "-" PV_VARIANT
+// What the boot log, web page and status report as the version, e.g. 20261111-131219. One firmware
+// serves every vario; whether a GPS is fitted is found out at start-up (see Hardware.h).
+#define PV_VERSION PV_STAMP

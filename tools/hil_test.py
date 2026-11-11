@@ -505,7 +505,7 @@ TEST_SETTINGS = dict(
     groundHoldVarioMs=0.5, landingSpeedMs=1.4, landingTimeS=5,
     lzMode=0, windManual=False, readyMinSats=6, readyMaxHdop=2.0, guidanceUpdateS=20, emergencyUpdateS=30,
     onCourseDeg=15, offHeadingDeg=30, battLowV=3.5, battFullV=4.09, battRuntimeMin=360,
-    igcEnabled=True, igcPreS=20, igcQnhAlt=True,
+    igcEnabled=True, igcPreS=20, igcQnhAlt=True, gpsMode=1,
 )
 
 GROUND_M = 100.0  # simulated field elevation
@@ -1063,7 +1063,7 @@ def t_variant_no_gps(v, a):
         keys = schema_keys(v)
         extra = keys & {"readyMinSats", "lzMode", "glideRatio", "igcEnabled", "takeoffSpeedMs", "windManual",
                         "bleGps", "distUnit"}
-        missing = {"baroTakeoffGainM", "varioVolume", "landingTimeS", "heightUnit", "bleRateHz"} - keys
+        missing = {"baroTakeoffGainM", "varioVolume", "landingTimeS", "heightUnit", "bleRateHz", "gpsMode"} - keys
         if extra or missing:
             raise Fail(f"settings without GPS: still listed {sorted(extra)}, wrongly removed {sorted(missing)}")
         v.action("emergency")
@@ -1093,8 +1093,12 @@ def t_variant_no_gps(v, a):
             p.check_fits("flight tab without GPS")
             p.tab("settings")
             groups = p.js("[...document.querySelectorAll('#settings summary')].map(s=>s.firstChild.textContent)")
-            if "GPS" in groups or "Landing zone" in groups or "Vario" not in groups:
+            if "Landing zone" in groups or "Wind" in groups or "Vario" not in groups or "GPS" not in groups:
                 raise Fail(f"web page: settings groups without a GPS: {groups}")
+            gps_rows = p.js("[...document.querySelectorAll('#settings details')].find(d=>d.querySelector('summary')"
+                            ".firstChild.textContent==='GPS').querySelectorAll('label.row').length")
+            if gps_rows != 1:
+                raise Fail(f"web page: the GPS group should hold only the GPS module setting without a GPS, not {gps_rows}")
         v.expect("APP", r"Landed after", m, timeout=50, what="landing from a steady vario")
         v.never("SAY", r"gps_fix|no_gps", m, 0.5)
         new = [f["n"] for f in v.get_json("/api/logs")["files"] if f["n"] not in logs_before]
@@ -1274,7 +1278,8 @@ def t_ui_help(v, a):
     for g in groups:
         check_anchors([{"t": g["g"] + " / " + l["t"], "h": l["h"]} for l in g["l"]])
     shared = {g["g"]: [l["t"] for l in g["l"]] for g in groups}
-    if shared["Audio"] != ["Help", "More help"] or shared["Vario"] != ["Help"]:
+    if shared["Units"] != ["Help", "More help"] or shared["Audio"] != ["Help"] or shared["Vario"] != ["Help"] \
+            or shared["Engine RPM"] != ["Help"]:
         raise Fail(f"web page: help link names: Audio {shared['Audio']}, Vario {shared['Vario']}")
 
     # the group Help links appear only while their group is open
@@ -1359,33 +1364,108 @@ def t_ui_help(v, a):
                 raise Fail(f"{name}: link {t} points at section {anchor}, which the reference lacks")
     note = f"{len(links)} links on the Help tab, {len(groups)} settings groups linked, guides rendered in the page"
 
-    # With neither a GPS nor a microphone the guide for that vario is offered.
+    # With no GPS module the guide for a vario without one is offered; the microphone features stay.
     try:
-        v.sim(hasGps=0, hasMic=0)
+        v.sim(hasGps=0)
         p = v.page()
-        p.wait("document.body.classList.contains('nogps')&&document.body.classList.contains('nomic')", 8,
-               "page told there is neither GPS nor microphone")
+        p.wait("document.body.classList.contains('nogps')&&!document.body.classList.contains('nomic')", 8,
+               "page told there is no GPS (and a microphone)")
         p.tab("help")
         links = tab_links()
         if links[0]["t"] != "User guide" or "User_Guide_%28basic%29.md" not in links[0]["h"]:
-            raise Fail(f"web page: first help link without GPS and microphone is {links[0]}")
+            raise Fail(f"web page: first help link without a GPS is {links[0]}")
         if any("Basic" in l["t"] or "Advanced" in l["t"] for l in links):
             raise Fail(f"web page: the Help tab talks about versions: {[l['t'] for l in links]}")
-        if any("adv-" in l["h"] for l in links):
-            raise Fail("web page: advanced section links offered without GPS and microphone")
+        if any("adv-" in l["h"] for l in links) or not any("basic-spectrum" in l["h"] for l in links):
+            raise Fail("web page: Help shortcuts without a GPS should be the common ones, including the Spectrum")
         p.tab("settings")
-        adv_links = p.js("[...document.querySelectorAll('#settings summary .help a')].filter(a=>a.href.includes('#adv-')).length")
+        adv_links = p.js("[...document.querySelectorAll('#settings summary')].filter(s=>s.firstChild.textContent!=='GPS')"
+                         ".flatMap(s=>[...s.querySelectorAll('.help a')]).filter(a=>a.href.includes('#adv-')).length")
         if adv_links:
-            raise Fail(f"web page: {adv_links} advanced help links on the settings page without GPS and microphone")
+            raise Fail(f"web page: {adv_links} GPS help links on the settings page without a GPS")
+        if p.js("[...document.querySelectorAll('#settings summary')].find(s=>s.firstChild.textContent==='Engine RPM')"
+                ".querySelectorAll('.help a').length") != 1:
+            raise Fail("web page: no help link on the Engine RPM group (the microphone is still fitted)")
         stub_docs(p)
         p.tab("help")
         p.js("[...document.querySelectorAll('#helpBody a.doc')][0].click()")
         p.wait("document.querySelector('#helpDoc h1')&&document.querySelector('#helpDoc h1').textContent.includes('Basic vario')", 6,
-               "basic guide shown without GPS and microphone")
-        note += "; the guide for a vario without GPS and microphone is offered then"
+               "basic guide shown without a GPS")
+        note += "; the guide for a vario without a GPS is offered then"
     finally:
-        v.sim(hasGps=1, hasMic=1)
+        v.sim(hasGps=1)
     return note
+
+
+def t_gps_detect(v, a):
+    """The vario finds out for itself whether a GPS module is fitted, remembers one it has seen, and
+    can be told by hand; the page follows without a reload."""
+    v.set(gpsMode=0)  # Auto-detect
+    try:
+        reset(v, baro="on", alt=GROUND_M, vz=0, gps="silent")
+        m = v.mark()
+        v.sim(gpsForget=1)  # as a vario that has never seen a GPS, switched on just now
+        v.expect("RDY", r"^Looking for GPS$", m, timeout=6, what="banner while it looks")
+        st = v.status()
+        if st["hw"]["gpsState"] != "unknown" or st["hw"]["gps"]:
+            raise Fail(f"just after power-on the GPS state should be unknown: {st['hw']}")
+        # nothing heard for the detection time (10 s): not fitted, and ready on the barometer alone
+        _, _ = v.expect("GPS", r"GPS module: not fitted", m, timeout=20, what="GPS declared not fitted")
+        v.expect("RDY", r"^ready$", m, timeout=15, what="ready without a GPS")
+        st = v.status()
+        if st["hw"]["gpsState"] != "absent" or "gps" in st or not st["ready"]:
+            raise Fail(f"with no GPS heard: hw {st['hw']}, gps section {'gps' in st}, ready {st['ready']}")
+        if "gpsMode" not in {f["k"] for f in v.get_json("/api/schema")} or "lzMode" in {f["k"] for f in v.get_json("/api/schema")}:
+            raise Fail("settings without a GPS should list GPS module and nothing else of the GPS settings")
+        p = v.page() if a.ui else None
+        if p:
+            p.wait("document.body.classList.contains('nogps')", 6, "page hides the GPS features")
+            p.tab("settings")
+            p.wait("!![...document.querySelectorAll('#settings summary')].find(s=>s.firstChild.textContent==='GPS')", 6,
+                   "GPS group (module setting) listed")
+            p.wait("![...document.querySelectorAll('#settings summary')].some(s=>s.firstChild.textContent==='Landing zone')", 6,
+                   "no landing zone group without a GPS")
+
+        # a GPS module starts sending: found within seconds, everything that needs it switches on
+        m2 = v.mark()
+        v.sim(gps="fix", sats=10, hdop=0.9, lat=51.5, lon=0.5, speed=0)
+        v.expect("GPS", r"GPS module: present", m2, timeout=10, what="GPS found when it starts sending")
+        st = v.status()
+        if not st["hw"]["gps"] or st["hw"]["gpsState"] != "present" or "gps" not in st:
+            raise Fail(f"after the GPS started sending: hw {st['hw']}, gps section {'gps' in st}")
+        if p:
+            p.wait("!![...document.querySelectorAll('#settings summary')].some(s=>s.firstChild.textContent==='Landing zone')", 10,
+                   "settings list fetched again with the GPS groups")
+            p.wait("!document.body.classList.contains('nogps')", 6, "page shows the GPS features")
+
+        # once seen it is remembered: silence means "not responding", the GPS does not disappear
+        m3 = v.mark()
+        v.sim(gps="silent")
+        v.expect("RDY", r"GPS not responding", m3, timeout=10, what="a GPS that went quiet shows as not responding")
+        if v.status()["hw"]["gpsState"] != "present":
+            raise Fail("a GPS that was seen and went quiet should still count as present")
+
+        # by hand
+        v.set(gpsMode=2)  # Not fitted
+        end = time.time() + 6
+        while v.status()["hw"]["gps"]:
+            if time.time() > end:
+                raise Fail("GPS module = Not fitted did not switch the GPS features off")
+            time.sleep(0.5)
+        if p:
+            p.wait("document.body.classList.contains('nogps')", 8, "page follows Not fitted")
+        v.set(gpsMode=1)  # Always present
+        end = time.time() + 6
+        while not v.status()["hw"]["gps"]:
+            if time.time() > end:
+                raise Fail("GPS module = Always present did not switch the GPS features on")
+            time.sleep(0.5)
+        if p:
+            p.wait("!document.body.classList.contains('nogps')", 8, "page follows Always present")
+        return "unknown -> not fitted after 10 s -> found when it starts sending -> kept when silent; set by hand both ways; page followed"
+    finally:
+        v.sim(gps="silent")
+        v.set(gpsMode=TEST_SETTINGS["gpsMode"])
 
 
 def t_ui_flight(v, a):
@@ -1802,7 +1882,7 @@ TESTS = [
     ("gps_states", t_gps_states), ("flight", t_flight), ("baro_only", t_baro_only),
     ("guidance", t_guidance), ("battery", t_battery), ("battery_learner", t_battery_learner),
     ("speech", t_speech), ("volume_ramp", t_volume_ramp), ("glide", t_glide),
-    ("variant_no_gps", t_variant_no_gps), ("variant_no_mic", t_variant_no_mic),
+    ("variant_no_gps", t_variant_no_gps), ("variant_no_mic", t_variant_no_mic), ("gps_detect", t_gps_detect),
     ("ui_flight", t_ui_flight), ("ui_actions", t_ui_actions), ("ui_guidance", t_ui_guidance),
     ("ui_settings", t_ui_settings), ("ui_spectrum", t_ui_spectrum), ("ui_system", t_ui_system), ("ui_help", t_ui_help),
     ("ota_guard", t_ota_guard), ("memory", t_memory),

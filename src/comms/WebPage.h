@@ -190,6 +190,9 @@ R"HTML(
 const $=s=>document.querySelector(s);
 const FT=3.28084;
 let schema=[],cfg={},openGroups=new Set();
+// The settings list differs with and without a GPS, and the vario finds out whether one is fitted
+// after power-on, so the list is fetched again whenever that changes (schemaKey = what it was fetched for).
+let schemaKey='',settingsBusy=false;
 let saveTimer=0,saveRevision=0,saveInFlight=false,saveAgain=false,restartRequired=false;
 const rnd=(v,d)=>{const m=Math.pow(10,d);return Math.round(v*m)/m};
 function conv(u){
@@ -240,11 +243,11 @@ const docUrl=(f,base)=>base+encodeURI(f).replace(/\(/g,'%28').replace(/\)/g,'%29
 const webLink=(f,a)=>docUrl(f,HELPWEB)+(a?'#'+a:'');
 // Settings group -> its entry in the Feature Reference (b = the part every vario has, a = the part for GPS / microphone)
 const GROUP_HELP={'Units':{b:'basic-settings-units-and-audio',a:'adv-settings-units-and-audio'},
-  'Audio':{b:'basic-settings-units-and-audio',a:'adv-settings-units-and-audio'},'Engine RPM':{a:'adv-settings-engine-rpm'},
+  'Audio':{b:'basic-settings-units-and-audio'},'Engine RPM':{b:'basic-settings-engine-rpm'},
   'Vario':{b:'basic-settings-vario'},'Height calls':{b:'basic-settings-height-calls'},
   'Takeoff & landing':{b:'basic-settings-takeoff-and-landing',a:'adv-settings-takeoff-and-landing'},
   'Glide':{a:'adv-settings-glide'},'Landing zone':{a:'adv-settings-landing-zone'},'Landing approach':{a:'adv-settings-landing-approach'},
-  'Emergency':{a:'adv-settings-emergency'},'Wind':{a:'adv-settings-wind'},'GPS':{a:'adv-settings-gps'},
+  'Emergency':{a:'adv-settings-emergency'},'Wind':{a:'adv-settings-wind'},'GPS':{a:'adv-settings-gps',always:1},
   'Bluetooth':{b:'basic-settings-bluetooth',a:'adv-settings-bluetooth'},'Wi-Fi':{b:'basic-settings-wi-fi'},
   'Battery':{b:'basic-settings-battery'},'Logging':{a:'adv-settings-logging'}};
 let hwNow={gps:true,mic:true,spectrum:true};
@@ -253,31 +256,29 @@ function mkLink(t,file,anchor,cls){const a=document.createElement('a');a.href=we
   a.onclick=e=>{e.preventDefault();openHelp(file,anchor)};return a}
 // A 'Help' link on each settings group that opens its entry in the Feature Reference.
 function addGroupHelp(){
-  const adv=hwNow.gps||hwNow.mic;
+  const adv=hwNow.gps;
   document.querySelectorAll('#settings details').forEach(d=>{
     const s=d.querySelector('summary'),old=s.querySelector('.help');if(old)old.remove();
     const g=GROUP_HELP[s.firstChild.textContent];if(!g)return;
     const span=document.createElement('span');span.className='help';
     if(g.b)span.appendChild(mkLink('Help',DOCS.ref,g.b));
-    if(g.a&&adv)span.appendChild(mkLink(g.b?'More help':'Help',DOCS.ref,g.a));
+    if(g.a&&(adv||g.always))span.appendChild(mkLink(g.b?'More help':'Help',DOCS.ref,g.a));
     if(span.childNodes.length)s.appendChild(span);
   });
 }
-// The Help tab: the user guide for this vario, the feature reference, and shortcuts into the reference
-// for the tiles, buttons and sounds this vario has. It does not mention versions: a given build is
-// one or the other, so it simply links to the right material.
+// The Help tab: the user guide for this vario (the one for varios with a GPS, or without), the feature
+// reference, and shortcuts into the reference for the tiles, buttons and sounds this vario has. It
+// does not talk about versions: it simply links to the right material.
 function buildHelp(){
-  const adv=hwNow.gps||hwNow.mic,el=$('#helpBody');el.innerHTML='';
+  const adv=hwNow.gps,el=$('#helpBody');el.innerHTML='';
   const doc=(t,sub,file)=>{const a=mkLink(t,file,'','doc'),s=document.createElement('small');s.textContent=sub;a.appendChild(s);el.appendChild(a)};
   doc('User guide','How to use this vario, from switching on to landing',adv?DOCS.adv:DOCS.basic);
   doc('Feature reference','Every tile, button, sound and setting explained, with examples',DOCS.ref);
   const jump=(label,items)=>{const d=document.createElement('div');d.className='jump';d.append(label+' ');
     items.forEach(([t,a])=>{d.appendChild(mkLink(t,DOCS.ref,a));d.append(' ')});el.appendChild(d)};
   const items=[['Tiles','basic-tiles'],['Buttons','basic-buttons'],['Sounds','basic-sounds'],['Settings','basic-settings-vario'],['Logs & system','basic-system']];
-  if(adv){items.push(['More tiles','adv-tiles'],['More buttons','adv-buttons']);
-    if(hwNow.gps)items.push(['Landing guidance','adv-guidance']);
-    items.push(['More sounds','adv-sounds']);
-    if(hwNow.spectrum!==false)items.push(['Spectrum','adv-spectrum'])}
+  if(hwNow.spectrum!==false)items.push(['Spectrum','basic-spectrum']);
+  if(adv)items.push(['GPS tiles','adv-tiles'],['GPS buttons','adv-buttons'],['Landing guidance','adv-guidance'],['GPS sounds','adv-sounds']);
   jump('Jump to:',items);
 }
 
@@ -396,6 +397,7 @@ async function poll(){
     document.body.classList.toggle('nogps',!hw.gps);document.body.classList.toggle('nomic',!hw.mic);document.body.classList.toggle('nospec',hw.spectrum===false);
     hwNow=hw;
     const k=hw.gps+'/'+hw.mic;if(k!==layKey){layKey=k;layout();buildHelp();addGroupHelp()}
+    if(schemaKey&&k!==schemaKey&&!saveInFlight&&!settingsBusy){settingsBusy=true;loadSettings().catch(()=>{}).finally(()=>{settingsBusy=false})}
     txt('t-agl',fH(s.agl));txt('t-msl',fH(s.altMsl)+' MSL');
     txt('t-vario',(s.vario>=0?'+':'')+s.vario.toFixed(1)+' m/s');txt('t-mute',s.muted?'muted':'');
     txt('t-speed',G.fix?fS(G.speed):'–');
@@ -502,7 +504,9 @@ function showWifi(){
   txt('w-server-ip',w.serverIp?w.serverIp+' (paravario.local)':'–');
 }
 async function loadSettings(){
+  const st=await fetch('/api/status',{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
   [schema,cfg]=await Promise.all([fetch('/api/schema').then(r=>r.json()),fetch('/api/settings').then(r=>r.json())]);
+  schemaKey=st&&st.hw?st.hw.gps+'/'+st.hw.mic:'';
   render();
 }
 async function saveSettings(){

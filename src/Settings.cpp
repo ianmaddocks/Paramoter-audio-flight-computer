@@ -120,6 +120,7 @@ const Field kFields[] = {
     FL(windFromDeg, "Wind", "Wind from", "°", 0.0f, 359.9f),
     FL(windSpeedMs, "Wind", "Wind speed", "speed", 0.0f, 25.0f),
 
+    E(gpsMode, "GPS", "GPS module", "Auto-detect|Always present|Not fitted"),
     IR(gpsRateHz, "GPS", "Update rate", "Hz", 1, 10),
     BR(gpsLed, "GPS", "GPS module LED (time-pulse output)"),
     I(readyMinSats, "GPS", "Ready to fly: minimum satellites", "", 4, 20),
@@ -169,6 +170,7 @@ bool listed(const char* const* list, size_t n, const char* name) {
 }
 
 bool available(const Field& f) {
+  if (strcmp(f.key, "gpsMode") == 0) return true;  // the one GPS setting to show even with no GPS
   static const char* const kGpsGroups[] = {"Glide", "Landing zone", "Landing approach", "Emergency",
                                            "Wind",  "GPS",          "Logging"};
   static const char* const kGpsKeys[] = {"distUnit",       "speedUnit", "takeoffSpeedMs", "takeoffTimeS",

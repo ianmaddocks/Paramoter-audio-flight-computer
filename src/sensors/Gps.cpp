@@ -1,6 +1,6 @@
 #include "Gps.h"
 
-#if PV_HAS_GPS
+#include <Preferences.h>
 
 #include "Log.h"
 
@@ -18,6 +18,12 @@ constexpr float kSpeedSlackMs = 1.0f;
 constexpr uint32_t kTargetBaud = 115200;
 constexpr uint32_t kBauds[] = {115200, 9600, 38400, 57600};
 constexpr uint32_t kListenMs = 1500;
+// A GPS module sends sentences from power-on (the baud rates are tried in turn, about 6 s for all
+// four), so a vario that has never seen one calls it absent if none have arrived by then.
+constexpr uint32_t kDetectWindowMs = 10000;
+constexpr int kSentencesToTrust = 3;  // valid sentences that count as "a GPS is there"
+
+hw::GpsState gState = hw::GpsState::Unknown;  // what update() last concluded; read through hw::gpsState()
 
 // UBX-CFG-VALSET configuration keys (u-blox M10 interface description).
 constexpr uint32_t CFG_UART1_BAUDRATE = 0x40520001;
@@ -39,11 +45,55 @@ uint8_t keySize(uint32_t key) {
 }
 }  // namespace
 
+namespace hw {
+GpsState gpsState() {
+#if PV_TEST
+  if (!sim::gpsFitted()) return GpsState::Absent;  // test build: behave as a vario with no GPS fitted
+#endif
+  return gState;
+}
+}  // namespace hw
+
 void Gps::begin() {
+  Preferences prefs;
+  if (prefs.begin("gps", true)) {  // has a GPS ever been seen on this unit?
+    seenEver_ = prefs.getBool("seen", false);
+    prefs.end();
+  }
+  startMs_ = millis();
+  if (g_cfg.gpsMode != GPS_NOT_FITTED) start();
+}
+
+void Gps::start() {
   ser_.setRxBufferSize(1024);
   baudIdx_ = 0;
+  baud_ = 0;
   openBaud(kBauds[0]);
+  active_ = true;
 }
+
+void Gps::stop() {
+  ser_.end();
+  active_ = false;
+  baud_ = 0;
+  locked_ = false;
+}
+
+#if PV_TEST
+void Gps::forgetForTest() {
+  Preferences prefs;
+  if (prefs.begin("gps", false)) {
+    prefs.remove("seen");
+    prefs.end();
+  }
+  seen_ = seenEver_ = false;
+  gps_ = TinyGPSPlus();
+  checksumAtListen_ = 0;
+  locked_ = false;
+  startMs_ = millis();
+  gState = hw::GpsState::Unknown;
+}
+#endif
 
 void Gps::openBaud(uint32_t baud) {
   if (baud_) ser_.end();
@@ -104,6 +154,43 @@ void Gps::sendConfig() {
 }
 
 void Gps::update(uint32_t nowMs) {
+#if PV_TEST
+  if (sim::takeGpsForget()) forgetForTest();
+#endif
+  if (g_cfg.gpsMode == GPS_NOT_FITTED) {  // set to "Not fitted": leave the port alone
+    if (active_) stop();
+    gState = hw::GpsState::Absent;
+    return;
+  }
+  if (!active_) start();
+  pollLink(nowMs);
+  updatePresence(nowMs);
+}
+
+// Decides whether a GPS module is there: present once valid sentences have arrived (and remembered
+// from then on), absent if a vario that has never seen one hears nothing for kDetectWindowMs.
+void Gps::updatePresence(uint32_t nowMs) {
+  if (!seen_ && gps_.passedChecksum() >= (uint32_t)kSentencesToTrust) {
+    seen_ = true;
+    if (!seenEver_) {
+      seenEver_ = true;
+      Preferences prefs;
+      if (prefs.begin("gps", false)) {
+        prefs.putBool("seen", true);
+        prefs.end();
+      }
+    }
+  }
+  hw::GpsState s;
+  if (g_cfg.gpsMode == GPS_ALWAYS || seen_ || seenEver_) s = hw::GpsState::Present;
+  else s = nowMs - startMs_ >= kDetectWindowMs ? hw::GpsState::Absent : hw::GpsState::Unknown;
+  if (s != gState) {
+    gState = s;
+    LOGI("GPS", "GPS module: %s", s == hw::GpsState::Present ? "present" : s == hw::GpsState::Absent ? "not fitted" : "looking");
+  }
+}
+
+void Gps::pollLink(uint32_t nowMs) {
   if (sim::gpsMode() != sim::GpsMode::Real) {  // test build only: simulated NMEA, same parser
     char buf[200];
     size_t n = sim::gpsNmea(nowMs, buf, sizeof(buf));
@@ -214,4 +301,3 @@ void Gps::read(uint32_t nowMs, GpsData& out) {
   out.utcEpoch = utcEpoch();
 }
 
-#endif  // PV_HAS_GPS

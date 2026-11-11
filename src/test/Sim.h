@@ -7,8 +7,9 @@
 // In every other build these are constant-false stubs, so the hooks compile away.
 //
 // Keys: baro, alt, vz, to, baroOffset, gps (fix|nofix|silent|real), lat, lon, speed, track,
-// gpsAltErr, gpsAlt, sats, hdop, batt, noise, hasGps, hasMic (0 = behave as a vario built
-// without that part), off (everything back to real).
+// gpsAltErr, gpsAlt, sats, hdop, batt, noise, hasGps, hasMic (0 = behave as a vario with no GPS /
+// microphone), gpsForget (forget that a GPS was ever seen and start detecting again), off
+// (everything back to real).
 namespace sim {
 
 enum class GpsMode : uint8_t { Real, Fix, NoFix, Silent };
@@ -19,6 +20,8 @@ uint32_t baroEpoch();     // changes whenever the simulated altitude jumps (filt
 float baroAltStdM();      // simulated standard-pressure altitude
 
 GpsMode gpsMode();
+bool gpsFitted();       // false: behave as a vario with no GPS module
+bool takeGpsForget();   // true once after "gpsForget"
 // Writes one epoch of NMEA (GGA + RMC) for the simulated fix. Returns the length, 0 if none due.
 size_t gpsNmea(uint32_t nowMs, char* out, size_t size);
 
@@ -36,6 +39,8 @@ inline bool baroOn() { return false; }
 inline uint32_t baroEpoch() { return 0; }
 inline float baroAltStdM() { return 0; }
 inline GpsMode gpsMode() { return GpsMode::Real; }
+inline bool gpsFitted() { return true; }
+inline bool takeGpsForget() { return false; }
 inline size_t gpsNmea(uint32_t, char*, size_t) { return 0; }
 inline bool battOn() { return false; }
 inline float battV() { return 0; }

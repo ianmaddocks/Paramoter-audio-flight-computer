@@ -123,6 +123,7 @@ void handleStatus() {
   // Optional hardware: the page hides what is not fitted, and the sections below are left out.
   JsonObject hwj = doc["hw"].to<JsonObject>();
   hwj["gps"] = hw::hasGps();
+  hwj["gpsState"] = hw::gpsState() == hw::GpsState::Present ? "present" : hw::gpsState() == hw::GpsState::Absent ? "absent" : "unknown";
   hwj["mic"] = hw::hasMic();
   hwj["spectrum"] = hw::hasSpectrum();
   JsonObject vol = doc["vol"].to<JsonObject>();  // volumes being applied now

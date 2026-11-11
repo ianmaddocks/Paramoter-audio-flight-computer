@@ -35,8 +35,9 @@ struct State {
   bool noise = false;
   float noiseDb = -60;
 
-  bool hasGps = true;  // false: behave as a vario built without the part
-  bool hasMic = true;
+  bool hasGps = true;  // false: behave as a vario with no GPS module
+  bool hasMic = true;  // false: behave as a vario with no microphone
+  bool gpsForget = false;
 
   uint32_t lastMs = 0;
 } s;
@@ -61,6 +62,12 @@ bool baroOn() { return s.baro; }
 uint32_t baroEpoch() { return s.baroEpoch; }
 float baroAltStdM() { return s.altM - s.baroOffsetM; }
 GpsMode gpsMode() { return s.gps; }
+bool gpsFitted() { return s.hasGps; }
+bool takeGpsForget() {
+  const bool f = s.gpsForget;
+  s.gpsForget = false;
+  return f;
+}
 bool battOn() { return s.batt; }
 float battV() { return s.battV; }
 bool noiseOn() { return s.noise; }
@@ -159,6 +166,8 @@ bool set(const String& key, const String& value) {
     if (s.noise) s.noiseDb = f;
   } else if (key == "hasGps") {
     s.hasGps = on;
+  } else if (key == "gpsForget") {
+    s.gpsForget = on;
   } else if (key == "hasMic") {
     s.hasMic = on;
   } else if (key == "off") {
@@ -185,9 +194,9 @@ void describe(String& json) {
 
 }  // namespace sim
 
-// Hardware.h: in the test build a fitted part can be switched "off" to test the reduced variants.
+// Hardware.h: in the test build the microphone can be switched "off" to test a vario without one
+// (the GPS switch is sim::gpsFitted(), used by hw::gpsState() in sensors/Gps.cpp).
 namespace hw {
-bool hasGps() { return PV_HAS_GPS && sim::s.hasGps; }
 bool hasMic() { return PV_HAS_MIC && sim::s.hasMic; }
 }  // namespace hw
 
