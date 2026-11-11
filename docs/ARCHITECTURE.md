@@ -1,7 +1,8 @@
 # ParaVario architecture
 
 How the firmware is put together, for anyone changing it. The user-facing description is in
-`docs/USER_GUIDE.md`; how to test is in `docs/TESTING.md`.
+`docs/User_Guide_(basic).md` and `docs/User_Guide_(advanced).md`, with every tile, button and
+setting explained in `docs/Feature_Reference.md`; how to test is in `docs/TESTING.md`.
 
 ## Hardware and variants
 
@@ -14,10 +15,14 @@ The GPS and the microphone are optional. Which are fitted is a build choice (`sr
 | Build (`pio run -e ...`) | GPS | Microphone | Use |
 |---|---|---|---|
 | `release`, `debug` | yes | yes | full vario |
-| `basic` | no | no | simplest variant: barometer and speaker only |
+| `basic`, `basic_usb` | no | no | simplest variant: barometer and speaker only (`basic_usb` is for the first install over the USB cable) |
 | `test` | yes | yes | debug build plus simulated sensors, for `tools/hil_test.py` |
 
 `-DPV_HAS_GPS=0` and `-DPV_HAS_MIC=0` can also be used one at a time in a build of your own.
+
+The version string carries the variant: `20261111-131219-advanced` (both parts), `...-basic` (neither),
+`...-basic+gps` or `...-basic+mic` (one). It is built in `src/Version.h` from the same flags and appears in
+the boot log, the page footer and the status reply, so a glance shows which program a vario runs.
 
 What changes without the part:
 
