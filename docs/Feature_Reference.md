@@ -388,12 +388,12 @@ The guides, one tap away.
 
 The Help tab opens the user guide for this vario and this feature reference, with shortcuts to the sections that cover the tiles, buttons, sounds and settings this vario has.
 
-The guides are opened from GitHub, always in their latest version, so the phone needs internet access. A phone joined to the vario's Wi-Fi has none, so turn mobile data on, or leave the vario's network for a moment. The latest guides may describe features that a vario with older firmware does not have yet.
+The guides are fetched from GitHub, always in their latest version, and shown inside the page, so the phone needs internet access. A phone joined to the vario's Wi-Fi has none, so turn mobile data on, or leave the vario's network for a moment. The latest guides may describe features that a vario with older firmware does not have yet.
 
 ### Help links on the settings
-Each group of settings has a **Help** link at its right-hand end.
+Open a group of settings and a **Help** link appears at the right-hand end of its title.
 
-Tap it to open the part of this reference that explains that group. Where a group has more to explain on this vario (for example the Audio group when a microphone is fitted), a second link, **More help**, follows the first.
+Tap it to show the part of this reference that explains that group. Where a group has more to explain on this vario (for example the Audio group when a microphone is fitted), a second link, **More help**, follows the first.
 
 ---
 

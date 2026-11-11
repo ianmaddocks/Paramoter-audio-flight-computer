@@ -1205,36 +1205,49 @@ def docs_text(name):
     return open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "docs", name), encoding="utf-8").read()
 
 
+DOC_FILES = ("Feature_Reference.md", "User_Guide_(basic).md", "User_Guide_(advanced).md")
+
+
+def stub_docs(p, mode="local"):
+    """Makes the page's fetches of the guides from GitHub's raw file server answer from the local docs
+    folder (so the test needs no internet and checks the documents as they are in this working copy),
+    or, with mode="offline", fail the way a phone without internet would."""
+    docs = {n: docs_text(n) for n in DOC_FILES}
+    p.js("(()=>{window.__docs=%s;window.__fetched=[];const rf=window.fetch.bind(window);"
+         "window.fetch=(u,o)=>{if(typeof u==='string'&&u.startsWith(HELPRAW)){"
+         "const n=decodeURIComponent(u.slice(HELPRAW.length));window.__fetched.push(n);"
+         "if(%s)return Promise.reject(new TypeError('offline'));"
+         "return Promise.resolve(n in window.__docs?new Response(window.__docs[n],{status:200}):new Response('',{status:404}))}"
+         "return rf(u,o)}})()" % (json.dumps(docs), "true" if mode == "offline" else "false"))
+
+
 def t_ui_help(v, a):
-    """Help tab and the Help links on the settings groups: right guide for the hardware, links that
-    point at anchors which exist in the documents."""
+    """Help tab and the Help links on the settings groups: the right guide for the hardware, shown inside
+    the page as plain content (rendered from the Markdown), links that lead to sections that exist."""
     reset(v, baro="on", alt=GROUND_M, vz=0)
     ref = docs_text("Feature_Reference.md")
-    for g in ("User_Guide_(basic).md", "User_Guide_(advanced).md"):
-        docs_text(g)  # exists
+    guide_adv = docs_text("User_Guide_(advanced).md")
+    guide_basic = docs_text("User_Guide_(basic).md")
     p = v.page()
     p.wait("document.querySelectorAll('#helpBody a.doc').length>=2", 8, "help links built")
-    base = p.js("HELP")
-    if not re.match(r"^https://github\.com/[\w.-]+/[\w.-]+/blob/main/docs/$", base):
-        raise Fail(f"web page: help address is {base}")
+    web = p.js("HELPWEB")
+    raw = p.js("HELPRAW")
+    if not re.match(r"^https://github\.com/[\w.-]+/[\w.-]+/blob/main/docs/$", web) or \
+            not re.match(r"^https://raw\.githubusercontent\.com/[\w.-]+/[\w.-]+/main/docs/$", raw):
+        raise Fail(f"web page: help addresses are {web} and {raw}")
+    heads = [re.sub(r"[^a-z0-9 -]", "", h.lower()).replace(" ", "-") for h in re.findall(r"^#+ (.*)$", ref, re.M)]
+    ids = set(re.findall(r'<a id="([\w-]+)"></a>', ref)) | set(heads)
 
     def tab_links():
-        return p.js("[...document.querySelectorAll('#helpBody a')].map(a=>({t:a.firstChild.textContent,h:a.href,"
-                    "n:a.target,r:a.rel}))")
+        return p.js("[...document.querySelectorAll('#helpBody a')].map(a=>({t:a.firstChild.textContent,h:a.href}))")
 
     def check_anchors(links):
         for l in links:
-            if not l["h"].startswith(base):
+            if not l["h"].startswith(web):
                 raise Fail(f"web page: help link {l['t']} leaves the docs folder: {l['h']}")
-            if l["n"] != "_blank" or "noopener" not in l["r"]:
-                raise Fail(f"web page: help link {l['t']} does not open in a new tab")
-            file, _, anchor = l["h"][len(base):].partition("#")
-            if anchor and f'id="{anchor}"' not in ref:
-                slug = anchor
-                heads = [re.sub(r"[^a-z0-9 -]", "", h.lower()).replace(" ", "-")
-                         for h in re.findall(r"^#+ (.*)$", ref, re.M)]
-                if slug not in heads:
-                    raise Fail(f"Feature_Reference.md has no section {anchor} (link {l['t']})")
+            anchor = l["h"].partition("#")[2]
+            if "Feature_Reference.md" in l["h"] and anchor and anchor not in ids:
+                raise Fail(f"Feature_Reference.md has no section {anchor} (link {l['t']})")
 
     p.tab("help")
     links = tab_links()
@@ -1253,19 +1266,99 @@ def t_ui_help(v, a):
     p.tab("settings")
     p.wait("document.querySelectorAll('#settings summary .help a').length>0", 8, "group help links")
     groups = p.js("[...document.querySelectorAll('#settings summary')].map(s=>({g:s.firstChild.textContent,"
-                  "l:[...s.querySelectorAll('.help a')].map(a=>({t:a.textContent,h:a.href,n:a.target,r:a.rel}))}))")
+                  "l:[...s.querySelectorAll('.help a')].map(a=>({t:a.textContent,h:a.href}))}))")
     bare = [g["g"] for g in groups if not g["l"]]
     if bare:
         raise Fail(f"web page: settings groups with no help link: {bare}")
     for g in groups:
-        for l in g["l"]:
-            check_anchors([{"t": g["g"] + " / " + l["t"], "h": l["h"], "n": l["n"], "r": l["r"]}])
+        check_anchors([{"t": g["g"] + " / " + l["t"], "h": l["h"]} for l in g["l"]])
     shared = {g["g"]: [l["t"] for l in g["l"]] for g in groups}
     if shared["Audio"] != ["Help", "More help"] or shared["Vario"] != ["Help"]:
         raise Fail(f"web page: help link names: Audio {shared['Audio']}, Vario {shared['Vario']}")
 
-    # With neither a GPS nor a microphone the Basic guide is the one offered.
-    note = f"{len(links)} links on the Help tab, {len(groups)} settings groups linked, anchors found"
+    # the group Help links appear only while their group is open
+    p.js("[...document.querySelectorAll('#settings details')].forEach(d=>d.open=false)")
+    shown = p.js("[...document.querySelectorAll('#settings summary .help a')].filter(a=>a.offsetParent!==null).length")
+    if shown:
+        raise Fail(f"web page: {shown} group Help links visible although every group is closed")
+    p.js("[...document.querySelectorAll('#settings summary')].find(s=>s.firstChild.textContent==='Vario').parentElement.open=true")
+    seen = p.js("[...document.querySelectorAll('#settings details')].filter(d=>d.querySelector('summary .help a')"
+                "&&d.querySelector('summary .help a').offsetParent!==null).map(d=>d.querySelector('summary').firstChild.textContent)")
+    if seen != ["Vario"]:
+        raise Fail(f"web page: Help links visible for {seen} with only the Vario group open")
+
+    # ---- the reader: content only, rendered from the Markdown of the guides
+    stub_docs(p)
+    p.js("[...document.querySelectorAll('#settings summary')].find(s=>s.firstChild.textContent==='Vario')"
+         ".querySelector('.help a').click()")
+    p.wait("!document.getElementById('helpReader').hidden&&!document.getElementById('helpPage').hidden", 6, "reader opens")
+    p.wait("document.querySelectorAll('#helpDoc h3').length>5", 6, "reference text rendered")
+    if p.js("document.getElementById('helpPage').hidden"):
+        raise Fail("web page: the settings help link did not switch to the Help tab")
+    fetched = p.js("window.__fetched")
+    if fetched != ["Feature_Reference.md"]:
+        raise Fail(f"web page: the Vario help link fetched {fetched}")
+    # nothing from GitHub's page around the guide, and no Markdown left over in the text
+    text = p.js("document.getElementById('helpDoc').textContent")
+    for junk in ("**", "](", "```", "|---", "<a id", "&lt;"):
+        if junk in text:
+            raise Fail(f"web page: Markdown left in the rendered guide: {junk!r}")
+    if p.js("!!document.getElementById('helpWeb')"):
+        raise Fail("web page: the reader still has an Open on GitHub link")
+    if p.js("document.querySelectorAll('#helpDoc iframe,#helpDoc script').length"):
+        raise Fail("web page: unexpected elements in the rendered guide")
+    top = p.js("document.getElementById('hd-basic-settings-vario').getBoundingClientRect().top")
+    if not -5 <= top <= 400:
+        raise Fail(f"web page: the Vario section is not at the top of the screen after opening (top {top:.0f} px)")
+    rendered = set(p.js("[...document.querySelectorAll('#helpDoc [id^=hd-]')].map(e=>e.id.slice(3))"))
+    if not ids <= rendered:
+        raise Fail(f"web page: sections missing from the rendered reference: {sorted(ids - rendered)[:6]}")
+    tables = len(re.findall(r"^\|[\s:|-]+\|\s*$", ref, re.M))
+    got = p.js("document.querySelectorAll('#helpDoc table').length")
+    if got != tables:
+        raise Fail(f"web page: {got} tables rendered, the reference has {tables}")
+    if p.js("document.documentElement.scrollWidth>window.innerWidth+1"):
+        raise Fail("web page: the rendered reference is wider than a phone screen")
+    pres = len(re.findall(r"^```", ref, re.M)) // 2
+    if p.js("document.querySelectorAll('#helpDoc pre').length") != pres:
+        raise Fail("web page: code blocks of the reference not rendered")
+
+    # a link between guides opens the other guide in the same reader; Back returns
+    p.js("document.getElementById('helpBack').click()")
+    p.wait("document.getElementById('helpReader').hidden&&!document.getElementById('helpList').hidden", 4, "Back shows the list")
+    p.js("[...document.querySelectorAll('#helpBody a.doc')][0].click()")
+    p.wait("document.querySelector('#helpDoc h1')&&document.querySelector('#helpDoc h1').textContent.includes('user guide')", 6,
+           "user guide rendered")
+    p.js("document.querySelector('#helpDoc a[href*=\"Feature_Reference.md#\"]').click()")
+    p.wait("document.querySelector('#helpDoc h1')&&document.querySelector('#helpDoc h1').textContent.includes('feature reference')", 6,
+           "a link inside the guide opens the reference in the reader")
+    p.js("document.getElementById('helpBack').click()")
+    p.wait("document.querySelector('#helpDoc h1').textContent.includes('user guide')", 6, "Back returns to the guide")
+    # an in-page link (the contents list of the reference) scrolls inside the reader
+    p.js("[...document.querySelectorAll('#helpDoc a')].find(a=>a.getAttribute('href')==='#settings-units-and-audio')||0")
+
+    # without internet the reader says so and offers the GitHub address
+    stub_docs(p, "offline")
+    p.js("document.getElementById('helpBack').click();document.getElementById('helpBack').click()")
+    p.js("[...document.querySelectorAll('#helpBody a.doc')][1].click()")
+    p.wait("document.getElementById('helpDoc').textContent.includes('Could not load')", 6, "message when offline")
+    if "internet" not in p.js("document.getElementById('helpDoc').textContent"):
+        raise Fail("web page: the message for a guide that cannot be loaded does not mention internet access")
+    p.js("document.getElementById('helpBack').click()")
+
+    # the guides themselves: every relative link in them points at a document or section that exists
+    for name, text in (("User_Guide_(advanced).md", guide_adv), ("User_Guide_(basic).md", guide_basic)):
+        for t, target in re.findall(r"\[([^\]]+)\]\(((?:[^()\s]|\([^()]*\))+)\)", text):
+            if target.startswith("http"):
+                continue
+            f, _, anchor = target.partition("#")
+            if f and f not in DOC_FILES:
+                raise Fail(f"{name}: link {t} points at {f}, which is not a guide")
+            if f == "Feature_Reference.md" and anchor and anchor not in ids:
+                raise Fail(f"{name}: link {t} points at section {anchor}, which the reference lacks")
+    note = f"{len(links)} links on the Help tab, {len(groups)} settings groups linked, guides rendered in the page"
+
+    # With neither a GPS nor a microphone the guide for that vario is offered.
     try:
         v.sim(hasGps=0, hasMic=0)
         p = v.page()
@@ -1283,6 +1376,11 @@ def t_ui_help(v, a):
         adv_links = p.js("[...document.querySelectorAll('#settings summary .help a')].filter(a=>a.href.includes('#adv-')).length")
         if adv_links:
             raise Fail(f"web page: {adv_links} advanced help links on the settings page without GPS and microphone")
+        stub_docs(p)
+        p.tab("help")
+        p.js("[...document.querySelectorAll('#helpBody a.doc')][0].click()")
+        p.wait("document.querySelector('#helpDoc h1')&&document.querySelector('#helpDoc h1').textContent.includes('Basic vario')", 6,
+               "basic guide shown without GPS and microphone")
         note += "; the guide for a vario without GPS and microphone is offered then"
     finally:
         v.sim(hasGps=1, hasMic=1)

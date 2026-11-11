@@ -3,6 +3,8 @@
 
 #include "Version.h"
 
+// The microphone spectrum (its tab, page and script) is compiled in only with PV_HAS_SPECTRUM, see the
+// #if blocks between the string pieces below.
 static const char kIndexHtml[] PROGMEM = R"HTML(<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -60,11 +62,28 @@ button.on{outline:2px solid var(--acc)}
 #fwbar{height:100%;width:0;background:var(--acc);transition:width .2s}
 #fwfile,#fwpass{width:100%;font:inherit;margin-bottom:8px}#fwgo{width:100%}
 #fwpass{padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--fg)}
-#specCv{width:100%;height:280px;display:block}
+)HTML"
+#if PV_HAS_SPECTRUM
+R"HTML(#specCv{width:100%;height:280px;display:block}
 .specbar{display:flex;gap:8px;align-items:center;margin-top:8px}
 .specbar select{padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
+)HTML"
+#endif
+R"HTML(
 body.nogps .needgps,body.nomic .needmic,body.nospec .needspec{display:none}
+#helpDoc{font-size:14px;line-height:1.5;overflow-wrap:anywhere}
+#helpDoc h1{font-size:20px;margin:14px 0 6px}#helpDoc h2{font-size:17px;margin:18px 0 6px}#helpDoc h3{font-size:15px;margin:14px 0 4px}
+#helpDoc h4,#helpDoc h5,#helpDoc h6{font-size:14px;margin:10px 0 4px}
+#helpDoc p{margin:6px 0}#helpDoc ul,#helpDoc ol{margin:6px 0;padding-left:22px}#helpDoc li{margin:2px 0}
+#helpDoc a{color:var(--acc)}#helpDoc code{font:12.5px ui-monospace,Menlo,Consolas,monospace;background:var(--bg);border-radius:4px;padding:0 3px}
+#helpDoc pre{font:11.5px/1.35 ui-monospace,Menlo,Consolas,monospace;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:8px;overflow-x:auto;white-space:pre}
+#helpDoc blockquote{margin:8px 0;padding:2px 10px;border-left:3px solid var(--acc);color:var(--mut)}
+#helpDoc hr{border:0;border-top:1px solid var(--bd);margin:14px 0}
+#helpDoc .tw{overflow-x:auto;margin:8px 0}#helpDoc table{border-collapse:collapse;font-size:13px}
+#helpDoc th,#helpDoc td{border:1px solid var(--bd);padding:4px 7px;text-align:left;vertical-align:top;overflow-wrap:normal}#helpDoc th{background:var(--bg)}
+.rbar{margin-bottom:6px}
 summary .help{float:right;font-size:12px;font-weight:400}
+details:not([open])>summary .help{display:none}
 summary .help a{margin-left:12px;color:var(--acc)}
 #helpBody a.doc{display:block;padding:10px 12px;border:1px solid var(--bd);border-radius:10px;margin:8px 0;color:var(--acc);text-decoration:none;font-weight:600}
 #helpBody a.doc small{display:block;color:var(--mut);font-size:12px;font-weight:400}
@@ -79,7 +98,12 @@ summary .help a{margin-left:12px;color:var(--acc)}
 <nav class="tabs" role="tablist" aria-label="Main views">
 <button type="button" role="tab" aria-selected="true" data-tab="flight">Flight</button>
 <button type="button" role="tab" aria-selected="false" data-tab="settings">Settings</button>
-<button type="button" role="tab" aria-selected="false" data-tab="spectrum" class="needmic needspec">Spectrum</button>
+)HTML"
+#if PV_HAS_SPECTRUM
+R"HTML(<button type="button" role="tab" aria-selected="false" data-tab="spectrum" class="needmic needspec">Spectrum</button>
+)HTML"
+#endif
+R"HTML(
 <button type="button" role="tab" aria-selected="false" data-tab="system">Logs &amp; system</button>
 <button type="button" role="tab" aria-selected="false" data-tab="help">Help</button>
 </nav>
@@ -114,13 +138,18 @@ summary .help a{margin-left:12px;color:var(--acc)}
 <section id="settings"></section>
 <p id="saveState" class="mut" role="status" aria-live="polite"></p>
 </div>
-<div id="spectrumPage" class="page" role="tabpanel" hidden>
+)HTML"
+#if PV_HAS_SPECTRUM
+R"HTML(<div id="spectrumPage" class="page" role="tabpanel" hidden>
 <section class="card"><h2>Microphone spectrum</h2>
 <canvas id="specCv"></canvas>
 <div class="specbar"><button id="specpause">Pause</button>
 <label class="mut">Floor <select id="specfloor"><option value="100">-100 dBFS</option><option value="80">-80 dBFS</option><option value="60">-60 dBFS</option></select></label></div>
 <p class="mut" id="specinfo">Waiting for data…</p></section>
 </div>
+)HTML"
+#endif
+R"HTML(
 <div id="systemPage" class="page" role="tabpanel" hidden>
 <section class="card"><h2>Flight logs</h2><div id="logs" class="mut">Loading…</div></section>
 <details class="card" id="dbg"><summary>Debug log <small class="mut" id="dbginfo"></small></summary>
@@ -139,8 +168,11 @@ summary .help a{margin-left:12px;color:var(--acc)}
 </div><p class="mut" id="sys"></p></section>
 </div>
 <div id="helpPage" class="page" role="tabpanel" hidden>
-<section class="card"><h2>Help and guides</h2>
+<section class="card" id="helpList"><h2>Help and guides</h2>
 <div id="helpBody"></div></section>
+<section class="card" id="helpReader" hidden>
+<div class="rbar"><button type="button" id="helpBack">&larr; Back</button></div>
+<article id="helpDoc"></article></section>
 </div>
 <footer id="hver"></footer>
 <div id="toast"></div>
@@ -188,11 +220,15 @@ function layout(){
 let layKey='';
 const fR=r=>r>=50?'>50 : 1':r.toFixed(1)+' : 1';
 
-// Help: the guides live in the project's docs folder on GitHub (always the latest version).
-const HELP=')HTML" PV_HELP_URL R"HTML(';
-const DOCS={basic:'User_Guide_%28basic%29.md',adv:'User_Guide_%28advanced%29.md',ref:'Feature_Reference.md'};
-const hl=(f,a)=>HELP+f+(a?'#'+a:'');
-// Settings group -> its entry in the Feature Reference (b = the Basic part, a = the Advanced part)
+// Help. The guides live in the project's docs folder on GitHub. They are shown inside this page as plain
+// content, without the GitHub project around them: the Markdown is fetched from GitHub's raw file server
+// (always the latest version) and turned into HTML by the small converter below. It needs the phone to
+// have internet; if it cannot be fetched the reader says so and offers the GitHub address.
+const HELPRAW=')HTML" PV_HELP_RAW_URL R"HTML(',HELPWEB=')HTML" PV_HELP_WEB_URL R"HTML(';
+const DOCS={basic:'User_Guide_(basic).md',adv:'User_Guide_(advanced).md',ref:'Feature_Reference.md'};
+const docUrl=(f,base)=>base+encodeURI(f).replace(/\(/g,'%28').replace(/\)/g,'%29');
+const webLink=(f,a)=>docUrl(f,HELPWEB)+(a?'#'+a:'');
+// Settings group -> its entry in the Feature Reference (b = the part every vario has, a = the part for GPS / microphone)
 const GROUP_HELP={'Units':{b:'basic-settings-units-and-audio',a:'adv-settings-units-and-audio'},
   'Audio':{b:'basic-settings-units-and-audio',a:'adv-settings-units-and-audio'},'Engine RPM':{a:'adv-settings-engine-rpm'},
   'Vario':{b:'basic-settings-vario'},'Height calls':{b:'basic-settings-height-calls'},
@@ -202,7 +238,9 @@ const GROUP_HELP={'Units':{b:'basic-settings-units-and-audio',a:'adv-settings-un
   'Bluetooth':{b:'basic-settings-bluetooth',a:'adv-settings-bluetooth'},'Wi-Fi':{b:'basic-settings-wi-fi'},
   'Battery':{b:'basic-settings-battery'},'Logging':{a:'adv-settings-logging'}};
 let hwNow={gps:true,mic:true,spectrum:true};
-function mkLink(t,href,cls){const a=document.createElement('a');a.href=href;a.target='_blank';a.rel='noopener';a.textContent=t;if(cls)a.className=cls;return a}
+// A link to a guide section. The address is the GitHub one (for long-press or copy); a tap opens the reader.
+function mkLink(t,file,anchor,cls){const a=document.createElement('a');a.href=webLink(file,anchor);a.textContent=t;if(cls)a.className=cls;
+  a.onclick=e=>{e.preventDefault();openHelp(file,anchor)};return a}
 // A 'Help' link on each settings group that opens its entry in the Feature Reference.
 function addGroupHelp(){
   const adv=hwNow.gps||hwNow.mic;
@@ -210,8 +248,8 @@ function addGroupHelp(){
     const s=d.querySelector('summary'),old=s.querySelector('.help');if(old)old.remove();
     const g=GROUP_HELP[s.firstChild.textContent];if(!g)return;
     const span=document.createElement('span');span.className='help';
-    if(g.b)span.appendChild(mkLink('Help',hl(DOCS.ref,g.b)));
-    if(g.a&&adv)span.appendChild(mkLink(g.b?'More help':'Help',hl(DOCS.ref,g.a)));
+    if(g.b)span.appendChild(mkLink('Help',DOCS.ref,g.b));
+    if(g.a&&adv)span.appendChild(mkLink(g.b?'More help':'Help',DOCS.ref,g.a));
     if(span.childNodes.length)s.appendChild(span);
   });
 }
@@ -220,11 +258,11 @@ function addGroupHelp(){
 // one or the other, so it simply links to the right material.
 function buildHelp(){
   const adv=hwNow.gps||hwNow.mic,el=$('#helpBody');el.innerHTML='';
-  const doc=(t,sub,href)=>{const a=mkLink(t,href,'doc'),s=document.createElement('small');s.textContent=sub;a.appendChild(s);el.appendChild(a)};
-  doc('User guide','How to use this vario, from switching on to landing',hl(adv?DOCS.adv:DOCS.basic));
-  doc('Feature reference','Every tile, button, sound and setting explained, with examples',hl(DOCS.ref));
+  const doc=(t,sub,file)=>{const a=mkLink(t,file,'','doc'),s=document.createElement('small');s.textContent=sub;a.appendChild(s);el.appendChild(a)};
+  doc('User guide','How to use this vario, from switching on to landing',adv?DOCS.adv:DOCS.basic);
+  doc('Feature reference','Every tile, button, sound and setting explained, with examples',DOCS.ref);
   const jump=(label,items)=>{const d=document.createElement('div');d.className='jump';d.append(label+' ');
-    items.forEach(([t,a])=>{d.appendChild(mkLink(t,hl(DOCS.ref,a)));d.append(' ')});el.appendChild(d)};
+    items.forEach(([t,a])=>{d.appendChild(mkLink(t,DOCS.ref,a));d.append(' ')});el.appendChild(d)};
   const items=[['Tiles','basic-tiles'],['Buttons','basic-buttons'],['Sounds','basic-sounds'],['Settings','basic-settings-vario'],['Logs & system','basic-system']];
   if(adv){items.push(['More tiles','adv-tiles'],['More buttons','adv-buttons']);
     if(hwNow.gps)items.push(['Landing guidance','adv-guidance']);
@@ -232,6 +270,85 @@ function buildHelp(){
     if(hwNow.spectrum!==false)items.push(['Spectrum','adv-spectrum'])}
   jump('Jump to:',items);
 }
+
+// A small Markdown converter for the guides: headings, paragraphs, lists (nested), tables, code blocks,
+// quotes, rules, links, bold, italics, code, and the <a id="..."></a> anchors the guides use. Text is
+// escaped; nothing else from the document reaches the page as HTML. Element ids get an 'hd-' prefix
+// so they cannot clash with the page's own.
+const hesc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function hInline(t){
+  const codes=[];t=t.replace(/`([^`]+)`/g,(m,c)=>{codes.push(c);return '\u0001'+(codes.length-1)+'\u0001'});
+  t=hesc(t);
+  t=t.replace(/\[([^\]]+)\]\(((?:[^()\s]|\([^()]*\))+)\)/g,(m,x,u)=>'<a href="'+u.replace(/"/g,'%22')+'">'+x+'</a>');
+  t=t.replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/(^|[^*\w])\*([^*\s][^*]*)\*/g,'$1<i>$2</i>');
+  return t.replace(/\u0001(\d+)\u0001/g,(m,i)=>'<code>'+hesc(codes[i])+'</code>');
+}
+const hSlug=t=>t.toLowerCase().replace(/[^a-z0-9 -]/g,'').replace(/ /g,'-');
+function hMd(src){
+  const L=src.replace(/\r/g,'').split('\n'),out=[],LI=/^( *)([-*]|\d+\.) +(.*)$/;let i=0;
+  while(i<L.length){
+    const l=L[i];let m;
+    if(!l.trim()){i++;continue}
+    if(m=/^<a id="([\w-]+)"><\/a>\s*$/.exec(l)){out.push('<a id="hd-'+m[1]+'"></a>');i++;continue}
+    if(/^```/.test(l)){const b=[];i++;while(i<L.length&&!/^```/.test(L[i]))b.push(L[i++]);i++;out.push('<pre>'+hesc(b.join('\n'))+'</pre>');continue}
+    if(m=/^(#{1,6}) +(.*)$/.exec(l)){out.push('<h'+m[1].length+' id="hd-'+hSlug(m[2].replace(/[`*]/g,''))+'">'+hInline(m[2])+'</h'+m[1].length+'>');i++;continue}
+    if(/^-{3,}\s*$/.test(l)){out.push('<hr>');i++;continue}
+    if(/^>/.test(l)){const b=[];while(i<L.length&&/^>/.test(L[i]))b.push(L[i++].replace(/^> ?/,''));out.push('<blockquote>'+hMd(b.join('\n'))+'</blockquote>');continue}
+    if(/^\|/.test(l)&&i+1<L.length&&/^\|[\s:|-]+\|\s*$/.test(L[i+1])){
+      const row=r=>r.replace(/^\||\|\s*$/g,'').split('|').map(c=>c.trim());
+      let h='<div class="tw"><table><tr>'+row(l).map(c=>'<th>'+hInline(c)+'</th>').join('')+'</tr>';i+=2;
+      while(i<L.length&&/^\|/.test(L[i]))h+='<tr>'+row(L[i++]).map(c=>'<td>'+hInline(c)+'</td>').join('')+'</tr>';
+      out.push(h+'</table></div>');continue}
+    if(LI.test(l)){
+      const items=[];
+      while(i<L.length){const q=LI.exec(L[i]);
+        if(q){items.push({ind:q[1].length,tag:/\d/.test(q[2])?'ol':'ul',t:q[3]});i++}
+        else if(items.length&&/^ +\S/.test(L[i])){items[items.length-1].t+=' '+L[i].trim();i++}
+        else break}
+      let h='';const st=[];
+      for(const it of items){
+        while(st.length&&it.ind<st[st.length-1].ind)h+='</li></'+st.pop().tag+'>';
+        if(!st.length||it.ind>st[st.length-1].ind){h+='<'+it.tag+'><li>';st.push({ind:it.ind,tag:it.tag})}
+        else h+='</li><li>';
+        h+=hInline(it.t)}
+      while(st.length)h+='</li></'+st.pop().tag+'>';
+      out.push(h);continue}
+    const b=[l];i++;
+    while(i<L.length&&L[i].trim()&&!/^(```|#{1,6} |>|\||<a id|-{3,}\s*$)/.test(L[i])&&!LI.test(L[i]))b.push(L[i++]);
+    out.push('<p>'+hInline(b.join(' '))+'</p>');
+  }
+  return out.join('\n');
+}
+
+// The reader: shows one guide inside the Help tab, with Back to the previous guide or the list.
+let helpStack=[],helpCur=null;
+function helpScroll(anchor){const t=anchor&&document.getElementById('hd-'+anchor);(t||$('#helpReader')).scrollIntoView()}
+async function openHelp(file,anchor,back){
+  if(!back&&helpCur)helpStack.push(helpCur);
+  helpCur={file,anchor};
+  selectTab('help');
+  $('#helpList').hidden=true;$('#helpReader').hidden=false;
+  const el=$('#helpDoc');el.textContent='Loading…';
+  try{
+    const r=await fetch(docUrl(file,HELPRAW),{cache:'no-cache'});if(!r.ok)throw r.status;
+    el.innerHTML=hMd(await r.text());
+  }catch(e){
+    el.innerHTML='<p>Could not load the guide. The phone needs internet access for this: turn mobile data on, or leave the vario\'s Wi-Fi for a moment, then try again.</p>';
+  }
+  helpScroll(anchor);
+}
+$('#helpBack').onclick=()=>{
+  if(helpStack.length){const p=helpStack.pop();openHelp(p.file,p.anchor,true)}
+  else{$('#helpReader').hidden=true;$('#helpList').hidden=false;helpCur=null}
+};
+$('#helpDoc').onclick=e=>{
+  const a=e.target.closest('a[href]');if(!a)return;
+  const h=a.getAttribute('href'),m=/^(?:\.\/|docs\/)?([^#:]+\.md)(?:#(.*))?$/.exec(h);
+  if(h[0]==='#'){e.preventDefault();helpScroll(h.slice(1))}
+  else if(m){e.preventDefault();openHelp(decodeURIComponent(m[1]),m[2])}
+  else if(/^https?:/.test(h)){a.target='_blank';a.rel='noopener'}
+  else e.preventDefault();
+};
 
 // Rolling height graph: the vario keeps the last ten minutes, fetched every few seconds.
 let hgData=null,hgBusy=false;
@@ -386,9 +503,16 @@ function selectTab(name){
   document.querySelectorAll('button[data-tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===name));
   document.querySelectorAll('.page').forEach(p=>p.hidden=p.id!==name+'Page');
   if(name==='system')loadLogs();
-  const was=specOn;specOn=name==='spectrum';if(specOn&&!was)specLoop();
+)HTML"
+#if PV_HAS_SPECTRUM
+R"HTML(  const was=specOn;specOn=name==='spectrum';if(specOn&&!was)specLoop();
+)HTML"
+#endif
+R"HTML(
 }
-let specSeq=0,specOn=false,specPaused=false,specBusy=false,specData=null,specLast=0,specFps=0;
+)HTML"
+#if PV_HAS_SPECTRUM
+R"HTML(let specSeq=0,specOn=false,specPaused=false,specBusy=false,specData=null,specLast=0,specFps=0;
 async function specLoop(){
   if(!specOn)return;
   if(!specPaused&&!specBusy&&!document.hidden){
@@ -431,6 +555,9 @@ function drawSpec(){
 }
 $('#specpause').onclick=()=>{specPaused=!specPaused;$('#specpause').textContent=specPaused?'Resume':'Pause'};
 $('#specfloor').onchange=drawSpec;
+)HTML"
+#endif
+R"HTML(
 document.querySelectorAll('button[data-tab]').forEach(b=>b.onclick=()=>selectTab(b.dataset.tab));
 
 async function act(a){

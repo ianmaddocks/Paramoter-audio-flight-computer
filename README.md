@@ -110,8 +110,10 @@ The GPS and the microphone are optional. Which are fitted is a build choice (`sr
 | `test` | yes | yes | debug build plus simulated sensors, for `tools/hil_test.py` |
 
 `-DPV_HAS_GPS=0` and `-DPV_HAS_MIC=0` can also be used one at a time in a build of your own.
-`-DPV_HAS_SPECTRUM=0` leaves out just the microphone spectrum feature (the Spectrum tab, `/api/spectrum`
-and the code that produces it); noise level, automatic volume and engine RPM are not affected.
+`-DPV_HAS_SPECTRUM=0` leaves out just the microphone spectrum feature (the Spectrum tab with its page and
+script, `/api/spectrum` and the code that produces it); noise level, automatic volume and engine RPM are
+not affected. It is implied by `PV_HAS_MIC=0`, so the Basic builds contain none of the spectrum code or
+page text.
 
 The version string carries the variant: `20261111-131219-advanced` (both parts), `...-basic` (neither),
 `...-basic+gps` or `...-basic+mic` (one). It is built in `src/Version.h` from the same flags and appears in
@@ -263,9 +265,12 @@ not fitted are left out of the page (`available()` in `Settings.cpp`).
 
 ### Help links
 
-The page's Help tab and the "Help" links on the settings groups open the guides in `docs/` on
-GitHub, always the latest version, so they need the phone to have internet. The address is
-`PV_HELP_URL` in `src/Version.h` (override it with a build flag for a fork). Each settings group is
+The page's Help tab and the "Help" links on the settings groups show the guides in `docs/` inside the
+page, as plain content without the GitHub project around it. The page fetches the Markdown from GitHub's raw
+file server, always the latest version, and a small converter in `WebPage.h` renders it, so the phone needs
+internet (and the guides must stay within the converter's Markdown subset: headings, lists, tables, code
+blocks, quotes, links, bold, italics and `<a id>` anchors). The address is
+`PV_HELP_RAW_URL` and `PV_HELP_WEB_URL` in `src/Version.h` (override them with build flags for a fork). Each settings group is
 mapped to its section in `docs/Feature_Reference.md` by `GROUP_HELP` in `WebPage.h`; the section
 anchors in that document are `<a id="...">` tags, and the test `ui_help` checks that every link
 points at an anchor that exists, so renaming a section there needs the map updated too.

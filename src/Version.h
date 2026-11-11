@@ -27,11 +27,17 @@
 #define PV_VARIANT "basic+mic"
 #endif
 
-// Where the Help tab and the "Help" links on the settings page open the guides: the docs folder
-// of the project on GitHub, always the latest version. Change it for a fork with
-// -DPV_HELP_URL=\"https://github.com/you/your-fork/blob/main/docs/\" (must end in a slash).
-#ifndef PV_HELP_URL
-#define PV_HELP_URL "https://github.com/ianmaddocks/Paramoter-audio-flight-computer/blob/main/docs/"
+// Where the Help tab gets the guides: the docs folder of the project on GitHub, always the latest
+// version. The page fetches the Markdown from PV_HELP_RAW_URL (GitHub's raw file server) and shows
+// it itself, as plain content; PV_HELP_WEB_URL is the same folder as GitHub shows it, used as the
+// link address and for "Open on GitHub". Both must end in a slash. For a fork, change them with
+// -DPV_HELP_RAW_URL=\"https://raw.githubusercontent.com/you/fork/main/docs/\" and
+// -DPV_HELP_WEB_URL=\"https://github.com/you/fork/blob/main/docs/\".
+#ifndef PV_HELP_RAW_URL
+#define PV_HELP_RAW_URL "https://raw.githubusercontent.com/ianmaddocks/Paramoter-audio-flight-computer/main/docs/"
+#endif
+#ifndef PV_HELP_WEB_URL
+#define PV_HELP_WEB_URL "https://github.com/ianmaddocks/Paramoter-audio-flight-computer/blob/main/docs/"
 #endif
 
 // What the boot log, web page and status report as the version, e.g. 20261111-131219-advanced.
