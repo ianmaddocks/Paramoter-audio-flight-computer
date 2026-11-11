@@ -1,4 +1,7 @@
 #include "Gps.h"
+
+#if PV_HAS_GPS
+
 #include "Log.h"
 
 #include "Pins.h"
@@ -115,7 +118,6 @@ void Gps::update(uint32_t nowMs) {
     char c = ser_.read();
     gps_.encode(c);
     lastCharMs_ = nowMs;
-    //if (dlog::kDebugBuild) logChar(c);
   }
   if (gps_.speed.isUpdated()) screenFix(nowMs);  // once per epoch: RMC carries position and speed
 
@@ -147,27 +149,6 @@ void Gps::update(uint32_t nowMs) {
   }
 }
 
-/*
-// Collects NMEA sentences ('$' to end of line) and logs each one. Non-printable bytes
-// (UBX binary, line noise at the wrong baud rate) discard the partial sentence.
-void Gps::logChar(char c) {
-  if (c == '$') {
-    lineLen_ = 0;
-    line_[lineLen_++] = c;
-  } else if (lineLen_ == 0) {
-    return;
-  } else if (c == '\r' || c == '\n') {
-    line_[lineLen_] = '\0';
-    LOGD("GPS", "%s", line_);
-    lineLen_ = 0;
-  } else if (c < 0x20 || c > 0x7E || lineLen_ >= sizeof(line_) - 1) {
-    lineLen_ = 0;
-  } else {
-    line_[lineLen_++] = c;
-  }
-}
-*/
-
 void Gps::screenFix(uint32_t nowMs) {
   double lat = gps_.location.lat();
   double lon = gps_.location.lng();
@@ -181,8 +162,8 @@ void Gps::screenFix(uint32_t nowMs) {
     bool surge = fabsf(speed - prevSpeed_) > kMaxAccelMs2 * dt + kSpeedSlackMs;
     if (jump || surge) {
       suspectMs_ = nowMs;
-      LOGD("GPS", "suspect fix: moved %.0f m in %.2f s, speed %.1f -> %.1f m/s, sats %u hdop %.1f", dist,
-           dt, prevSpeed_, speed, sats(), hdop());
+      LOGD("GPS", "suspect fix: moved %.0f m in %.2f s, speed %.1f -> %.1f m/s, sats %u", dist, dt,
+           prevSpeed_, speed, (unsigned)gps_.satellites.value());
     }
   }
   havePrev_ = true;
@@ -197,7 +178,7 @@ bool Gps::steady(uint32_t nowMs) const {
 }
 
 uint32_t Gps::utcEpoch() {
-  if (!dateValid() || !timeValid()) return 0;
+  if (!(gps_.date.isValid() && gps_.date.year() > 2020) || !(gps_.time.isValid() && gps_.time.age() < 3000)) return 0;
   // Days from civil date (Howard Hinnant's algorithm).
   int y = gps_.date.year(), m = gps_.date.month(), d = gps_.date.day();
   y -= m <= 2;
@@ -209,7 +190,28 @@ uint32_t Gps::utcEpoch() {
   return days * 86400 + gps_.time.hour() * 3600 + gps_.time.minute() * 60 + gps_.time.second();
 }
 
-bool Gps::fix() const {
-  auto& g = const_cast<TinyGPSPlus&>(gps_);
-  return g.location.isValid() && g.location.age() < 2500 && g.satellites.value() >= 4;
+void Gps::read(uint32_t nowMs, GpsData& out) {
+  out.link = locked_;
+  out.fix = gps_.location.isValid() && gps_.location.age() < 2500 && gps_.satellites.value() >= 4;
+  out.steady = steady(nowMs);
+  out.sats = gps_.satellites.value();
+  out.hdop = gps_.hdop.isValid() ? gps_.hdop.hdop() : 99.0f;
+  out.lat = gps_.location.lat();
+  out.lon = gps_.location.lng();
+  out.speedMs = gps_.speed.mps();
+  out.courseDeg = gps_.course.deg();
+  out.altValid = gps_.altitude.isValid() && gps_.altitude.age() < 3000;
+  out.altM = gps_.altitude.meters();
+  out.timeValid = gps_.time.isValid() && gps_.time.age() < 3000;
+  out.dateValid = gps_.date.isValid() && gps_.date.year() > 2020;
+  out.year = gps_.date.year();
+  out.month = gps_.date.month();
+  out.day = gps_.date.day();
+  out.hour = gps_.time.hour();
+  out.minute = gps_.time.minute();
+  out.second = gps_.time.second();
+  out.centisecond = gps_.time.centisecond();
+  out.utcEpoch = utcEpoch();
 }
+
+#endif  // PV_HAS_GPS

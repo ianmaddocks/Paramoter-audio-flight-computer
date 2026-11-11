@@ -11,29 +11,50 @@
 #include "sensors/Baro.h"
 #include "sensors/Battery.h"
 #include "sensors/Gps.h"
+#include "sensors/GpsData.h"
 
+// The vario's state: every sensor, the flight logic built on them, and the outputs.
+// One instance (`app`), owned by the main loop (app/App.cpp); the web UI reads it to show status.
+// See docs/ARCHITECTURE.md for how the parts fit together.
 struct App {
+  // Inputs
   Baro baro;
-  Gps gps;
+  Gps gps;           // the receiver driver; an empty stub when no GPS is fitted
+  GpsData gpsData;   // what it last reported (stays "no fix" without a GPS)
   Battery battery;
   Button button;
+
+  // Flight logic. `nav` is the shared snapshot Flight::update() rebuilds every tick; the rest
+  // read it.
+  NavState nav;
   Flight flight;
   Wind wind;
   Announcer announcer;
   Approach approach;
   Emergency emergency;
+
+  // Outputs
   BleFeed ble;
   IgcLogger logger;
-  NavState nav;
+
   bool varioMuted = false;
 };
 
 extern App app;
 
+// Called from setup() and loop() in main.cpp.
+void appSetup();
+void appLoop();
+
 // Pilot actions, shared by the push button and the web UI.
 void actionToggleApproach();
 void actionToggleEmergency();
 void actionToggleMute();
+
+// First unmet pre-flight condition as text for the pilot, or nullptr when ready to fly.
+const char* appNotReadyReason();
+
 #if PV_TEST
+// Test build: back to the state just after power-on, without restarting.
 void testResetFlight();
 #endif

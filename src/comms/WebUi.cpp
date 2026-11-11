@@ -13,9 +13,11 @@
 #include <sys/stat.h>
 
 #include "App.h"
+#include "Hardware.h"
 #include "Settings.h"
 #include "Version.h"
 #include "audio/Speech.h"
+#include "audio/Volume.h"
 #include "comms/WebPage.h"
 #include "nav/Geo.h"
 #include "sensors/Mic.h"
@@ -84,22 +86,10 @@ void sendError(int code, const char* msg) {
   sendJson(doc, code);
 }
 
-// First unmet pre-flight condition, or nullptr when ready to fly.
-const char* notReadyReason(const NavState& n) {
-  if (!app.gps.connected()) return "GPS not responding";
-  if (!n.fix || n.sats < g_cfg.readyMinSats) return "Waiting for satellites";
-  if (n.hdop > g_cfg.readyMaxHdop) return "GPS accuracy low";
-  if (!n.gpsGood) return "GPS position unstable";
-  if (!n.baroOk) return "Barometer not working";
-  if (!app.baro.settled()) return "Vario settling";
-  if (!n.lzValid) return "Landing zone not set";
-  return nullptr;
-}
-
 void handleStatus() {
   const NavState& n = app.nav;
   JsonDocument doc;
-  const char* why = notReadyReason(n);
+  const char* why = appNotReadyReason();
   doc["ready"] = why == nullptr;
   if (why) doc["notReady"] = why;
   doc["minSats"] = g_cfg.readyMinSats;
@@ -120,16 +110,26 @@ void handleStatus() {
   doc["vario"] = n.varioMs;
   doc["muted"] = app.varioMuted;
 
-  JsonObject gps = doc["gps"].to<JsonObject>();
-  gps["link"] = app.gps.connected();
-  gps["fix"] = n.fix;
-  gps["sats"] = n.sats;
-  gps["hdop"] = n.hdop;
-  gps["lat"] = n.lat;
-  gps["lon"] = n.lon;
-  gps["speed"] = n.speedMs;
-  gps["track"] = n.trackDeg;
-  gps["alt"] = n.gpsAltM;
+  // Optional hardware: the page hides what is not fitted, and the sections below are left out.
+  JsonObject hwj = doc["hw"].to<JsonObject>();
+  hwj["gps"] = hw::hasGps();
+  hwj["mic"] = hw::hasMic();
+  JsonObject vol = doc["vol"].to<JsonObject>();  // volumes being applied now
+  vol["speech"] = volume::speechPct();
+  vol["vario"] = volume::varioPct();
+
+  if (hw::hasGps()) {
+    JsonObject gps = doc["gps"].to<JsonObject>();
+    gps["link"] = app.gpsData.link;
+    gps["fix"] = n.fix;
+    gps["sats"] = n.sats;
+    gps["hdop"] = n.hdop;
+    gps["lat"] = n.lat;
+    gps["lon"] = n.lon;
+    gps["speed"] = n.speedMs;
+    gps["track"] = n.trackDeg;
+    gps["alt"] = n.gpsAltM;
+  }
 
   JsonObject baro = doc["baro"].to<JsonObject>();
   baro["ok"] = n.baroOk;
@@ -143,14 +143,16 @@ void handleStatus() {
   if (battMin >= 0) batt["min"] = battMin;
   batt["learned"] = app.battery.learned();
 
-  JsonObject micj = doc["mic"].to<JsonObject>();
-  micj["ok"] = mic::running();
-  float nd = mic::noiseDb();
-  if (!isnan(nd)) micj["noise"] = nd;
-  micj["vol"] = mic::compensatedVolume(g_cfg.varioVolume);
-  micj["rpm"] = mic::rpm();
-  micj["raw"] = mic::rpmRaw();
-  micj["conf"] = mic::rpmConfidence();
+  if (hw::hasMic()) {
+    JsonObject micj = doc["mic"].to<JsonObject>();
+    micj["ok"] = mic::running();
+    float nd = mic::noiseDb();
+    if (!isnan(nd)) micj["noise"] = nd;
+    micj["vol"] = volume::varioPct();
+    micj["rpm"] = mic::rpm();
+    micj["raw"] = mic::rpmRaw();
+    micj["conf"] = mic::rpmConfidence();
+  }
 
   JsonObject wind = doc["wind"].to<JsonObject>();
   wind["valid"] = app.wind.valid();
@@ -270,12 +272,15 @@ void handleSchema() {
   String one;
   one.reserve(200);
   const int n = settings::schemaCount();
+  bool first = true;
+  addPiece("[", 1);
   for (int i = 0; i < n; ++i) {
     JsonDocument doc;
-    settings::schemaEntry(i, doc.to<JsonObject>());
+    if (!settings::schemaEntry(i, doc.to<JsonObject>())) continue;  // not for this hardware
     one = "";
     serializeJson(doc, one);
-    addPiece(i ? "," : "[", 1);
+    if (!first) addPiece(",", 1);
+    first = false;
     addPiece(one);
   }
   addPiece("]", 1);
@@ -321,7 +326,7 @@ void handleAction() {
   } else if (what == "mute") {
     actionToggleMute();
   } else if (what == "lz_here") {
-    if (!n.fix) {
+    if (!n.fix) {  // always the case without a GPS
       sendError(409, "no GPS fix");
       return;
     }
@@ -382,7 +387,7 @@ void handleSpectrum() {
   uint32_t since = server.hasArg("since") ? strtoul(server.arg("since").c_str(), nullptr, 10) : 0;
   uint8_t buf[12 + mic::kSpectrumBins];
   float binHz = 0, toneHz = 0;
-  uint32_t seq = mic::spectrum(buf + 12, &binHz, &toneHz);
+  uint32_t seq = hw::hasMic() ? mic::spectrum(buf + 12, &binHz, &toneHz) : 0;
   server.sendHeader("Cache-Control", "no-store");
   if (seq == 0 || seq == since) {
     server.send(204);
@@ -514,6 +519,11 @@ void handleOtaUpload() {
       LOGI("OTA", "Update OK, %u bytes", (unsigned)up.totalSize);
     }
   } else if (up.status == UPLOAD_FILE_ABORTED) {
+    // The connection ended before the whole image arrived. Logged with the state at that
+    // moment, since the web server reports nothing itself.
+    LOGW("OTA", "Upload aborted after %u bytes (client %s, free memory %u, lowest %u)", (unsigned)up.totalSize,
+         server.client().connected() ? "still connected" : "gone", (unsigned)ESP.getFreeHeap(),
+         (unsigned)ESP.getMinFreeHeap());
     otaFail("upload aborted");
   }
 }
@@ -553,7 +563,6 @@ class RedirectToUi : public RequestHandler {
 
 }  // namespace
 
-const char* readyBlocker() { return notReadyReason(app.nav); }
 
 void begin() {
   serverAttemptStartedMs = millis();

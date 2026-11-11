@@ -1,4 +1,6 @@
 #include "Settings.h"
+
+#include "Hardware.h"
 #include "Log.h"
 
 #include <Preferences.h>
@@ -45,6 +47,7 @@ const Field kFields[] = {
 
     I(speechVolume, "Audio", "Speech volume", "%", 0, 100),
     I(varioVolume, "Audio", "Vario volume", "%", 0, 100),
+    I(volumeRampPctS, "Audio", "Fastest volume change (lower = gentler)", "%/s", 5, 500),
     B(autoVolume, "Audio", "Raise volume with background noise"),
     FL(noiseQuietDb, "Audio", "Noise for set volume (see Background noise tile)", "dBFS", -90.0f, 0.0f),
     FL(noiseLoudDb, "Audio", "Noise for full volume", "dBFS", -90.0f, 0.0f),
@@ -153,6 +156,33 @@ const Field kFields[] = {
 #undef S
 #undef SR
 #undef E
+
+// Settings for hardware this vario does not have are left out of the settings page (they keep
+// their stored values, and nothing reads them).
+bool listed(const char* const* list, size_t n, const char* name) {
+  for (size_t i = 0; i < n; ++i) {
+    if (strcmp(list[i], name) == 0) return true;
+  }
+  return false;
+}
+
+bool available(const Field& f) {
+  static const char* const kGpsGroups[] = {"Glide", "Landing zone", "Landing approach", "Emergency",
+                                           "Wind",  "GPS",          "Logging"};
+  static const char* const kGpsKeys[] = {"distUnit",       "speedUnit", "takeoffSpeedMs", "takeoffTimeS",
+                                         "takeoffGainM",   "landingSpeedMs", "bleGps",    "bleGpsRateHz"};
+  static const char* const kMicGroups[] = {"Engine RPM"};
+  static const char* const kMicKeys[] = {"autoVolume", "noiseQuietDb", "noiseLoudDb", "noiseReleaseS"};
+  if (!hw::hasGps() && (listed(kGpsGroups, sizeof(kGpsGroups) / sizeof(kGpsGroups[0]), f.group) ||
+                        listed(kGpsKeys, sizeof(kGpsKeys) / sizeof(kGpsKeys[0]), f.key))) {
+    return false;
+  }
+  if (!hw::hasMic() && (listed(kMicGroups, sizeof(kMicGroups) / sizeof(kMicGroups[0]), f.group) ||
+                        listed(kMicKeys, sizeof(kMicKeys) / sizeof(kMicKeys[0]), f.key))) {
+    return false;
+  }
+  return true;
+}
 
 int enumCount(const char* opts) {
   int n = 1;
@@ -267,10 +297,11 @@ bool fromJson(JsonObjectConst obj) {
 
 int schemaCount() { return sizeof(kFields) / sizeof(kFields[0]); }
 
-void schemaEntry(int index, JsonObject o) {
+bool schemaEntry(int index, JsonObject o) {
   static const char* kTypeNames[] = {"bool", "int", "float", "double", "str", "enum", "list"};
+  const Field& f = kFields[index];
+  if (!available(f)) return false;
   {
-    const Field& f = kFields[index];
     o["k"] = f.key;
     o["g"] = f.group;
     o["l"] = f.label;
@@ -284,6 +315,7 @@ void schemaEntry(int index, JsonObject o) {
     if (f.size) o["n"] = f.size - 1;
     if (f.restart) o["r"] = true;
   }
+  return true;
 }
 
 void load() {

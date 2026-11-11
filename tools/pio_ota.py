@@ -126,13 +126,20 @@ def send_image(host, md5, fs, boundary, body):
 
 def show_vario_log(host):
     """After a failed upload: the vario's own account of it, from its debug log."""
-    try:
-        with urllib.request.urlopen("http://%s/api/debuglog?since=0" % host, timeout=8) as r:
-            lines = r.read().decode(errors="replace").splitlines()
-        for line in [l for l in lines if " OTA:" in l or " MEM:" in l or " E " in l][-8:]:
-            print("  vario: " + line)
-    except Exception:
-        pass
+    for attempt in range(4):
+        try:
+            with urllib.request.urlopen("http://%s/api/debuglog?since=0" % host, timeout=6) as r:
+                lines = r.read().decode(errors="replace").splitlines()
+            shown = [l for l in lines if " OTA:" in l or " MEM:" in l or " E " in l or " WEB:" in l][-8:]
+            for line in shown:
+                print("  vario: " + line)
+            if not shown:
+                print("  vario: (nothing about the upload in its log)")
+            return
+        except Exception as e:
+            last = e
+            time.sleep(2)
+    print("  vario: log not readable (%s)" % last)
 
 
 if env.GetProjectOption("upload_protocol", "") == "custom":

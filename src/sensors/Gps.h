@@ -1,35 +1,27 @@
 #pragma once
 #include <Arduino.h>
+
+#include "Hardware.h"
+#include "sensors/GpsData.h"
+
+#if PV_HAS_GPS
 #include <TinyGPSPlus.h>
 
 #include <initializer_list>
 
 // u-blox M10 on UART1. Finds the receiver's baud rate, then reconfigures it
 // (115200 baud, airborne dynamic model, GGA+RMC only, configured nav rate).
+//
+// Everything else reads the receiver through read(), which copies the latest values into a
+// GpsData; nothing outside this class uses the parser.
 class Gps {
  public:
   void begin();
+  // Feeds received characters to the parser and looks after the link (baud search, re-detect
+  // after silence). Call every pass of the main loop.
   void update(uint32_t nowMs);
-
-  bool fix() const;
-  double lat() { return gps_.location.lat(); }
-  double lon() { return gps_.location.lng(); }
-  bool altValid() { return gps_.altitude.isValid() && gps_.altitude.age() < 3000; }
-  float altM() { return gps_.altitude.meters(); }
-  float speedMs() { return gps_.speed.mps(); }
-  float courseDeg() { return gps_.course.deg(); }
-  uint8_t sats() { return gps_.satellites.value(); }
-  float hdop() { return gps_.hdop.isValid() ? gps_.hdop.hdop() : 99.0f; }
-  bool connected() const { return locked_; }
-  uint32_t baud() const { return baud_; }
-  // True once fixes have arrived steadily, with no position or speed jump, for a few seconds.
-  bool steady(uint32_t nowMs) const;
-
-  bool timeValid() { return gps_.time.isValid() && gps_.time.age() < 3000; }
-  bool dateValid() { return gps_.date.isValid() && gps_.date.year() > 2020; }
-  TinyGPSDate& date() { return gps_.date; }
-  TinyGPSTime& time() { return gps_.time; }
-  uint32_t utcEpoch();  // seconds since 1970, 0 if date/time unknown
+  // Latest values as plain data.
+  void read(uint32_t nowMs, GpsData& out);
 
  private:
   struct KV {
@@ -41,7 +33,8 @@ class Gps {
   void valset(std::initializer_list<KV> kvs);
   void sendConfig();
   void screenFix(uint32_t nowMs);
-  void logChar(char c);
+  bool steady(uint32_t nowMs) const;
+  uint32_t utcEpoch();
 
   TinyGPSPlus gps_;
   HardwareSerial& ser_ = Serial1;
@@ -56,6 +49,15 @@ class Gps {
   float prevSpeed_ = 0;
   uint32_t prevFixMs_ = 0;
   uint32_t suspectMs_ = 0;  // last (re)acquisition or jump
-  char line_[100];  // NMEA sentence being collected for debug logging
-  size_t lineLen_ = 0;
 };
+
+#else  // no GPS fitted: nothing to drive, and read() reports "no link, no fix"
+
+class Gps {
+ public:
+  void begin() {}
+  void update(uint32_t) {}
+  void read(uint32_t, GpsData& out) { out = GpsData(); }
+};
+
+#endif

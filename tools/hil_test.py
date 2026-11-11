@@ -496,7 +496,7 @@ def near(value, target, tol, what):
 # --------------------------------------------------------------------------------------------
 # Settings the tests run with (the vario's own are restored afterwards).
 TEST_SETTINGS = dict(
-    heightUnit=0, distUnit=0, speedUnit=0, autoVolume=False, noiseQuietDb=-50, noiseLoudDb=-30,
+    heightUnit=0, distUnit=0, speedUnit=0, autoVolume=False, volumeRampPctS=500, noiseQuietDb=-50, noiseLoudDb=-30,
     varioEnabled=True, varioOnlyInFlight=False, varioClimbBeeps=True, varioSinkAlarm=True,
     climbThreshold=0.3, sinkThreshold=-2.0, varioBaseHz=700, varioHzPerMs=100, varioAccelNoise=1.0,
     boundariesUp="15.24,30.48", boundaries="15.24,30.48", boundaryStepM=152.4, boundaryHystM=3.0,
@@ -961,6 +961,157 @@ def t_speech(v, a):
 # --------------------------------------------------------------------------------------------
 # Web page tests: the real page in a headless browser, checked against simulated inputs.
 
+def t_volume_ramp(v, a):
+    """A volume change is applied gradually at the configured rate, never as a jump."""
+    reset(v, baro="on", alt=GROUND_M, vz=0)
+    v.set(autoVolume=False, volumeRampPctS=500, varioVolume=10, speechVolume=10)
+    try:
+        time.sleep(1.0)
+        near(v.status()["vol"]["vario"], 10, 1, "volume before the change")
+        v.set(volumeRampPctS=30)
+        t0 = time.time()
+        v.set(varioVolume=100)
+        seen = []
+        while time.time() - t0 < 4.6:
+            seen.append((time.time() - t0, v.status()["vol"]["vario"]))
+            time.sleep(0.2)
+        # 30 %/s from 10 %: about 40 % after a second, full after three.
+        early = max(x for t, x in seen if t < 1.0)
+        mid = [x for t, x in seen if 1.2 < t < 1.8]
+        if early > 46:
+            raise Fail(f"volume jumped: {early} % within a second of raising the setting (limit 30 %/s)")
+        if not mid or not 25 <= mid[0] <= 70:
+            raise Fail(f"volume about 1.5 s into the ramp is {mid}, expected 35 to 65 %")
+        if any(b < a_ for (_, a_), (_, b) in zip(seen, seen[1:])):
+            raise Fail(f"volume did not rise steadily: {[x for _, x in seen]}")
+        near(seen[-1][1], 100, 0, "volume at the end of the ramp")
+        v.set(varioVolume=10)
+        time.sleep(1.0)
+        down = v.status()["vol"]["vario"]
+        if not 50 <= down <= 95:
+            raise Fail(f"volume a second after lowering the setting is {down} %, expected a gradual fall")
+        return f"10 -> 100 %: {early} % within 1 s, {mid[0]} % at 1.5 s, 100 % by 4.5 s; falls gradually too"
+    finally:
+        v.set(volumeRampPctS=TEST_SETTINGS["volumeRampPctS"], varioVolume=a.volume, speechVolume=a.volume)
+
+
+def schema_keys(v):
+    return {f["k"] for f in v.get_json("/api/schema")}
+
+
+def t_variant_no_gps(v, a):
+    """Vario without a GPS (switched off in the test build): ready on the barometer alone, no
+    GPS announcements or guidance, takeoff and landing still detected, settings and page trimmed."""
+    logs_before = {f["n"] for f in v.get_json("/api/logs")["files"]}
+    reset(v, baro="on", alt=GROUND_M, vz=0, gps="silent")
+    try:
+        m = v.mark()
+        v.sim(hasGps=0, reset=1)
+        # A good fix is simulated from here on: with the GPS "not fitted" it must be ignored.
+        v.sim(gps="fix", sats=10, hdop=0.9, lat=51.5, lon=0.5, speed=0)
+        v.expect("RDY", r"^ready$", m, timeout=25, what="ready to fly without a GPS")
+        st = v.status()
+        if st["hw"]["gps"] or "gps" in st or not st["ready"]:
+            raise Fail(f"status without GPS: hw {st['hw']}, gps section {'gps' in st}, ready {st['ready']}")
+        keys = schema_keys(v)
+        extra = keys & {"readyMinSats", "lzMode", "glideRatio", "igcEnabled", "takeoffSpeedMs", "windManual",
+                        "bleGps", "distUnit"}
+        missing = {"baroTakeoffGainM", "varioVolume", "landingTimeS", "heightUnit", "bleRateHz"} - keys
+        if extra or missing:
+            raise Fail(f"settings without GPS: still listed {sorted(extra)}, wrongly removed {sorted(missing)}")
+        v.action("emergency")
+        v.action("approach")
+        v.never("SAY", r"no_gps|emergency|approach|wind_unknown", m, 2.0)
+
+        v.sim(vz=2, to=GROUND_M + 40)
+        v.expect("FLT", r"^takeoff \(baro only\)", m, timeout=14)
+        v.expect("SAY", r"\[high\] takeoff$", m, timeout=4)
+        v.expect("SIM", r"reached target", m, timeout=30)
+        n = v.wait_nav(lambda n: 36 < float(n["agl"]) < 43 and n["fly"] == "1", 8, "height above takeoff")
+        if n["fix"] != "0":
+            raise Fail("the (simulated) GPS fix was used although the GPS is not fitted")
+        if a.ui:
+            p = v.page()
+            p.tab("flight")
+            p.wait("document.body.classList.contains('nogps')", 6, "page told there is no GPS")
+            hidden = p.js("['t-gps','t-speed','t-lz','t-wind','b-approach','b-emergency']"
+                          ".filter(i=>document.getElementById(i).offsetParent!==null)")
+            if hidden:
+                raise Fail(f"web page: still shown without a GPS: {hidden}")
+            p.wait_text("t-flight", r"^Flying$", 6)
+            p.wait_text("t-agl", r"^1[23]\d ft$", 6, "height shown without a GPS")
+            p.check_fits("flight tab without GPS")
+            p.tab("settings")
+            groups = p.js("[...document.querySelectorAll('#settings summary')].map(s=>s.textContent)")
+            if "GPS" in groups or "Landing zone" in groups or "Vario" not in groups:
+                raise Fail(f"web page: settings groups without a GPS: {groups}")
+        m2 = v.mark()
+        v.expect("APP", r"Landed after", m2, timeout=25, what="landing from a steady vario")
+        v.never("SAY", r"gps_fix|no_gps", m, 0.5)
+        new = [f["n"] for f in v.get_json("/api/logs")["files"] if f["n"] not in logs_before]
+        if new:
+            raise Fail(f"a flight log was created without a GPS: {new}")
+        if a.ui:
+            p.tab("flight")
+            p.wait_text("ready-t", r"^Ready to fly$", 20, "ready banner without a GPS")
+            if p.text("ready-s") != "":
+                raise Fail("web page: satellite count shown without a GPS")
+        return f"ready, takeoff, {n['agl']} m and landing on the barometer; {len(keys)} settings listed, no log"
+    finally:
+        v.sim(hasGps=1)
+
+
+def t_variant_no_mic(v, a):
+    """Vario without a microphone (switched off in the test build): set volume is used whatever
+    the noise, battery still read, no spectrum, settings and page trimmed."""
+    reset(v, baro="on", alt=GROUND_M, vz=0)
+    v.set(autoVolume=True, noiseQuietDb=-50, noiseLoudDb=-30, speechVolume=20, varioVolume=40)
+    try:
+        batt = v.status()["batt"]["v"]
+        v.sim(noise=-20)
+        end = time.time() + 6
+        while v.status()["vol"]["vario"] != 100:
+            if time.time() > end:
+                raise Fail("volume did not rise with noise while the microphone was still on")
+            time.sleep(0.3)
+        m = v.mark()
+        v.sim(hasMic=0)
+        end = time.time() + 6
+        while True:
+            st = v.status()
+            if (st["vol"]["vario"], st["vol"]["speech"]) == (40, 20):
+                break
+            if time.time() > end:
+                raise Fail(f"volume without a microphone is {st['vol']}, expected the set 40 / 20 %")
+            time.sleep(0.3)
+        if st["hw"]["mic"] or "mic" in st:
+            raise Fail(f"status without microphone: hw {st['hw']}, mic section {'mic' in st}")
+        v.expect("VOL", r"auto off: speech 20% \(set 20%, \+0\), vario 40%", m, timeout=8)
+        code, _ = v._open("/api/spectrum")
+        if code != 204:
+            raise Fail(f"spectrum without a microphone: HTTP {code}, expected 204 (nothing)")
+        keys = schema_keys(v)
+        extra = keys & {"autoVolume", "noiseQuietDb", "noiseLoudDb", "noiseReleaseS", "rpmMin", "rpmPulsesPerRev"}
+        missing = {"speechVolume", "varioVolume", "volumeRampPctS", "readyMinSats"} - keys
+        if extra or missing:
+            raise Fail(f"settings without microphone: still listed {sorted(extra)}, wrongly removed {sorted(missing)}")
+        time.sleep(2.5)
+        near(v.status()["batt"]["v"], batt, 0.08, "battery voltage still read without the microphone")
+        if a.ui:
+            p = v.page()
+            p.tab("flight")
+            p.wait("document.body.classList.contains('nomic')", 6, "page told there is no microphone")
+            shown = p.js("['t-noise','t-rpm'].filter(i=>document.getElementById(i).offsetParent!==null)")
+            if shown or p.js("document.querySelector('button[data-tab=spectrum]').offsetParent!==null"):
+                raise Fail(f"web page: still shown without a microphone: {shown or 'Spectrum tab'}")
+            p.wait_text("t-batt", r"^(\d+%|USB)$", 6)
+            p.check_fits("flight tab without microphone")
+        return f"volume back to the set 40/20 % at -20 dBFS noise, {len(keys)} settings listed, no spectrum"
+    finally:
+        v.sim(hasMic=1, noise="off")
+        v.set(autoVolume=False, speechVolume=a.volume, varioVolume=a.volume)
+
+
 def t_ui_flight(v, a):
     """Flight tab: banner and every tile show the simulated situation, and follow changes."""
     m = reset(v, baro="on", alt=GROUND_M, vz=0, baroOffset=150, gps="fix", sats=10, hdop=0.9,
@@ -1337,7 +1488,8 @@ TESTS = [
     ("vario_sink", t_vario_sink), ("mute", t_mute), ("auto_volume", t_auto_volume),
     ("gps_states", t_gps_states), ("flight", t_flight), ("baro_only", t_baro_only),
     ("guidance", t_guidance), ("battery", t_battery), ("battery_learner", t_battery_learner),
-    ("speech", t_speech),
+    ("speech", t_speech), ("volume_ramp", t_volume_ramp),
+    ("variant_no_gps", t_variant_no_gps), ("variant_no_mic", t_variant_no_mic),
     ("ui_flight", t_ui_flight), ("ui_actions", t_ui_actions), ("ui_guidance", t_ui_guidance),
     ("ui_settings", t_ui_settings), ("ui_spectrum", t_ui_spectrum), ("ui_system", t_ui_system),
     ("ota_guard", t_ota_guard), ("memory", t_memory),

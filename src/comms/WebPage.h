@@ -60,12 +60,13 @@ button.on{outline:2px solid var(--acc)}
 #specCv{width:100%;height:280px;display:block}
 .specbar{display:flex;gap:8px;align-items:center;margin-top:8px}
 .specbar select{padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
+body.nogps .needgps,body.nomic .needmic{display:none}
 .badge{font-size:11px;background:var(--warn);color:#000;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle}
 </style></head><body>
 <nav class="tabs" role="tablist" aria-label="Main views">
 <button type="button" role="tab" aria-selected="true" data-tab="flight">Flight</button>
 <button type="button" role="tab" aria-selected="false" data-tab="settings">Settings</button>
-<button type="button" role="tab" aria-selected="false" data-tab="spectrum">Spectrum</button>
+<button type="button" role="tab" aria-selected="false" data-tab="spectrum" class="needmic">Spectrum</button>
 <button type="button" role="tab" aria-selected="false" data-tab="system">Logs &amp; system</button>
 </nav>
 <div id="flightPage" class="page" role="tabpanel">
@@ -73,22 +74,22 @@ button.on{outline:2px solid var(--acc)}
 <section class="tiles">
 <div class="tile"><div class="k">Height AGL</div><div class="v" id="t-agl">–</div><div class="s" id="t-msl"></div></div>
 <div class="tile"><div class="k">Vario</div><div class="v" id="t-vario">–</div><div class="s" id="t-mute"></div></div>
-<div class="tile"><div class="k">Ground speed</div><div class="v" id="t-speed">–</div><div class="s" id="t-track"></div></div>
+<div class="tile needgps"><div class="k">Ground speed</div><div class="v" id="t-speed">–</div><div class="s" id="t-track"></div></div>
 <div class="tile"><div class="k">Flight time</div><div class="v" id="t-flight">–</div><div class="s" id="t-ftime"></div></div>
-<div class="tile"><div class="k">Landing zone</div><div class="v" id="t-lz">–</div><div class="s" id="t-lzs"></div></div>
-<div class="tile"><div class="k">Wind</div><div class="v" id="t-wind">–</div><div class="s" id="t-winds"></div></div>
-<div class="tile"><div class="k">GPS</div><div class="v" id="t-gps">–</div><div class="s" id="t-gpss"></div></div>
+<div class="tile needgps"><div class="k">Landing zone</div><div class="v" id="t-lz">–</div><div class="s" id="t-lzs"></div></div>
+<div class="tile needgps"><div class="k">Wind</div><div class="v" id="t-wind">–</div><div class="s" id="t-winds"></div></div>
+<div class="tile needgps"><div class="k">GPS</div><div class="v" id="t-gps">–</div><div class="s" id="t-gpss"></div></div>
 <div class="tile"><div class="k">Battery</div><div class="v" id="t-batt">–</div><div class="s" id="t-batts"></div></div>
-<div class="tile"><div class="k">Engine RPM</div><div class="v" id="t-rpm">–</div><div class="s" id="t-rpms"></div></div>
-<div class="tile"><div class="k">Background noise</div><div class="v" id="t-noise">–</div><div class="s" id="t-noises"></div></div>
+<div class="tile needmic"><div class="k">Engine RPM</div><div class="v" id="t-rpm">–</div><div class="s" id="t-rpms"></div></div>
+<div class="tile needmic"><div class="k">Background noise</div><div class="v" id="t-noise">–</div><div class="s" id="t-noises"></div></div>
 </section>
 <section class="card"><h2>Actions</h2><div class="btns">
-<button data-a="approach" id="b-approach">Landing approach</button>
-<button data-a="emergency" id="b-emergency" class="dng">Emergency glide</button>
+<button data-a="approach" id="b-approach" class="needgps">Landing approach</button>
+<button data-a="emergency" id="b-emergency" class="dng needgps">Emergency glide</button>
 <button data-a="mute" id="b-mute">Mute vario</button>
 <button data-a="test_voice">Test voice</button>
-<button data-a="lz_here">Set LZ here</button>
-<button data-a="lz_takeoff">LZ = takeoff</button>
+<button data-a="lz_here" class="needgps">Set LZ here</button>
+<button data-a="lz_takeoff" class="needgps">LZ = takeoff</button>
 </div></section>
  </div>
 <div id="settingsPage" class="page" role="tabpanel" hidden>
@@ -148,18 +149,21 @@ function txt(id,v){const e=document.getElementById(id);if(e.textContent!==v)e.te
 async function poll(){
   try{
     const r=await fetch('/api/status',{cache:'no-store'});const s=await r.json();
+    // Optional hardware: tiles, buttons and tabs for parts that are not fitted are hidden.
+    const hw=s.hw||{gps:true,mic:true},G=s.gps||{};
+    document.body.classList.toggle('nogps',!hw.gps);document.body.classList.toggle('nomic',!hw.mic);
     txt('t-agl',fH(s.agl));txt('t-msl',fH(s.altMsl)+' MSL');
     txt('t-vario',(s.vario>=0?'+':'')+s.vario.toFixed(1)+' m/s');txt('t-mute',s.muted?'muted':'');
-    txt('t-speed',s.gps.fix?fS(s.gps.speed):'–');txt('t-track',s.gps.fix?'track '+Math.round(s.gps.track)+'°':'');
+    txt('t-speed',G.fix?fS(G.speed):'–');txt('t-track',G.fix?'track '+Math.round(G.track)+'°':'');
     txt('t-flight',s.flying?'Flying':'Grounded');txt('t-ftime',s.flightTime?fT(s.flightTime)+(s.logging?' · logging':''):'');
     $('#b-approach').classList.toggle('on',s.mode=='approach');$('#b-emergency').classList.toggle('on',s.mode=='emergency');
     $('#b-mute').textContent=s.muted?'Unmute vario':'Mute vario';
     txt('t-lz',!s.lz.valid?'not set':s.lz.dist!=null?fD(s.lz.dist):'set');
     txt('t-lzs',s.lz.valid?(s.lz.brg!=null?Math.round(s.lz.brg)+'° · ':'')+fH(s.lz.elev)+' MSL':'');
     txt('t-wind',s.wind.valid?Math.round(s.wind.from)+'°':'unknown');txt('t-winds',s.wind.valid?fS(s.wind.speed)+' · '+s.wind.src:'');
-    txt('t-gps',!s.gps.link?'no data':s.gps.sats+' sats');
-    const h=s.gps.hdop,gq=!s.gps.fix||!(h<=20)?'none':h<=2?'strong':h<=5?'good':h<=10?'ok':'poor';
-    txt('t-gpss',(s.gps.fix?'Fix':'Searching')+' · signal '+gq);
+    txt('t-gps',!G.link?'no data':G.sats+' sats');
+    const h=G.hdop,gq=!G.fix||!(h<=20)?'none':h<=2?'strong':h<=5?'good':h<=10?'ok':'poor';
+    txt('t-gpss',(G.fix?'Fix':'Searching')+' · signal '+gq);
     // The banner doubles as the guidance-mode indicator: Emergency / Approach take it over
     // (even in flight, when the ready banner is normally hidden).
     const rd=$('#ready');
@@ -171,14 +175,14 @@ async function poll(){
     }else{
       rd.className='ready '+(s.flying?'hide':s.ready?'ok':'wait');
       txt('ready-t',s.ready?'Ready to fly':s.notReady);
-      txt('ready-s',s.gps.sats+' / '+s.minSats+' satellites');
+      txt('ready-s',hw.gps?G.sats+' / '+s.minSats+' satellites':'');
     }
     txt('t-batt',s.batt.v<2.5?'USB':s.batt.pct+'%');txt('t-batts',s.batt.v.toFixed(2)+' V'+(s.batt.min!=null?' · ~'+(s.batt.min>=60?Math.floor(s.batt.min/60)+' h ':'')+(s.batt.min%60)+' min':''));
     if(s.mic){
       txt('t-rpm',!s.mic.ok?'no mic':s.mic.rpm>0?Math.round(s.mic.rpm)+' rpm':'off');
       txt('t-rpms',s.mic.ok?'est '+Math.round(s.mic.raw)+' · conf '+s.mic.conf.toFixed(1):'');
       txt('t-noise',s.mic.noise!=null?s.mic.noise.toFixed(0)+' dBFS':'–');
-      txt('t-noises',s.mic.ok?'vario vol '+s.mic.vol+'%':'');
+      txt('t-noises',s.mic.ok?'vario vol '+s.vol.vario+'%':'');
     }
     txt('fwver','Installed: '+(s.version||'unknown')+(s.git?' · git '+s.git:'')+(s.debug?' (debug build)':' (release build)'));
     txt('hver','v'+(s.version||'unknown')+(s.debug?' debug':''));

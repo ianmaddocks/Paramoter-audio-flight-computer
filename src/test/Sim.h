@@ -5,6 +5,10 @@
 // Controlled over HTTP (/api/sim?key=value...) by tools/hil_test.py. Each sensor is simulated
 // only while its switch is on; with everything off the test build behaves like the debug build.
 // In every other build these are constant-false stubs, so the hooks compile away.
+//
+// Keys: baro, alt, vz, to, baroOffset, gps (fix|nofix|silent|real), lat, lon, speed, track,
+// gpsAltErr, gpsAlt, sats, hdop, batt, noise, hasGps, hasMic (0 = behave as a vario built
+// without that part), off (everything back to real).
 namespace sim {
 
 enum class GpsMode : uint8_t { Real, Fix, NoFix, Silent };

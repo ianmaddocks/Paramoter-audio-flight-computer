@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "Settings.h"
-#include "sensors/Gps.h"
+#include "sensors/GpsData.h"
 
 namespace {
 constexpr size_t kMinFreeBytes = 300 * 1024;
@@ -28,16 +28,27 @@ void IgcLogger::pruneOldLogs() {
   }
 }
 
-void IgcLogger::start(Gps& gps) {
+void IgcLogger::start(const GpsData& gps) {
   if (!g_cfg.igcEnabled || file_) return;
+  // An IGC record needs the time of day, which only the GPS knows. Without it (no GPS fitted, or
+  // no reception yet) and with nothing buffered there is nothing to write: wait, and open the
+  // file when the first record is ready, rather than leave an empty file behind.
+  if (!gps.timeValid && preCount_ == 0) {
+    pending_ = true;
+    return;
+  }
+  open(gps);
+}
+
+void IgcLogger::open(const GpsData& gps) {
+  pending_ = false;
   LittleFS.mkdir(kDir);
   pruneOldLogs();
 
   char path[40];
-  if (gps.dateValid() && gps.timeValid()) {
-    snprintf(path, sizeof(path), "%s/%02d%02d%02d-%02d%02d%02d.igc", kDir, gps.date().year() % 100,
-             gps.date().month(), gps.date().day(), gps.time().hour(), gps.time().minute(),
-             gps.time().second());
+  if (gps.dateValid && gps.timeValid) {
+    snprintf(path, sizeof(path), "%s/%02d%02d%02d-%02d%02d%02d.igc", kDir, gps.year % 100, gps.month, gps.day,
+             gps.hour, gps.minute, gps.second);
   } else {
     snprintf(path, sizeof(path), "%s/nodate-%08lu.igc", kDir, (unsigned long)millis());
   }
@@ -47,10 +58,7 @@ void IgcLogger::start(Gps& gps) {
     return;
   }
   file_.print("AXPVParaVario\r\n");
-  if (gps.dateValid()) {
-    file_.printf("HFDTEDATE:%02d%02d%02d,01\r\n", gps.date().day(), gps.date().month(),
-                 gps.date().year() % 100);
-  }
+  if (gps.dateValid) file_.printf("HFDTEDATE:%02d%02d%02d,01\r\n", gps.day, gps.month, gps.year % 100);
   file_.printf("HFPLTPILOTINCHARGE:%s\r\n", g_cfg.pilotName);
   file_.printf("HFGTYGLIDERTYPE:%s\r\n", g_cfg.gliderType);
   file_.print("HFDTMGPSDATUM:WGS84\r\n");
@@ -90,8 +98,8 @@ void IgcLogger::pushPre(const Sample& s) {
   ++preCount_;
 }
 
-void IgcLogger::update(const NavState& nav, Gps& gps) {
-  if ((!file_ && !g_cfg.igcEnabled) || !gps.timeValid()) return;
+void IgcLogger::update(const NavState& nav, const GpsData& gps) {
+  if ((!file_ && !g_cfg.igcEnabled) || !gps.timeValid) return;
   if (nav.ms - lastRecordMs_ < 1000) return;
   lastRecordMs_ = nav.ms;
   if (nav.fix) {
@@ -102,9 +110,9 @@ void IgcLogger::update(const NavState& nav, Gps& gps) {
   }
   auto metres = [](float m) { return isfinite(m) ? (int32_t)constrain(lroundf(m), -9999L, 99999L) : 0; };
   Sample s;
-  s.hour = gps.time().hour();
-  s.min = gps.time().minute();
-  s.sec = gps.time().second();
+  s.hour = gps.hour;
+  s.min = gps.minute;
+  s.sec = gps.second;
   s.sats = nav.sats;
   s.valid = nav.fix;
   s.latMin = (int32_t)lround(lastLat_ * 60000.0);
@@ -113,6 +121,7 @@ void IgcLogger::update(const NavState& nav, Gps& gps) {
   // so by default log the baro altitude referenced to GPS (QNH-style), never below zero.
   s.altStd = g_cfg.igcQnhAlt ? max<int32_t>(0, metres(nav.altMslM)) : metres(nav.altStdM);
   s.altGps = metres(nav.gpsAltM);
+  if (!file_ && pending_) open(gps);  // a flight that began before the GPS had the time
   if (!file_) {
     pushPre(s);
     return;
@@ -125,5 +134,6 @@ void IgcLogger::update(const NavState& nav, Gps& gps) {
 }
 
 void IgcLogger::stop() {
+  pending_ = false;
   if (file_) file_.close();
 }

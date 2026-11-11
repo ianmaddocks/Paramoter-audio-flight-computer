@@ -4,7 +4,8 @@
 
 #include "Log.h"
 #include "Settings.h"
-#include "sensors/Gps.h"
+#include "Hardware.h"
+#include "sensors/GpsData.h"
 
 namespace {
 
@@ -18,10 +19,27 @@ const char* kModelChar = "2A24";
 constexpr uint16_t kDefaultMtu = 23;
 constexpr uint16_t kAttOverhead = 3;
 constexpr float kAvgTauS = 30.0f;
+constexpr int kMaxClients = CONFIG_BT_NIMBLE_MAX_CONNECTIONS;
+constexpr uint32_t kAdvCheckMs = 5000;
 
+// Connection parameters asked of the phone: an interval of 30..60 ms keeps the vario sentences
+// prompt without crowding the radio time shared with Wi-Fi, and a 4 s supervision timeout rides
+// out the short gaps that sharing causes instead of dropping the link. (Units: 1.25 ms, 10 ms.)
+constexpr uint16_t kConnIntervalMin = 24, kConnIntervalMax = 48, kConnTimeout = 400;
+
+// Advertising stops whenever a client connects. It is started again at once while there is room
+// for another client, and after every disconnect, so the vario can always be found; update()
+// also checks every few seconds in case a restart was refused at a busy moment.
 class ServerCallbacks : public NimBLEServerCallbacks {
-  void onConnect(NimBLEServer*) override { LOGI("BLE", "client connected"); }
-  void onDisconnect(NimBLEServer*) override { LOGI("BLE", "client disconnected"); }
+  void onConnect(NimBLEServer* server, ble_gap_conn_desc* desc) override {
+    LOGI("BLE", "client connected (%d now)", (int)server->getConnectedCount());
+    server->updateConnParams(desc->conn_handle, kConnIntervalMin, kConnIntervalMax, 0, kConnTimeout);
+    if ((int)server->getConnectedCount() < kMaxClients) NimBLEDevice::startAdvertising();
+  }
+  void onDisconnect(NimBLEServer*, ble_gap_conn_desc*) override {
+    LOGI("BLE", "client disconnected");
+    NimBLEDevice::startAdvertising();
+  }
 };
 
 // Appends "*CS\r\n" to a sentence in buf that starts with '$'. Returns the total length.
@@ -50,6 +68,7 @@ void BleFeed::begin() {
   NimBLEDevice::setPower(ESP_PWR_LVL_P9);
   server_ = NimBLEDevice::createServer();
   server_->setCallbacks(new ServerCallbacks());
+  server_->advertiseOnDisconnect(false);  // done in the callback above, with the room check
 
   NimBLEService* nus = server_->createService(kNusService);
   tx_ = nus->createCharacteristic(kNusTx, NIMBLE_PROPERTY::NOTIFY);
@@ -72,15 +91,23 @@ void BleFeed::begin() {
 
 int BleFeed::clients() const { return server_ ? server_->getConnectedCount() : 0; }
 
-void BleFeed::update(const NavState& nav, Gps& gps, int batteryPct, bool recording) {
+void BleFeed::update(const NavState& nav, const GpsData& gps, int batteryPct, bool recording) {
   if (nav.ms != lastAvgMs_) {
     float dt = lastAvgMs_ ? (nav.ms - lastAvgMs_) / 1000.0f : 0.0f;
     vario30s_ += (nav.varioMs - vario30s_) * fminf(1.0f, dt / kAvgTauS);
     lastAvgMs_ = nav.ms;
   }
+  if (nav.ms - lastAdvCheckMs_ >= kAdvCheckMs) {  // safety net: never stay undiscoverable
+    lastAdvCheckMs_ = nav.ms;
+    NimBLEAdvertising* adv = NimBLEDevice::getAdvertising();
+    if (clients() < kMaxClients && adv && !adv->isAdvertising()) {
+      LOGW("BLE", "advertising had stopped, restarting");
+      adv->start();
+    }
+  }
   if (clients() == 0) return;
 
-  if (g_cfg.bleGps && nav.ms - lastGpsMs_ >= 1000u / constrain(g_cfg.bleGpsRateHz, 1, 10)) {
+  if (hw::hasGps() && g_cfg.bleGps && nav.ms - lastGpsMs_ >= 1000u / constrain(g_cfg.bleGpsRateHz, 1, 10)) {
     lastGpsMs_ = nav.ms;
     sendGps(nav, gps);
   }
@@ -90,21 +117,17 @@ void BleFeed::update(const NavState& nav, Gps& gps, int batteryPct, bool recordi
   }
 }
 
-void BleFeed::sendGps(const NavState& nav, Gps& gps) {
+void BleFeed::sendGps(const NavState& nav, const GpsData& gps) {
   char lat[16], lon[16], latH, lonH;
   formatCoord(nav.lat, 2, 'N', 'S', lat, sizeof(lat), &latH);
   formatCoord(nav.lon, 3, 'E', 'W', lon, sizeof(lon), &lonH);
 
   char timeStr[12] = "000000.000";
-  if (gps.timeValid()) {
-    snprintf(timeStr, sizeof(timeStr), "%02u%02u%02u.%03u", gps.time().hour(), gps.time().minute(),
-             gps.time().second(), gps.time().centisecond() * 10);
+  if (gps.timeValid) {
+    snprintf(timeStr, sizeof(timeStr), "%02u%02u%02u.%03u", gps.hour, gps.minute, gps.second, gps.centisecond * 10);
   }
   char dateStr[8] = "000000";
-  if (gps.dateValid()) {
-    snprintf(dateStr, sizeof(dateStr), "%02u%02u%02u", gps.date().day(), gps.date().month(),
-             gps.date().year() % 100);
-  }
+  if (gps.dateValid) snprintf(dateStr, sizeof(dateStr), "%02u%02u%02u", gps.day, gps.month, gps.year % 100);
 
   char buf[100];
   int n = snprintf(buf, sizeof(buf), "$GPGGA,%s,%s,%c,%s,%c,%d,%02u,%.1f,%.1f,M,0.0,M,,", timeStr, lat,

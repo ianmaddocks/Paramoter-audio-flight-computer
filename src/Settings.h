@@ -17,6 +17,7 @@ struct Settings {
 
   int32_t speechVolume = 90;
   int32_t varioVolume = 60;
+  int32_t volumeRampPctS = 40;  // fastest change of the applied volume, % per second
   bool autoVolume = true;
   float noiseQuietDb = -45.0f;  // dBFS at the mic: at or below this the set volumes are used
   float noiseLoudDb = -15.0f;   // at or above this both volumes go to 100 %
@@ -130,5 +131,7 @@ void toJsonString(String& out);
 bool fromJson(JsonObjectConst obj);
 // The settings table for the web page, one entry at a time so it can be sent in small pieces.
 int schemaCount();
-void schemaEntry(int index, JsonObject o);
+// Fills `o` with the description of setting `index` for the settings page. Returns false (and
+// leaves `o` empty) for a setting that does not apply to the hardware fitted.
+bool schemaEntry(int index, JsonObject o);
 }  // namespace settings

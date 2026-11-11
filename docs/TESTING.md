@@ -12,7 +12,7 @@ sets up each situation and checks what the firmware did.
    pio run -e test -t upload
    ```
 
-2. Run the tests (about twelve minutes; they make noise, so a quiet room helps the microphone
+2. Run the tests (about fifteen minutes; they make noise, so a quiet room helps the microphone
    checks):
 
    ```
@@ -39,7 +39,8 @@ before flying.
 
 - **Simulated inputs** (`src/test/Sim.*`, compiled only with `PV_TEST=1`): barometer altitude,
   GPS (generated NMEA sentences fed through the real parser), battery voltage and background
-  noise level. They are set with `GET /api/sim?key=value&...`; `reset=1` returns the flight
+  noise level, and switches that make the vario behave as if built without a GPS or without a
+  microphone (`hasGps=0`, `hasMic=0`). They are set with `GET /api/sim?key=value&...`; `reset=1` returns the flight
   logic to its power-on state. In every other build the hooks compile to nothing.
 - **Checks from the log.** The script reads the debug log feed (`/api/debuglog`) continuously
   and looks for the lines a behaviour produces: `SAY` (every phrase spoken, by clip name), `TONE`
@@ -67,6 +68,9 @@ before flying.
 | `battery` | percentage curve, minutes left, low-battery call |
 | `battery_learner` | the discharge learner, on two simulated discharges (in RAM) |
 | `speech` | test phrase: clip sequence, and heard by the microphone |
+| `volume_ramp` | a volume change is applied gradually at the set rate, never as a jump |
+| `variant_no_gps` | vario without a GPS: ready, takeoff, height, landing, no GPS calls or log, page and settings trimmed |
+| `variant_no_mic` | vario without a microphone: set volume used, battery still read, page and settings trimmed |
 | `ui_flight` | banner and every tile on the flight tab |
 | `ui_actions` | mute, test voice and landing-zone buttons |
 | `ui_guidance` | flying display, emergency/approach banners, log list and delete |
@@ -76,7 +80,7 @@ before flying.
 | `ota_guard` | firmware upload refused without the right password |
 | `memory` | free memory not run down, and never dangerously low |
 
-Not covered: Bluetooth, the Wi-Fi give-up timer, a complete firmware upload (every flash of a
+Not covered: Bluetooth (needs a phone), the Wi-Fi give-up timer, a complete firmware upload (every flash of a
 new build exercises it), the push button, engine RPM, wind from circling, the approach circuit
 beyond its start, and the Restart / Factory defaults buttons.
 

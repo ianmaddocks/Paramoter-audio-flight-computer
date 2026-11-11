@@ -12,11 +12,19 @@ namespace audio {
 namespace {
 
 constexpr i2s_port_t kPort = I2S_NUM_0;
+// Output buffering: 4 blocks of 256 samples = 64 ms at 16 kHz. This is the delay between a
+// change (new vario pitch, start of speech) and hearing it, and it is deliberate: writing the
+// flight log can stop every task for tens of milliseconds while flash is erased, and a shorter
+// buffer would run dry and click.
 constexpr int kFrames = 256;
 constexpr int kQueueLen = 6;
 constexpr uint32_t kClipGapSamples = kSampleRate * 40 / 1000;
 constexpr uint32_t kUtteranceGapSamples = kSampleRate * 250 / 1000;
-constexpr uint32_t kRampSamples = kSampleRate * 5 / 1000;
+constexpr uint32_t kRampSamples = kSampleRate * 5 / 1000;  // tone fade in/out: 5 ms
+// Volume changes are spread over time sample by sample (0 to 100 % in 100 ms), so a change of
+// volume never produces a step in the waveform.
+constexpr int32_t kGainFull = 1 << 16;
+constexpr int32_t kGainStep = kGainFull / (kSampleRate / 10);
 
 // ---------- IMA ADPCM ----------
 const int8_t kIndexTable[16] = {-1, -1, -1, -1, 2, 4, 6, 8, -1, -1, -1, -1, 2, 4, 6, 8};
@@ -81,6 +89,13 @@ bool spHighNibble = false;
 uint32_t tonePhase = 0;
 uint32_t toneCyclePos = 0;
 int32_t toneEnv = 0;  // 0..kRampSamples
+int32_t speechGain = -1;  // gains in use now, 0..kGainFull; -1 until the first block
+int32_t toneGain = -1;
+
+inline int32_t stepTowards(int32_t now, int32_t want) {
+  if (now < want) return now + kGainStep < want ? now + kGainStep : want;
+  return now - kGainStep > want ? now - kGainStep : want;
+}
 
 bool openClip(const char* name) {
   char path[40];
@@ -185,19 +200,27 @@ void render(int16_t* out, int frames) {
   tp = gTone;
   portEXIT_CRITICAL(&gToneMux);
 
-  const int32_t speechGain = gSpeechVol * 256 / 100;
-  const int32_t toneGain = gToneVol * 256 / 100;
+  const int32_t speechWant = gSpeechVol * kGainFull / 100;
+  const int32_t toneWant = gToneVol * kGainFull / 100;
+  if (speechGain < 0) {  // first block: nothing to glide from
+    speechGain = speechWant;
+    toneGain = toneWant;
+  }
   const uint32_t phaseInc = (uint32_t)(tp.hz * 4294967296.0f / kSampleRate);
   const uint32_t onSamples = tp.onMs * kSampleRate / 1000;
   const uint32_t cycleSamples = (tp.onMs + tp.offMs) * kSampleRate / 1000;
+  const bool speechWaiting = spState != SpState::Idle;
 
   for (int i = 0; i < frames; ++i) {
     int32_t s = 0;
-    if (spState != SpState::Idle) {
-      s = (int32_t)nextSpeechSample() * speechGain / 256;
-      toneEnv = 0;
+    speechGain = stepTowards(speechGain, speechWant);
+    toneGain = stepTowards(toneGain, toneWant);
+    if (spState != SpState::Idle && toneEnv == 0) {
+      s = ((int32_t)nextSpeechSample() * (speechGain >> 4)) >> 12;
     } else {
-      bool gate = tp.hz > 0;
+      // Speech takes over from the tone, but only once the tone has faded out (5 ms): cutting
+      // it off mid-wave is heard as a click before every announcement.
+      bool gate = tp.hz > 0 && !speechWaiting && spState == SpState::Idle;
       if (gate && tp.offMs > 0) {
         if (toneCyclePos >= cycleSamples) toneCyclePos = 0;
         gate = toneCyclePos < onSamples;
@@ -207,7 +230,7 @@ void render(int16_t* out, int frames) {
       if (!gate && toneEnv > 0) --toneEnv;
       if (toneEnv > 0) {
         tonePhase += phaseInc;
-        s = (int32_t)gSine[tonePhase >> 24] * toneGain / 256 * toneEnv / (int32_t)kRampSamples;
+        s = (((int32_t)gSine[tonePhase >> 24] * (toneGain >> 4)) >> 12) * toneEnv / (int32_t)kRampSamples;
       }
     }
     out[2 * i] = out[2 * i + 1] = (int16_t)s;

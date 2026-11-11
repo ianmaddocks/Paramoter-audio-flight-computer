@@ -4,10 +4,17 @@ ParaVario is an audio vario and flight computer for paramotor flying. It beeps w
 
 ## Before you fly
 
-1. Switch on. You hear **"Vario ready"**.
+1. Switch on. You hear a short climb beep at the vario volume (so you can judge the level), then, a second later, **"Ready"**.
 2. Wait outside for **"GPS fix"**.
 3. Optionally, open the web page on your phone (see [The web page](#the-web-page)). The banner at the top turns green and reads **Ready to fly** once the GPS has enough satellites, the barometer works and the landing zone is known. It shows the satellite count against the minimum, for example `7 / 6 satellites`. The banner is only a guide; whether to fly is your call.
 4. Take off. Takeoff is detected automatically and you hear **"Take off"**. The spot where you stood before the takeoff run becomes the landing zone, and its height becomes zero for all height calls. To use a different LZ, see [Landing zone](#landing-zone).
+
+## Varios without a GPS or microphone
+
+The firmware can be built for a simpler vario with no GPS, no microphone, or neither (the `basic` build). Such a vario still beeps, calls heights (above the point where you took off), detects takeoff and landing from the barometer, and sends vario data over Bluetooth.
+
+- **Without a GPS** there is no speed, wind, landing zone, approach or emergency guidance and no flight log; the page hides those tiles, buttons and settings, the banner turns green as soon as the barometer has settled, and every press of the button mutes or unmutes the vario.
+- **Without a microphone** the volume stays at the set value, and the Engine RPM and Background noise tiles and the Spectrum tab are hidden.
 
 ## Button
 
@@ -114,6 +121,10 @@ The defaults below are shown in the default units (feet, metres, km/h).
 |---|---|---|
 | Speech volume | 90 % | |
 | Vario volume | 60 % | |
+| Fastest volume change | 40 %/s | The volume never jumps: after a change of setting or of background noise it moves to the new level at this rate. Lower is gentler. |
+| Raise volume with background noise | On | With a microphone: the volume rises from the set value towards 100 % as the noise goes from "Noise for set volume" to "Noise for full volume". The Background noise tile shows the current level. |
+| Noise for set volume / full volume | | The two noise levels (dBFS) between which the volume is raised. |
+| Volume fall time after noise drops | | How slowly the volume comes back down when it gets quieter. |
 
 ### Vario
 | Setting | Default | Notes |
@@ -146,6 +157,8 @@ The defaults below are shown in the default units (feet, metres, km/h).
 | Takeoff ground speed | 15 km/h | |
 | Takeoff speed held for | 5 s | |
 | Takeoff height gain | 33 ft | Needed as well as the speed. |
+| Takeoff height gain without GPS | 49 ft | With no GPS (not fitted, or no reception) takeoff is declared after climbing this far. |
+| Ground level held when climbing or sinking faster than | 0.5 m/s | On the ground the zero-height reference follows slow pressure changes, but is held during a real climb so the height is measured from where you left the ground. |
 | Landed below ground speed | 5 km/h | |
 | Landed after | 30 s | Landing is declared once the ground speed has stayed below the limit for this long. |
 

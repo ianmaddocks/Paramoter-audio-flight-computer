@@ -6,7 +6,7 @@
 #include "Settings.h"
 #include "nav/Geo.h"
 #include "sensors/Baro.h"
-#include "sensors/Gps.h"
+#include "sensors/GpsData.h"
 
 namespace {
 constexpr float kStillSpeedMs = 2.0f;
@@ -18,34 +18,34 @@ constexpr float kMaxGpsAltM = 9000.0f;
 constexpr float kMaxDatumJumpM = 200.0f;  // GPS altitude this far from the baro datum is rejected
 }  // namespace
 
-FlightEvent Flight::update(uint32_t now, const Baro& baro, Gps& gps, NavState& n) {
+FlightEvent Flight::update(uint32_t now, const Baro& baro, const GpsData& gps, NavState& n) {
   FlightEvent ev = FlightEvent::None;
   float dt = lastMs_ ? (now - lastMs_) / 1000.0f : 0.1f;
   lastMs_ = now;
 
   n.ms = now;
-  n.fix = gps.fix();
-  n.sats = gps.sats();
-  n.hdop = gps.hdop();
+  n.fix = gps.fix;
+  n.sats = gps.sats;
+  n.hdop = gps.hdop;
   if (n.fix) {
-    n.lat = gps.lat();
-    n.lon = gps.lon();
+    n.lat = gps.lat;
+    n.lon = gps.lon;
     // A weak fix (few satellites, poor accuracy) reports speed noise of tens of km/h while
     // stationary: only trust speed and course from a decent fix.
     bool speedOk = n.sats >= kMinAltSats && n.hdop < 3.0f;
-    n.speedMs = speedOk ? gps.speedMs() : 0.0f;
-    if (speedOk) n.trackDeg = gps.courseDeg();
+    n.speedMs = speedOk ? gps.speedMs : 0.0f;
+    if (speedOk) n.trackDeg = gps.courseDeg;
   } else {
     n.speedMs = 0;
   }
-  n.gpsGood = n.fix && n.sats >= g_cfg.readyMinSats && n.hdop <= g_cfg.readyMaxHdop && gps.steady(now);
+  n.gpsGood = n.fix && n.sats >= g_cfg.readyMinSats && n.hdop <= g_cfg.readyMaxHdop && gps.steady;
   // A weak fix (indoors, few satellites) can report absurd altitudes (tens of km): only trust GPS
   // altitude from a decent fix, within a believable range, and, once the baro datum is set,
   // close to what the baro implies.
-  bool gpsAltOk = n.fix && gps.altValid() && n.hdop < 3.0f && n.sats >= kMinAltSats &&
-                  gps.altM() > kMinGpsAltM && gps.altM() < kMaxGpsAltM;
-  if (gpsAltOk && offsetInit_ && n.baroOk && fabsf(gps.altM() - n.altStdM - offset_) > kMaxDatumJumpM) gpsAltOk = false;
-  if (gpsAltOk) n.gpsAltM = gps.altM();
+  bool gpsAltOk = n.fix && gps.altValid && n.hdop < 3.0f && n.sats >= kMinAltSats &&
+                  gps.altM > kMinGpsAltM && gps.altM < kMaxGpsAltM;
+  if (gpsAltOk && offsetInit_ && n.baroOk && fabsf(gps.altM - n.altStdM - offset_) > kMaxDatumJumpM) gpsAltOk = false;
+  if (gpsAltOk) n.gpsAltM = gps.altM;
 
   n.baroOk = baro.ok();
   n.pressurePa = baro.pressurePa();

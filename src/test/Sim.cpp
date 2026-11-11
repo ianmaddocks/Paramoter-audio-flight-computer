@@ -2,6 +2,7 @@
 
 #if PV_TEST
 
+#include "Hardware.h"
 #include "Log.h"
 #include "nav/Geo.h"
 
@@ -33,6 +34,9 @@ struct State {
   float battV = 4.0f;
   bool noise = false;
   float noiseDb = -60;
+
+  bool hasGps = true;  // false: behave as a vario built without the part
+  bool hasMic = true;
 
   uint32_t lastMs = 0;
 } s;
@@ -153,6 +157,10 @@ bool set(const String& key, const String& value) {
   } else if (key == "noise") {
     s.noise = value != "off";
     if (s.noise) s.noiseDb = f;
+  } else if (key == "hasGps") {
+    s.hasGps = on;
+  } else if (key == "hasMic") {
+    s.hasMic = on;
   } else if (key == "off") {
     uint32_t epoch = s.baroEpoch + 1;  // always a new value, so the barometer filter restarts
     s = State();
@@ -176,5 +184,11 @@ void describe(String& json) {
 }
 
 }  // namespace sim
+
+// Hardware.h: in the test build a fitted part can be switched "off" to test the reduced variants.
+namespace hw {
+bool hasGps() { return PV_HAS_GPS && sim::s.hasGps; }
+bool hasMic() { return PV_HAS_MIC && sim::s.hasMic; }
+}  // namespace hw
 
 #endif  // PV_TEST

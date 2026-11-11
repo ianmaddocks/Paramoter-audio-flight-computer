@@ -3,14 +3,14 @@
 #include "nav/Nav.h"
 
 class Baro;
-class Gps;
+struct GpsData;
 
 enum class FlightEvent : uint8_t { None, Takeoff, Landing, Resumed };
 
 // Fuses baro + GPS altitude, tracks the ground/LZ reference and detects takeoff and landing.
 class Flight {
  public:
-  FlightEvent update(uint32_t nowMs, const Baro& baro, Gps& gps, NavState& out);
+  FlightEvent update(uint32_t nowMs, const Baro& baro, const GpsData& gps, NavState& out);
 
   bool takeoffCourseValid() const { return takeoffCourseValid_; }
   float takeoffCourseDeg() const { return takeoffCourseDeg_; }

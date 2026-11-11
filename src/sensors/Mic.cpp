@@ -1,5 +1,7 @@
 #include "Mic.h"
 
+#if PV_HAS_MIC
+
 #include <Arduino.h>
 #include <driver/adc.h>
 #include <esp_adc_cal.h>
@@ -381,6 +383,7 @@ void begin() {
 bool running() { return gRunning; }
 
 float noiseDb() {
+  if (!hw::hasMic()) return NAN;              // test build only: microphone "not fitted"
   if (sim::noiseOn()) return sim::noiseDb();  // test build only
   portENTER_CRITICAL(&gMux);
   float v = gNoiseDb;
@@ -432,11 +435,6 @@ int32_t batteryMilliVolts() {
   return gBattMv;
 }
 
-uint8_t compensatedVolume(uint8_t basePct) {
-  float n = noiseDb();
-  if (!g_cfg.autoVolume || isnan(n) || g_cfg.noiseLoudDb <= g_cfg.noiseQuietDb) return basePct;
-  float t = constrain((n - g_cfg.noiseQuietDb) / (g_cfg.noiseLoudDb - g_cfg.noiseQuietDb), 0.0f, 1.0f);
-  return (uint8_t)lroundf(basePct + (100 - basePct) * t);
-}
-
 }  // namespace mic
+
+#endif  // PV_HAS_MIC
