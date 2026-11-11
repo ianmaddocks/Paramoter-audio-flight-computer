@@ -4,6 +4,7 @@
 #include "Pins.h"
 #include "Settings.h"
 #include "nav/Geo.h"
+#include "test/Sim.h"
 
 namespace {
 constexpr uint32_t kFixGapMs = 2000;    // longer than this between fixes counts as re-acquisition
@@ -100,6 +101,16 @@ void Gps::sendConfig() {
 }
 
 void Gps::update(uint32_t nowMs) {
+  if (sim::gpsMode() != sim::GpsMode::Real) {  // test build only: simulated NMEA, same parser
+    char buf[200];
+    size_t n = sim::gpsNmea(nowMs, buf, sizeof(buf));
+    for (size_t i = 0; i < n; ++i) gps_.encode(buf[i]);
+    while (ser_.available()) ser_.read();
+    locked_ = sim::gpsMode() != sim::GpsMode::Silent;
+    if (locked_) lastCharMs_ = nowMs;
+    if (gps_.speed.isUpdated()) screenFix(nowMs);
+    return;
+  }
   while (ser_.available()) {
     char c = ser_.read();
     gps_.encode(c);

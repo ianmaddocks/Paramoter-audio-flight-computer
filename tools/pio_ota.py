@@ -7,9 +7,11 @@ Import("env", "projenv")
 
 import datetime
 import hashlib
+import http.client
 import os
 import socket
 import subprocess
+import time
 import urllib.error
 import urllib.request
 import uuid
@@ -79,22 +81,58 @@ def ota_upload(source, target, env):
     body = (("--%s\r\nContent-Disposition: form-data; name=\"file\"; filename=\"%s\"\r\n"
              "Content-Type: application/octet-stream\r\n\r\n") % (boundary, name)).encode()
     body += data + ("\r\n--%s--\r\n" % boundary).encode()
-    url = "http://%s/api/ota?md5=%s%s" % (host, md5, "&target=fs" if fs else "")
-    req = urllib.request.Request(url, data=body, headers={
-        "Content-Type": "multipart/form-data; boundary=" + boundary,
-        "X-OTA-Password": OTA_PASSWORD})
     print("Uploading %s (%d bytes) to %s over Wi-Fi..." % (name, len(data), host))
+    for attempt in range(3):
+        error = send_image(host, md5, fs, boundary, body)
+        if not error:
+            print("Done - the vario is restarting.")
+            return 0
+        print("OTA failed: %s" % error)
+        if "HTTP 401" in error:
+            break  # wrong password: trying again cannot help
+        show_vario_log(host)
+        if attempt < 2:
+            print("Trying again in 8 s...")
+            time.sleep(8)
+    return 1
+
+
+def send_image(host, md5, fs, boundary, body):
+    """One upload attempt. Returns None on success, else what went wrong."""
+    sent = 0
+    # Sent a packet at a time with short pauses rather than as fast as the PC can: the vario has
+    # little memory for incoming packets, and a burst it cannot hold makes the upload time out.
     try:
-        with urllib.request.urlopen(req, timeout=180) as r:
-            print(r.read().decode(errors="replace"))
-    except urllib.error.HTTPError as e:
-        print("OTA failed: HTTP %d %s" % (e.code, e.read().decode(errors="replace")))
-        return 1
+        conn = http.client.HTTPConnection(host, 80, timeout=180)
+        conn.putrequest("POST", "/api/ota?md5=%s%s" % (md5, "&target=fs" if fs else ""))
+        conn.putheader("Content-Type", "multipart/form-data; boundary=" + boundary)
+        conn.putheader("Content-Length", str(len(body)))
+        conn.putheader("X-OTA-Password", OTA_PASSWORD)
+        conn.endheaders()
+        for i in range(0, len(body), 1400):
+            conn.send(body[i:i + 1400])
+            sent = i
+            time.sleep(0.03)  # about 45 kB/s: a firmware image takes half a minute
+        r = conn.getresponse()
+        text = r.read().decode(errors="replace")
+        conn.close()
+        if r.status != 200:
+            return "HTTP %d %s" % (r.status, text)
+        print(text)
+        return None
     except Exception as e:
-        print("OTA failed: %s" % e)
-        return 1
-    print("Done - the vario is restarting.")
-    return 0
+        return "%s (after %d of %d bytes)" % (e, sent, len(body))
+
+
+def show_vario_log(host):
+    """After a failed upload: the vario's own account of it, from its debug log."""
+    try:
+        with urllib.request.urlopen("http://%s/api/debuglog?since=0" % host, timeout=8) as r:
+            lines = r.read().decode(errors="replace").splitlines()
+        for line in [l for l in lines if " OTA:" in l or " MEM:" in l or " E " in l][-8:]:
+            print("  vario: " + line)
+    except Exception:
+        pass
 
 
 if env.GetProjectOption("upload_protocol", "") == "custom":

@@ -18,7 +18,8 @@ class BatteryLearner {
  public:
   static constexpr int kEdges = 17;
 
-  void begin();
+  // persist = false keeps everything in RAM (used by the test build's self-test).
+  void begin(bool persist = true);
   void update(float volts, uint32_t nowMs);  // call about once a second
 
   // True once at least one measured discharge has been blended into the table.
@@ -28,6 +29,9 @@ class BatteryLearner {
   // Minutes left now: the table, scaled by how fast this discharge is going. -1 = unknown
   // (charging, or not on battery).
   int minutesLeft(float volts) const;
+#if PV_TEST
+  void rebootForTest();  // forget run-time state as a power cycle would, keeping the saved discharge
+#endif
 
  private:
   static float edgeV(int i) { return 4.10f - 0.05f * i; }
@@ -50,6 +54,7 @@ class BatteryLearner {
   uint32_t lastMv_ = 0;        // last battery voltage seen, mV
   uint32_t lastSaveS_ = 0;
 
+  bool persist_ = true;
   bool checked_ = false;       // start-up check of the saved discharge done
   bool charging_ = false;
   uint32_t lastMs_ = 0;
@@ -58,3 +63,8 @@ class BatteryLearner {
   uint32_t refMs_ = 0;
   uint32_t chargingUntilMs_ = 0;
 };
+
+#if PV_TEST
+// Runs two simulated discharges through a RAM-only learner and logs the results (BATL selftest).
+void batteryLearnSelfTest();
+#endif

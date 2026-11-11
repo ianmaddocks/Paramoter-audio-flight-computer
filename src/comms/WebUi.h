@@ -4,4 +4,6 @@
 namespace webui {
 void begin();
 void update();
+// First unmet pre-flight condition (as shown in the banner), or nullptr when ready to fly.
+const char* readyBlocker();
 }  // namespace webui

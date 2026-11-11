@@ -13,9 +13,16 @@ void write(Level lvl, const char* tag, const char* fmt, ...) __attribute__((form
 // Copies pending lines to USB serial; call from the loop task.
 void pump();
 
-// Appends lines with sequence >= from to out (one per line). Returns the next sequence number
-// and sets dropped to the number of requested lines that have already been overwritten.
-uint32_t read(uint32_t from, String& out, uint32_t& dropped);
+// Reading the log in batches (so a reader never needs the whole buffer in memory at once):
+// window() turns a client's "lines since <from>" into the range [from, end) still held, and sets
+// dropped to how many requested lines have already been overwritten. readSome() appends up to
+// maxLines of that range to out (one per line) and returns where to continue from.
+void window(uint32_t& from, uint32_t& end, uint32_t& dropped);
+uint32_t readSome(uint32_t from, uint32_t end, int maxLines, String& out);
+
+// False in the test build until a client first reads the log: the once-a-second traces are held
+// back so the start-up lines are still in the buffer when the test runner connects.
+bool tracing();
 
 constexpr bool kDebugBuild =
 #if PV_DEBUG

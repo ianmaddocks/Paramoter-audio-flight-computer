@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <LittleFS.h>
 #include <Wire.h>
+#include <esp_task_wdt.h>
 
 #include "App.h"
 #include "Log.h"
@@ -11,6 +12,7 @@
 #include "audio/Speech.h"
 #include "comms/WebUi.h"
 #include "sensors/Mic.h"
+#include "test/Sim.h"
 
 using audio::Priority;
 
@@ -36,6 +38,9 @@ uint32_t lastBattCallMs = 0;
 uint32_t lastSaveMs = 0;
 uint32_t lastTraceMs = 0;
 uint32_t lastVolLogMs = 0;
+uint32_t lastBatLogMs = 0;
+const char* lastReadyWhy = "?";  // last ready-banner state written to the debug log
+constexpr uint32_t kBatLogIntervalMs = 2000;
 constexpr uint32_t kVolLogIntervalMs = 5000;
 int lastBleClients = 0;
 
@@ -119,6 +124,34 @@ void verifyResume() {
   }
 }
 
+// Debug log of what the tone generator was last told (mode change, or pitch moved 10 Hz), so the
+// test runner can follow the vario sound from the log.
+void logTone(const char* mode, float hz) {
+#if PV_DEBUG
+  static const char* lastMode = "";
+  static float lastHz = 0;
+  if (mode == lastMode && fabsf(hz - lastHz) < 10.0f) return;
+  lastMode = mode;
+  lastHz = hz;
+  LOGD("TONE", "%s %.0f Hz", mode, hz);
+#endif
+}
+
+// Debug builds: logs whenever the lowest-ever free memory has dropped by 1.5 kB or more, naming
+// the part of the loop that just ran, so a memory-hungry operation shows up in the log.
+void memCheck(const char* after) {
+#if PV_DEBUG
+  static uint32_t lastMin = UINT32_MAX;
+  uint32_t m = ESP.getMinFreeHeap();
+  if (lastMin == UINT32_MAX) lastMin = m;
+  if (m + 1500 <= lastMin) {
+    LOGW("MEM", "lowest free memory %u -> %u B after %s (free now %u)", (unsigned)lastMin, (unsigned)m,
+         after, (unsigned)ESP.getFreeHeap());
+    lastMin = m;
+  }
+#endif
+}
+
 void updateVarioTone() {
   const NavState& n = app.nav;
   bool allowed = g_cfg.varioEnabled && !app.varioMuted && n.baroOk &&
@@ -128,11 +161,14 @@ void updateVarioTone() {
     float hz = constrain(g_cfg.varioBaseHz + g_cfg.varioHzPerMs * v, 200.0f, 2500.0f);
     uint16_t period = (uint16_t)constrain(500.0f - 70.0f * v, 150.0f, 500.0f);
     audio::setTone(hz, period / 2, period / 2);
+    logTone("climb", hz);
   } else if (allowed && g_cfg.varioSinkAlarm && v <= g_cfg.sinkThreshold) {
     float hz = constrain(g_cfg.varioBaseHz * 0.5f + 20.0f * v, 150.0f, 1000.0f);
     audio::setTone(hz, 0, 0);
+    logTone("sink", hz);
   } else {
     audio::setTone(0, 0, 0);
+    logTone("off", 0);
   }
 }
 
@@ -143,8 +179,10 @@ void updateStartup(uint32_t now) {
       startupMs = now ? now : 1;
       float hz = constrain(g_cfg.varioBaseHz + g_cfg.varioHzPerMs * kStartBeepClimbMs, 200.0f, 2500.0f);
       audio::setTone(hz, 0, 0);  // continuous until stopped below
+      logTone("startup", hz);
     } else if (now - startupMs >= kStartBeepMs) {
       audio::setTone(0, 0, 0);
+      logTone("off", 0);
       startup = Startup::Wait;
       startupMs = now;
     }
@@ -230,6 +268,32 @@ void actionToggleMute() {
   speech::say(Priority::Urgent, app.varioMuted ? "vario_muted" : "vario_on");
 }
 
+#if PV_TEST
+// Test build: back to the state just after power-on, without the 25 s restart.
+void testResetFlight() {
+  app.approach.cancel(false);
+  app.emergency.cancel(false);
+  app.logger.stop();
+  app.flight = Flight();
+  app.wind = Wind();
+  app.announcer = Announcer();
+  app.approach = Approach();
+  app.emergency = Emergency();
+  app.varioMuted = false;
+  hadFix = false;
+  fixLostMs = 0;
+  fixLostCalled = false;
+  battLowSinceMs = 0;
+  lastBattCallMs = 0;
+  lastReadyWhy = "?";
+  LOGI("SIM", "flight state reset");
+}
+#endif
+
+// Restarts the vario if the main loop stops running for this long (a blocked network call, a
+// stuck file operation): better a restart than an instrument that is silent until power-cycled.
+constexpr uint32_t kLoopWatchdogS = 30;
+
 void setup() {
   Serial.setTxBufferSize(2048);  // before begin(), which otherwise allocates 256 bytes
   Serial.begin(115200);
@@ -253,12 +317,16 @@ void setup() {
   // Disabled: do not resume a previously saved flight on power-up.
   // restoreFlightState();
 
+  esp_task_wdt_init(kLoopWatchdogS, true);  // true: restart when it trips
+  esp_task_wdt_add(nullptr);                // watch this (the loop) task
   // The ready beep and "Ready" are played from loop() by updateStartup().
   LOGI("APP", "ParaVario ready, free heap %u", ESP.getFreeHeap());
 }
 
 void loop() {
   const uint32_t now = millis();
+  esp_task_wdt_reset();
+  sim::update(now);
   app.baro.update(now);
   app.gps.update(now);
   app.battery.update(now);
@@ -284,7 +352,7 @@ void loop() {
     uint8_t speechVol = mic::compensatedVolume(g_cfg.speechVolume);
     uint8_t varioVol = mic::compensatedVolume(g_cfg.varioVolume);
     audio::setVolumes(speechVol, varioVol);
-    if (dlog::kDebugBuild && now - lastVolLogMs >= kVolLogIntervalMs) {
+    if (dlog::kDebugBuild && dlog::tracing() && now - lastVolLogMs >= kVolLogIntervalMs) {
       lastVolLogMs = now;
       LOGD("VOL", "noise %.1f dBFS, auto %s: speech %u%% (set %u%%, %+d), vario %u%% (set %u%%, %+d)",
            mic::noiseDb(), g_cfg.autoVolume ? "on" : "off", speechVol, g_cfg.speechVolume,
@@ -307,14 +375,29 @@ void loop() {
     checkBattery(now);
     verifyResume();
     if (app.nav.flying && now - lastSaveMs >= kSaveIntervalMs) saveFlightState();
-    if (dlog::kDebugBuild && now - lastTraceMs >= kTraceIntervalMs) {
+    if (dlog::kDebugBuild) {
+      const char* why = webui::readyBlocker();
+      if (why != lastReadyWhy) {
+        lastReadyWhy = why;
+        LOGD("RDY", "%s", why ? why : "ready");
+      }
+      if (dlog::tracing() && now - lastBatLogMs >= kBatLogIntervalMs) {
+        lastBatLogMs = now;
+        LOGD("BAT", "v=%.3f pct=%d min=%d learned=%d", app.battery.volts(), app.battery.percent(),
+             app.battery.minutesLeftOrUnknown(), app.battery.learned());
+      }
+    }
+    if (dlog::kDebugBuild && dlog::tracing() && now - lastTraceMs >= kTraceIntervalMs) {
       lastTraceMs = now;
       traceNav();
     }
   }
 
+  memCheck("flight logic");
   app.ble.update(app.nav, app.gps, app.battery.percent(), app.logger.active());
+  memCheck("bluetooth");
   webui::update();
+  memCheck("web server");
   dlog::pump();
   delay(1);
 }

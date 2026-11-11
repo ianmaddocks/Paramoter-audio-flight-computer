@@ -3,6 +3,7 @@
 
 #include "Pins.h"
 #include "Settings.h"
+#include "test/Sim.h"
 
 namespace {
 constexpr float kMeasVar = 0.25f * 0.25f;
@@ -62,7 +63,30 @@ bool Baro::configure() {
   return true;
 }
 
+// Test build only: the filter is fed the simulated altitude instead of the DPS310.
+void Baro::updateSim(uint32_t nowMs) {
+  uint32_t us = micros();
+  if (lastSampleUs_ && us - lastSampleUs_ < 31000) return;  // the sensor's 32 Hz
+  float dt = lastSampleUs_ ? (us - lastSampleUs_) * 1e-6f : 0.03f;
+  lastSampleUs_ = us;
+  if (dt <= 0.0f || dt > 1.0f) dt = 0.03f;
+  rawAltStdM_ = sim::baroAltStdM();
+  pressurePa_ = 101325.0f * powf(1.0f - rawAltStdM_ / 44330.8f, 1.0f / 0.190263f);
+  tempC_ = 20.0f;
+  sampleDtS_ = dt;
+  lastGoodMs_ = nowMs;
+  kf_.update(rawAltStdM_, dt, g_cfg.varioAccelNoise, kMeasVar);
+  ok_ = true;
+  updateSettled(nowMs);
+}
+
 void Baro::update(uint32_t nowMs) {
+  if (simEpoch_ != sim::baroEpoch()) {  // simulation switched or its altitude jumped
+    simEpoch_ = sim::baroEpoch();
+    kf_ = AltKalman();
+    lastSampleUs_ = 0;
+  }
+  if (sim::baroOn()) return updateSim(nowMs);
   if (!present_) {
     if (nowMs - lastRetryMs_ > 5000) {
       lastRetryMs_ = nowMs;

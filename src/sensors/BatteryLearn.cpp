@@ -30,9 +30,11 @@ struct SessionBlob {
 };
 }  // namespace
 
-void BatteryLearner::begin() {
+void BatteryLearner::begin(bool persist) {
+  persist_ = persist;
   for (auto& c : cross_) c = kNone;
   fillDefaults();
+  if (!persist_) return;
   loadTable();
   loadSession();
 }
@@ -68,6 +70,7 @@ void BatteryLearner::loadTable() {
 }
 
 void BatteryLearner::saveTable() {
+  if (!persist_) return;
   Preferences p;
   if (!p.begin("battlrn", false)) return;
   TableBlob b;
@@ -93,6 +96,8 @@ void BatteryLearner::loadSession() {
 }
 
 void BatteryLearner::saveSession() {
+  lastSaveS_ = sessionS_;
+  if (!persist_) return;
   Preferences p;
   if (!p.begin("battlrn", false)) return;
   SessionBlob b;
@@ -222,3 +227,53 @@ int BatteryLearner::minutesLeft(float volts) const {
   }
   return (int)lroundf(base * scale);
 }
+
+#if PV_TEST
+void BatteryLearner::rebootForTest() {
+  lastMs_ = 0;
+  checked_ = false;
+  charging_ = false;
+  chargingUntilMs_ = 0;
+  refMs_ = 0;
+}
+
+void batteryLearnSelfTest() {
+  static BatteryLearner b;
+  b = BatteryLearner();
+  b.begin(false);
+  uint32_t ms = 1000;
+  // Linear discharge v0 -> v1 over the given time at one sample a second, stopping at stopV.
+  auto discharge = [&](float v0, float v1, uint32_t seconds, float stopV) {
+    for (uint32_t i = 0; i <= seconds; ++i) {
+      float v = v0 + (v1 - v0) * (float)i / (float)seconds;
+      if (v <= stopV) return;
+      b.update(v, ms);
+      ms += 1000;
+    }
+  };
+  auto recharge = [&]() {
+    b.rebootForTest();
+    b.update(4.15f, ms);
+    ms += 1000;
+    b.update(4.15f, ms);
+    ms += 1000;
+  };
+  float def410 = b.minutesAt(4.10f);
+  discharge(4.12f, 3.40f, 14400, 0.0f);  // 4 hours, until flat
+  recharge();
+  float m410 = b.minutesAt(4.10f), m375 = b.minutesAt(3.75f);
+  bool learned = b.learned();
+  discharge(4.12f, 3.40f, 7200, 3.75f);  // twice as fast, looked at half way
+  int left375 = b.minutesLeft(3.75f);
+  discharge(3.75f, 3.40f, 3500, 0.0f);
+  recharge();
+  float m410b = b.minutesAt(4.10f);
+  for (int i = 0; i < 300; ++i) {  // rising voltage = on charge
+    b.update(3.80f + 0.1f * i / 300.0f, ms);
+    ms += 1000;
+  }
+  int charging = b.minutesLeft(3.90f);
+  LOGI("BATL", "selftest default410=%.1f learned=%d m410=%.1f m375=%.1f left375=%d m410b=%.1f charging=%d",
+       def410, learned, m410, m375, left375, m410b, charging);
+}
+#endif

@@ -34,3 +34,6 @@ extern App app;
 void actionToggleApproach();
 void actionToggleEmergency();
 void actionToggleMute();
+#if PV_TEST
+void testResetFlight();
+#endif

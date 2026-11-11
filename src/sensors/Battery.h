@@ -16,9 +16,11 @@ class Battery {
   int percent() const;
   // Estimated minutes of battery left, -1 when unknown (charging, or not on battery).
   int minutesLeftOrUnknown() const;
+  bool learned() const { return learner_.learned(); }
 
  private:
   float volts_ = 0;
   uint32_t lastMs_ = 0;
+  bool wasSim_ = false;
   BatteryLearner learner_;
 };

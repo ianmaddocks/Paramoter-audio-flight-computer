@@ -82,6 +82,9 @@ const Field kFields[] = {
     FL(takeoffSpeedMs, "Takeoff & landing", "Takeoff ground speed", "speed", 1.0f, 30.0f),
     I(takeoffTimeS, "Takeoff & landing", "Takeoff speed held for", "s", 1, 60),
     FL(takeoffGainM, "Takeoff & landing", "Takeoff height gain", "height", 1.0f, 100.0f),
+    FL(baroTakeoffGainM, "Takeoff & landing", "Takeoff height gain without GPS", "height", 3.0f, 200.0f),
+    FL(groundHoldVarioMs, "Takeoff & landing", "Ground level held when climbing or sinking faster than", "m/s",
+       0.1f, 3.0f),
     FL(landingSpeedMs, "Takeoff & landing", "Landed below ground speed", "speed", 0.2f, 10.0f),
     I(landingTimeS, "Takeoff & landing", "Landed after", "s", 5, 300),
 
@@ -262,10 +265,12 @@ bool fromJson(JsonObjectConst obj) {
   return restart;
 }
 
-void schemaJson(JsonArray arr) {
+int schemaCount() { return sizeof(kFields) / sizeof(kFields[0]); }
+
+void schemaEntry(int index, JsonObject o) {
   static const char* kTypeNames[] = {"bool", "int", "float", "double", "str", "enum", "list"};
-  for (const Field& f : kFields) {
-    JsonObject o = arr.add<JsonObject>();
+  {
+    const Field& f = kFields[index];
     o["k"] = f.key;
     o["g"] = f.group;
     o["l"] = f.label;
@@ -303,11 +308,17 @@ void load() {
   fromJson(doc.as<JsonObjectConst>());
 }
 
-bool save() {
+void toJsonString(String& out) {
   JsonDocument doc;
   toJson(doc.to<JsonObject>());
+  out = "";
+  out.reserve(measureJson(doc) + 1);  // one allocation of the right size
+  serializeJson(doc, out);
+}
+
+bool save() {
   String s;
-  serializeJson(doc, s);
+  toJsonString(s);
   Preferences prefs;
   if (!prefs.begin("paravario", false)) return false;
   bool ok = prefs.putString("cfg", s) == s.length();

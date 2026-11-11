@@ -5,7 +5,13 @@
 namespace dlog {
 namespace {
 
+// The release build logs only errors, warnings and a few information lines, so it keeps a
+// short history and leaves the memory free; debug builds trace several lines a second.
+#if PV_DEBUG
 constexpr int kLines = 128;
+#else
+constexpr int kLines = 40;
+#endif
 constexpr int kLineLen = 128;
 constexpr int kMaxPumpLines = 16;
 
@@ -13,6 +19,7 @@ char gRing[kLines][kLineLen];
 uint32_t gSeq = 0;      // sequence number of the next line to be written
 uint32_t gPrinted = 0;  // next line to copy to USB serial
 portMUX_TYPE gMux = portMUX_INITIALIZER_UNLOCKED;
+volatile bool gClientSeen = false;
 
 }  // namespace
 
@@ -58,29 +65,38 @@ void pump() {
   }
 }
 
-uint32_t read(uint32_t from, String& out, uint32_t& dropped) {
-  char line[kLineLen];
+bool tracing() {
+#if PV_TEST
+  return gClientSeen;
+#else
+  return true;
+#endif
+}
+
+void window(uint32_t& from, uint32_t& end, uint32_t& dropped) {
+  gClientSeen = true;
   portENTER_CRITICAL(&gMux);
-  uint32_t end = gSeq;
+  end = gSeq;
   portEXIT_CRITICAL(&gMux);
   uint32_t oldest = end > kLines ? end - kLines : 0;
   if (from > end) from = oldest;  // device restarted since the client last asked
   dropped = from < oldest ? oldest - from : 0;
   if (from < oldest) from = oldest;
-  out.reserve(out.length() + (end - from) * 64);
-  for (uint32_t s = from; s < end; ++s) {
+}
+
+uint32_t readSome(uint32_t from, uint32_t end, int maxLines, String& out) {
+  char line[kLineLen];
+  uint32_t s = from;
+  for (int n = 0; s < end && n < maxLines; ++s, ++n) {
     portENTER_CRITICAL(&gMux);
-    bool overwritten = gSeq - s > kLines;
+    bool overwritten = gSeq - s > kLines;  // written over while this reply was being sent
     if (!overwritten) memcpy(line, gRing[s % kLines], kLineLen);
     portEXIT_CRITICAL(&gMux);
-    if (overwritten) {
-      ++dropped;
-      continue;
-    }
+    if (overwritten) continue;
     out += line;
     out += '\n';
   }
-  return end;
+  return s;
 }
 
 }  // namespace dlog

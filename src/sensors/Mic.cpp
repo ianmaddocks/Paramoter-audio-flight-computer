@@ -12,6 +12,7 @@
 #include "Pins.h"
 #include "Settings.h"
 #include "audio/Audio.h"
+#include "test/Sim.h"
 
 namespace mic {
 namespace {
@@ -380,6 +381,7 @@ void begin() {
 bool running() { return gRunning; }
 
 float noiseDb() {
+  if (sim::noiseOn()) return sim::noiseDb();  // test build only
   portENTER_CRITICAL(&gMux);
   float v = gNoiseDb;
   portEXIT_CRITICAL(&gMux);

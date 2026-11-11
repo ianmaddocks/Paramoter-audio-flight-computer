@@ -29,6 +29,7 @@ class Baro {
  private:
   bool configure();
   void updateSettled(uint32_t nowMs);
+  void updateSim(uint32_t nowMs);
 
   Adafruit_DPS310 dps_;
   TwoWire* wire_ = nullptr;
@@ -46,4 +47,5 @@ class Baro {
   bool settled_ = false;
   uint32_t settleStartMs_ = 0;
   uint32_t quietSinceMs_ = 0;
+  uint32_t simEpoch_ = 0;
 };

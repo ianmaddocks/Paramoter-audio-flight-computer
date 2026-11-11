@@ -5,6 +5,7 @@
 #include "Pins.h"
 #include "Settings.h"
 #include "sensors/Mic.h"
+#include "test/Sim.h"
 
 // mic::begin() must run first: while its ADC DMA is running it owns ADC1 and samples the
 // battery pin too; analogRead is only used if the DMA sampler failed to start.
@@ -17,6 +18,15 @@ void Battery::begin() {
 void Battery::update(uint32_t nowMs) {
   if (lastMs_ && nowMs - lastMs_ < 1000) return;
   lastMs_ = nowMs;
+  if (sim::battOn()) {  // test build only; the learner is not fed simulated voltages
+    volts_ = sim::battV();
+    wasSim_ = true;
+    return;
+  }
+  if (wasSim_) {  // back to the real battery: start from a fresh reading, not the simulated one
+    wasSim_ = false;
+    volts_ = 0;
+  }
   float mv;
   if (mic::running()) {
     int32_t m = mic::batteryMilliVolts();

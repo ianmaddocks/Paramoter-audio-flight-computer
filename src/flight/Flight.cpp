@@ -71,6 +71,11 @@ FlightEvent Flight::update(uint32_t now, const Baro& baro, Gps& gps, NavState& n
   n.altMslM = alt;
 
   bool still = !n.fix || n.speedMs < kStillSpeedMs;
+  // The ground reference follows slow pressure drift but must not follow the aircraft. GPS speed
+  // says when it is moving; without that (no GPS, or a launch into wind at walking pace) a steady
+  // climb or sink does. Otherwise the reference trails a climb by only a few metres and a
+  // take-off is never seen, and height above ground reads low afterwards.
+  if (n.baroOk && fabsf(n.varioMs) >= g_cfg.groundHoldVarioMs) still = false;
   if (!flying_) {
     if (still && (n.baroOk || gpsAltOk)) {
       if (!groundValid_) {
@@ -111,7 +116,7 @@ FlightEvent Flight::update(uint32_t now, const Baro& baro, Gps& gps, NavState& n
     float gain = groundStdValid_ && n.baroOk ? n.altStdM - groundStd_ : groundValid_ ? alt - groundAlt_ : 0.0f;
     bool gpsTakeoff = fastSinceMs_ && now - fastSinceMs_ >= (uint32_t)g_cfg.takeoffTimeS * 1000 &&
                       gain >= g_cfg.takeoffGainM;
-    bool baroOnlyTakeoff = !n.gpsGood && n.baroOk && gain >= g_cfg.takeoffGainM * 3.0f;
+    bool baroOnlyTakeoff = !n.gpsGood && n.baroOk && gain >= g_cfg.baroTakeoffGainM;
     if (gpsTakeoff || baroOnlyTakeoff) {
       flying_ = true;
       takeoffMs_ = gpsTakeoff ? fastSinceMs_ : now;

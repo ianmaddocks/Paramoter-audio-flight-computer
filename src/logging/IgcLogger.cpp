@@ -57,7 +57,9 @@ void IgcLogger::start(Gps& gps) {
   file_.print("HFFTYFRTYPE:ParaVario,XIAO ESP32C3\r\n");
   file_.print("HFGPSRECEIVER:u-blox,M10\r\n");
   file_.print("HFPRSPRESSALTSENSOR:Infineon,DPS310\r\n");
-  lastRecordMs_ = lastFlushMs_ = 0;
+  // lastRecordMs_ is kept: the 1 Hz rhythm carries on from the buffered fixes, so the first live
+  // record cannot share a second with the last buffered one.
+  lastFlushMs_ = 0;
   // The history leading up to takeoff, oldest first.
   int n = preCount_;
   for (int i = 0; i < n; ++i) writeSample(pre_[(preHead_ + i) % kMaxPreSamples]);

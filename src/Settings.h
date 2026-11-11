@@ -52,6 +52,8 @@ struct Settings {
   float takeoffSpeedMs = 15.0f / 3.6f;
   int32_t takeoffTimeS = 5;
   float takeoffGainM = 10.0f;
+  float baroTakeoffGainM = 15.0f;   // height gain that counts as takeoff with no usable GPS
+  float groundHoldVarioMs = 0.5f;   // ground level stops following the baro above this rate
   float landingSpeedMs = 5.0f / 3.6f;
   int32_t landingTimeS = 30;
 
@@ -122,7 +124,11 @@ void load();
 bool save();
 void resetDefaults();
 void toJson(JsonObject obj);
+// All settings as JSON text in out (the working copy is freed before this returns).
+void toJsonString(String& out);
 // Applies known keys, clamped to their limits. Returns true if a changed key needs a restart.
 bool fromJson(JsonObjectConst obj);
-void schemaJson(JsonArray arr);
+// The settings table for the web page, one entry at a time so it can be sent in small pieces.
+int schemaCount();
+void schemaEntry(int index, JsonObject o);
 }  // namespace settings

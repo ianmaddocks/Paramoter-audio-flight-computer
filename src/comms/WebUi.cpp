@@ -8,6 +8,8 @@
 #include <Update.h>
 #include <WebServer.h>
 #include <WiFi.h>
+#include <esp_task_wdt.h>
+#include <lwip/sockets.h>
 #include <sys/stat.h>
 
 #include "App.h"
@@ -17,6 +19,7 @@
 #include "comms/WebPage.h"
 #include "nav/Geo.h"
 #include "sensors/Mic.h"
+#include "test/Sim.h"
 
 
 // Set from custom_ota_password in platformio.ini by tools/pio_ota.py; empty rejects every upload.
@@ -69,6 +72,7 @@ void serverUpdate(uint32_t now) {
 
 void sendJson(const JsonDocument& doc, int code = 200) {
   String s;
+  s.reserve(measureJson(doc) + 1);  // one allocation of the right size, not repeated growth
   serializeJson(doc, s);
   server.sendHeader("Cache-Control", "no-store");
   server.send(code, "application/json", s);
@@ -101,7 +105,12 @@ void handleStatus() {
   doc["minSats"] = g_cfg.readyMinSats;
   doc["uptime"] = millis() / 1000;
   doc["heap"] = ESP.getFreeHeap();
+  doc["heapMin"] = ESP.getMinFreeHeap();     // lowest since power-on
+  doc["heapBlock"] = ESP.getMaxAllocHeap();  // largest single block available now
   doc["debug"] = dlog::kDebugBuild;
+#if PV_TEST
+  doc["test"] = true;
+#endif
   doc["version"] = PV_VERSION;
   doc["git"] = PV_GIT;
   doc["flying"] = n.flying;
@@ -132,6 +141,7 @@ void handleStatus() {
   batt["pct"] = app.battery.percent();
   int battMin = app.battery.minutesLeftOrUnknown();
   if (battMin >= 0) batt["min"] = battMin;
+  batt["learned"] = app.battery.learned();
 
   JsonObject micj = doc["mic"].to<JsonObject>();
   micj["ok"] = mic::running();
@@ -178,37 +188,126 @@ void handleStatus() {
   sendJson(doc);
 }
 
+#if PV_TEST
+// Test build only: /api/sim?key=value&... sets simulated inputs (see test/Sim.h); "reset"
+// returns the flight logic to its power-on state and "learntest" runs the battery-learner check.
+void handleSim() {
+  for (int i = 0; i < server.args(); ++i) {
+    String k = server.argName(i), v = server.arg(i);
+    if (k == "reset") {
+      testResetFlight();
+    } else if (k == "learntest") {
+      batteryLearnSelfTest();
+    } else if (!sim::set(k, v)) {
+      sendError(400, "unknown sim key");
+      return;
+    }
+  }
+  String js;
+  sim::describe(js);
+  server.sendHeader("Cache-Control", "no-store");
+  server.send(200, "application/json", js);
+}
+#endif
+
 void handleGetSettings() {
-  JsonDocument doc;
-  settings::toJson(doc.to<JsonObject>());
-  sendJson(doc);
+  String s;
+  settings::toJsonString(s);
+  server.sendHeader("Cache-Control", "no-store");
+  server.send(200, "application/json", s);
+}
+
+// Big replies (settings table, debug log) are sent in pieces through one fixed buffer, each
+// piece in a single network write of about one packet.
+//
+// Two memory traps are avoided this way. Building a whole reply first needs a large block of
+// memory, which cannot be had when memory is short (the page then came up without settings).
+// And the web server sends every write as its own packet, each tying up a 1.6 kB Wi-Fi buffer
+// until the radio gets it out, so a reply sent as many small writes can briefly take tens of
+// kB (up to 32 buffers) and run the vario out of memory.
+constexpr size_t kPieceHead = 6;      // "xxxx\r\n" chunk-size line, filled in when sent
+constexpr size_t kPieceData = 1400;   // with the head and tail, just under one TCP segment
+char gPiece[kPieceHead + kPieceData + 2];
+size_t gPieceLen = 0;
+
+void flushPiece() {
+  if (!gPieceLen) return;
+  char head[kPieceHead + 1];
+  snprintf(head, sizeof(head), "%04x\r\n", (unsigned)gPieceLen);
+  memcpy(gPiece, head, kPieceHead);
+  memcpy(gPiece + kPieceHead + gPieceLen, "\r\n", 2);
+  server.client().write((const uint8_t*)gPiece, kPieceHead + gPieceLen + 2);
+  gPieceLen = 0;
+}
+
+void beginPieces(const char* type) {
+  gPieceLen = 0;
+  server.sendHeader("Cache-Control", "no-store");
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);  // chunked transfer
+  server.send(200, type, "");
+}
+
+void addPiece(const char* data, size_t len) {
+  while (len) {
+    size_t n = min(len, kPieceData - gPieceLen);
+    memcpy(gPiece + kPieceHead + gPieceLen, data, n);
+    gPieceLen += n;
+    data += n;
+    len -= n;
+    if (gPieceLen == kPieceData) flushPiece();
+  }
+}
+void addPiece(const String& s) { addPiece(s.c_str(), s.length()); }
+void addPiece(const char* text) { addPiece(text, strlen(text)); }
+
+void endPieces() {
+  flushPiece();
+  server.sendContent("");  // closing zero-length chunk; also ends the server's chunked mode
 }
 
 void handleSchema() {
-  JsonDocument doc;
-  settings::schemaJson(doc.to<JsonArray>());
-  sendJson(doc);
+  beginPieces("application/json");
+  String one;
+  one.reserve(200);
+  const int n = settings::schemaCount();
+  for (int i = 0; i < n; ++i) {
+    JsonDocument doc;
+    settings::schemaEntry(i, doc.to<JsonObject>());
+    one = "";
+    serializeJson(doc, one);
+    addPiece(i ? "," : "[", 1);
+    addPiece(one);
+  }
+  addPiece("]", 1);
+  endPieces();
 }
 
+// The steps are kept apart so that only one of the request, the stored copy and the reply is in
+// memory at a time (together they needed about 25 kB).
 void handlePostSettings() {
-  JsonDocument in;
-  if (deserializeJson(in, server.arg("plain")) != DeserializationError::Ok || !in.is<JsonObject>()) {
-    sendError(400, "invalid JSON");
-    return;
-  }
   Settings previous = g_cfg;
-  bool restart = settings::fromJson(in.as<JsonObjectConst>());
+  bool restart = false;
+  {
+    JsonDocument in;
+    if (deserializeJson(in, server.arg("plain")) != DeserializationError::Ok || !in.is<JsonObject>()) {
+      sendError(400, "invalid JSON");
+      return;
+    }
+    restart = settings::fromJson(in.as<JsonObjectConst>());
+  }
   LOGI("WEB", "settings saved%s", restart ? " (restart needed)" : "");
   if (!settings::save()) {
     g_cfg = previous;
     sendError(500, "save failed");
     return;
   }
-  JsonDocument out;
-  out["ok"] = true;
-  out["restart"] = restart;
-  settings::toJson(out["settings"].to<JsonObject>());
-  sendJson(out);
+  String s;
+  settings::toJsonString(s);
+  beginPieces("application/json");
+  addPiece(restart ? "{\"ok\":true,\"restart\":true,\"settings\":" : "{\"ok\":true,\"restart\":false,\"settings\":");
+  addPiece(s);
+  addPiece("}", 1);
+  endPieces();
 }
 
 void handleAction() {
@@ -261,14 +360,20 @@ void handleAction() {
 // Plain text: first line "#next=<seq> dropped=<n> debug=<0|1>", then one log line per line.
 void handleDebugLog() {
   uint32_t since = server.hasArg("since") ? strtoul(server.arg("since").c_str(), nullptr, 10) : 0;
-  String lines;
-  uint32_t dropped = 0;
-  uint32_t next = dlog::read(since, lines, dropped);
-  String body = "#next=" + String(next) + " dropped=" + String(dropped) +
-                " debug=" + String(dlog::kDebugBuild ? 1 : 0) + "\n";
-  body += lines;
-  server.sendHeader("Cache-Control", "no-store");
-  server.send(200, "text/plain", body);
+  uint32_t end = 0, dropped = 0;
+  dlog::window(since, end, dropped);
+  beginPieces("text/plain");
+  String line;
+  line.reserve(140);
+  line = "#next=" + String(end) + " dropped=" + String(dropped) +
+         " debug=" + String(dlog::kDebugBuild ? 1 : 0) + "\n";
+  addPiece(line);
+  while (since < end) {
+    line = "";
+    since = dlog::readSome(since, end, 1, line);
+    addPiece(line);
+  }
+  endPieces();
 }
 
 // Binary: u32 seq, f32 binHz, f32 toneHz (little endian), then mic::kSpectrumBins bytes
@@ -373,8 +478,17 @@ void otaFail(const String& msg) {
 }
 
 void handleOtaUpload() {
+  esp_task_wdt_reset();  // a whole upload is handled inside one pass of the main loop
   HTTPUpload& up = server.upload();
   if (up.status == UPLOAD_FILE_START) {
+    // The web server library waits for upload data with no time limit, so an upload whose
+    // sender has gone (out of range, PC asleep) would block the vario until the connection is
+    // noticed dead, by default hours later. Probe the connection so that takes seconds; the
+    // loop watchdog in main.cpp is the backstop.
+    int idleS = 5, intervalS = 2, probes = 3;
+    server.client().setOption(TCP_KEEPIDLE, &idleS);
+    server.client().setOption(TCP_KEEPINTVL, &intervalS);
+    server.client().setOption(TCP_KEEPCNT, &probes);
     otaError = "";
     otaOk = false;
     otaFs = server.arg("target") == "fs";
@@ -439,6 +553,8 @@ class RedirectToUi : public RequestHandler {
 
 }  // namespace
 
+const char* readyBlocker() { return notReadyReason(app.nav); }
+
 void begin() {
   serverAttemptStartedMs = millis();
   strlcpy(serverSsidUsed, g_cfg.serverSsid, sizeof(serverSsidUsed));
@@ -467,6 +583,9 @@ void begin() {
   server.on("/api/logs", HTTP_GET, handleLogs);
   server.on("/api/debuglog", HTTP_GET, handleDebugLog);
   server.on("/api/spectrum", HTTP_GET, handleSpectrum);
+#if PV_TEST
+  server.on("/api/sim", HTTP_GET, handleSim);
+#endif
   server.on("/api/log", HTTP_GET, handleLogDownload);
   server.on("/api/log", HTTP_DELETE, handleLogDelete);
   server.on("/api/ota", HTTP_POST, handleOtaDone, handleOtaUpload);
@@ -476,10 +595,50 @@ void begin() {
   LOGI("WEB", "Wi-Fi AP '%s' at %s", g_cfg.wifiSsid, WiFi.softAPIP().toString().c_str());
 }
 
-void update() {
-  dns.processNextRequest();
+// Serving a request needs a few kB (reply text, JSON) on top of whatever the Wi-Fi driver is
+// holding for packets in flight. When free memory is already short, usually a burst of packets
+// from a browser opening several connections at once, the request waits a moment for those
+// buffers to drain rather than pushing memory towards zero. Never held for long: a client is
+// better served late than not at all.
+constexpr uint32_t kMinHeapToServe = 20000;
+constexpr uint32_t kMaxHoldMs = 400;
+
+void serveClients() {
+  static uint32_t heldSinceMs = 0;
+  const uint32_t now = millis();
+  if (ESP.getFreeHeap() < kMinHeapToServe && (!heldSinceMs || now - heldSinceMs < kMaxHoldMs)) {
+    if (!heldSinceMs) heldSinceMs = now ? now : 1;
+    return;
+  }
+  heldSinceMs = 0;
   server.handleClient();
+}
+
+void update() {
+#if PV_DEBUG
+  // Memory low-water mark around each step, with the request being served, for the debug log.
+  static uint32_t lastMin = UINT32_MAX;
+  auto mark = [](const char* what) {
+    uint32_t m = ESP.getMinFreeHeap();
+    if (lastMin == UINT32_MAX) lastMin = m;
+    if (m + 1500 <= lastMin) {
+      LOGW("MEM", "web: lowest %u -> %u B during %s %s (free now %u)", (unsigned)lastMin, (unsigned)m, what,
+           server.uri().c_str(), (unsigned)ESP.getFreeHeap());
+    }
+    lastMin = m;
+  };
+  mark("idle before");
+  dns.processNextRequest();
+  mark("dns");
+  serveClients();
+  mark("request");
   serverUpdate(millis());
+  mark("wifi state");
+#else
+  dns.processNextRequest();
+  serveClients();
+  serverUpdate(millis());
+#endif
   if (restartPending && (int32_t)(millis() - restartAtMs) >= 0) ESP.restart();
 }
 
