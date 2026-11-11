@@ -8,7 +8,7 @@ namespace {
 // The release build logs only errors, warnings and a few information lines, so it keeps a
 // short history and leaves the memory free; debug builds trace several lines a second.
 #if PV_DEBUG
-constexpr int kLines = 128;
+constexpr int kLines = 96;  // debug and test builds: 12 kB of RAM (a release build keeps 40 lines)
 #else
 constexpr int kLines = 40;
 #endif

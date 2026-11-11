@@ -50,11 +50,13 @@ uint32_t gBattSum = 0, gBattCount = 0;
 float gNoiseDb = NAN;
 float gRpm = 0, gRpmRaw = 0, gRpmConf = 0;
 int32_t gBattMv = -1;  // loop task only
+#if PV_HAS_SPECTRUM
 // Spectrum snapshot for the web UI (under gMux). Only filled while gSpecWantUntilMs is in the future.
 uint8_t gSpec[kSpectrumBins];
 uint32_t gSpecSeq = 0;
 float gSpecBinHz = 0, gSpecToneHz = 0;
 volatile uint32_t gSpecWantUntilMs = 0;
+#endif
 
 // ---------- mic task state ----------
 float cosTab[kN / 2], sinTab[kN / 2];
@@ -187,6 +189,7 @@ void process(uint32_t nowMs) {
   for (int k = 0; k < kN / 2; ++k) pw[k] = re[k] * re[k] + im[k] * im[k];
   const float toneHz = audio::toneHz();
 
+#if PV_HAS_SPECTRUM
   if ((int32_t)(gSpecWantUntilMs - nowMs) > 0) {
     // Single-sided amplitude of a Hann-windowed bin is 2*|X|/sum(w) = |X|/256 ADC counts;
     // 2048 counts is full scale. Quantised to 0.4 dB steps over -100..0 dBFS.
@@ -203,6 +206,7 @@ void process(uint32_t nowMs) {
     ++gSpecSeq;
     portEXIT_CRITICAL(&gMux);
   }
+#endif  // PV_HAS_SPECTRUM
 
   notch(pw, toneHz, binHz);
   notch(pw, lastToneHz, binHz);  // the window also spans the previous tone
@@ -412,6 +416,7 @@ float rpmConfidence() {
   return v;
 }
 
+#if PV_HAS_SPECTRUM
 uint32_t spectrum(uint8_t* out, float* binHz, float* toneHz) {
   gSpecWantUntilMs = millis() + 3000;
   portENTER_CRITICAL(&gMux);
@@ -424,6 +429,7 @@ uint32_t spectrum(uint8_t* out, float* binHz, float* toneHz) {
   portEXIT_CRITICAL(&gMux);
   return seq;
 }
+#endif  // PV_HAS_SPECTRUM
 
 int32_t batteryMilliVolts() {
   if (!gRunning) return -1;

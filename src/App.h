@@ -17,7 +17,7 @@
 
 // The vario's state: every sensor, the flight logic built on them, and the outputs.
 // One instance (`app`), owned by the main loop (app/App.cpp); the web UI reads it to show status.
-// See docs/ARCHITECTURE.md for how the parts fit together.
+// See the Architecture section of README.md for how the parts fit together.
 struct App {
   // Inputs
   Baro baro;

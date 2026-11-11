@@ -108,6 +108,7 @@ The phone has no internet while it's on this network, so turn mobile data on if 
 | Debug log | Live log lines from the vario, with Pause, Clear and Save as file. Opens automatically on the debug firmware. The same lines appear on the USB serial port. |
 | Firmware update | Shows the installed version. Choose a `.bin` file and tap **Install update** (see *Maintenance*). Disabled while flying. |
 | System | Restart, Factory defaults. |
+| Help | The **Help** tab opens the guides and the feature reference on GitHub (the latest version; the phone needs internet, so turn mobile data on). Each group on the Settings tab also has **Help** links to its entry in the reference. |
 
 Heights, distances and speeds on the page follow your chosen units, and you always enter them in those units.
 

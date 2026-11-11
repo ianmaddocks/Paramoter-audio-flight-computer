@@ -76,7 +76,8 @@ before flying.
 | `ui_actions` | mute, test voice and landing-zone buttons |
 | `ui_guidance` | flying display, emergency/approach banners, log list and delete |
 | `ui_settings` | every setting shown; editing, units, greyed-out boxes, restart marks |
-| `ui_spectrum` | spectrum graph, tone marker, pause |
+| `ui_spectrum` | spectrum graph, tone marker, pause (skipped on a build made with `-DPV_HAS_SPECTRUM=0`) |
+| `ui_help` | Help tab and the Help links on the settings groups: the right guide for the hardware, links that stay in the docs folder and point at sections that exist |
 | `ui_system` | tabs, debug log viewer, firmware box, version line |
 | `ota_guard` | firmware upload refused without the right password |
 | `memory` | free memory not run down, and never dangerously low |

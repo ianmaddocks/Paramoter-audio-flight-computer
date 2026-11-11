@@ -70,13 +70,14 @@ With no GPS the vario uses the barometer alone.
 
 The phone has no internet while joined to the vario, so turn mobile data on if you need both.
 
-There are three tabs:
+There are four tabs:
 
 | Tab | What is there |
 |---|---|
 | **Flight** | The ready banner; tiles for **Height**, a **height graph** of the last 10 minutes, **Vario**, **Flight time**, and **Battery**; and buttons for **Mute vario** and **Test voice**. Refreshed every second. |
 | **Settings** | Every setting, in groups. Change a value and it is saved a moment later. A setting marked *restart* takes effect after a restart. |
 | **Logs & system** | The debug log, firmware update, **Restart** and **Factory defaults**. (The flight-log list is empty on this version, because logs need a GPS.) |
+| **Help** | Opens this guide and the feature reference on GitHub (the latest version; the phone needs internet, so turn mobile data on). Each group on the Settings tab also has a **Help** link to its entry in the reference. |
 
 Heights follow your chosen unit (feet or metres), and the heights you type in settings are in that unit too.
 

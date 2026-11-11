@@ -114,6 +114,7 @@ void handleStatus() {
   JsonObject hwj = doc["hw"].to<JsonObject>();
   hwj["gps"] = hw::hasGps();
   hwj["mic"] = hw::hasMic();
+  hwj["spectrum"] = hw::hasSpectrum();
   JsonObject vol = doc["vol"].to<JsonObject>();  // volumes being applied now
   vol["speech"] = volume::speechPct();
   vol["vario"] = volume::varioPct();
@@ -389,6 +390,7 @@ void handleDebugLog() {
   endPieces();
 }
 
+#if PV_HAS_SPECTRUM
 // Binary: u32 seq, f32 binHz, f32 toneHz (little endian), then mic::kSpectrumBins bytes
 // (dBFS = byte / 2.5 - 100). 204 when there is nothing newer than ?since=<seq>.
 void handleSpectrum() {
@@ -406,6 +408,7 @@ void handleSpectrum() {
   memcpy(buf + 8, &toneHz, 4);
   server.send_P(200, "application/octet-stream", (const char*)buf, sizeof(buf));
 }
+#endif  // PV_HAS_SPECTRUM
 
 // Binary: u16 sample count, u16 seconds between samples, then that many int16 heights above
 // ground in quarter metres, oldest first (the last ten minutes, for the flight tab's graph).
@@ -586,6 +589,26 @@ class RedirectToUi : public RequestHandler {
 }  // namespace
 
 
+// Registers a route and remembers which one is being served, so the memory trace can name it.
+const char* gRoute = "";
+void route(const char* path, HTTPMethod method, void (*handler)()) {
+  server.on(path, method, [path, handler]() {
+    gRoute = path;
+#if PV_DEBUG
+    // Names the routes that push the memory low-water mark down, in the debug log.
+    const uint32_t before = ESP.getMinFreeHeap();
+    handler();
+    const uint32_t after = ESP.getMinFreeHeap();
+    if (after + 1000 < before) {
+      LOGW("MEM", "route %s %s lowered the low-water mark %u -> %u B (free now %u)", server.method() == HTTP_POST ? "POST" : "GET",
+           path, (unsigned)before, (unsigned)after, (unsigned)ESP.getFreeHeap());
+    }
+#else
+    handler();
+#endif
+  });
+}
+
 void begin() {
   serverAttemptStartedMs = millis();
   strlcpy(serverSsidUsed, g_cfg.serverSsid, sizeof(serverSsidUsed));
@@ -605,21 +628,23 @@ void begin() {
   }
   if (MDNS.begin("paravario")) MDNS.addService("http", "tcp", 80);
 
-  server.on("/", HTTP_GET, handleRoot);
-  server.on("/api/status", HTTP_GET, handleStatus);
-  server.on("/api/settings", HTTP_GET, handleGetSettings);
-  server.on("/api/settings", HTTP_POST, handlePostSettings);
-  server.on("/api/schema", HTTP_GET, handleSchema);
-  server.on("/api/action", HTTP_POST, handleAction);
-  server.on("/api/logs", HTTP_GET, handleLogs);
-  server.on("/api/debuglog", HTTP_GET, handleDebugLog);
-  server.on("/api/spectrum", HTTP_GET, handleSpectrum);
-  server.on("/api/height", HTTP_GET, handleHeight);
-#if PV_TEST
-  server.on("/api/sim", HTTP_GET, handleSim);
+  route("/", HTTP_GET, handleRoot);
+  route("/api/status", HTTP_GET, handleStatus);
+  route("/api/settings", HTTP_GET, handleGetSettings);
+  route("/api/settings", HTTP_POST, handlePostSettings);
+  route("/api/schema", HTTP_GET, handleSchema);
+  route("/api/action", HTTP_POST, handleAction);
+  route("/api/logs", HTTP_GET, handleLogs);
+  route("/api/debuglog", HTTP_GET, handleDebugLog);
+#if PV_HAS_SPECTRUM
+  route("/api/spectrum", HTTP_GET, handleSpectrum);
 #endif
-  server.on("/api/log", HTTP_GET, handleLogDownload);
-  server.on("/api/log", HTTP_DELETE, handleLogDelete);
+  route("/api/height", HTTP_GET, handleHeight);
+#if PV_TEST
+  route("/api/sim", HTTP_GET, handleSim);
+#endif
+  route("/api/log", HTTP_GET, handleLogDownload);
+  route("/api/log", HTTP_DELETE, handleLogDelete);
   server.on("/api/ota", HTTP_POST, handleOtaDone, handleOtaUpload);
   server.addHandler(new RedirectToUi());
   server.collectHeaders(kOtaHeaders, 1);
@@ -655,9 +680,10 @@ void update() {
     if (lastMin == UINT32_MAX) lastMin = m;
     if (m + 1500 <= lastMin) {
       LOGW("MEM", "web: lowest %u -> %u B during %s %s (free now %u)", (unsigned)lastMin, (unsigned)m, what,
-           server.uri().c_str(), (unsigned)ESP.getFreeHeap());
+           gRoute, (unsigned)ESP.getFreeHeap());
     }
     lastMin = m;
+    gRoute = "";
   };
   mark("idle before");
   dns.processNextRequest();

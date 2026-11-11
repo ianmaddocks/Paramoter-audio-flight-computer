@@ -40,7 +40,11 @@ float rpmConfidence();
 // speaker-tone notch, so it shows everything the mic hears. The spectrum is only computed while
 // something keeps calling this (it stops ~3 s after the last call), so flight use pays nothing.
 // Returns a sequence number that increments with every new spectrum (0 = none yet).
+#if PV_HAS_SPECTRUM
 uint32_t spectrum(uint8_t* out, float* binHz, float* toneHz);
+#else
+inline uint32_t spectrum(uint8_t*, float*, float*) { return 0; }  // built without the spectrum
+#endif
 
 // Battery divider input in mV (before the divider ratio). -1 if the DMA sampler is not running.
 int32_t batteryMilliVolts();

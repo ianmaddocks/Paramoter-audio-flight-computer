@@ -1,10 +1,101 @@
-# ParaVario architecture
+# ParaVario
 
-How the firmware is put together, for anyone changing it. The user-facing description is in
-`docs/User_Guide_(basic).md` and `docs/User_Guide_(advanced).md`, with every tile, button and
-setting explained in `docs/Feature_Reference.md`; how to test is in `docs/TESTING.md`.
+**An audio vario and flight computer for paramotor flying.**
 
-## Hardware and variants
+ParaVario is open-source firmware and hardware for a small, battery-powered instrument that tells you what
+the air and the aircraft are doing through sound, so you can fly with your eyes up. Beeps rise in pitch as
+lift gets stronger, a low tone warns of heavy sink, and a voice calls your height and flight time. The
+Advanced version also talks you around a landing circuit, and guides you back to the field if the engine
+stops. It runs on a Seeed XIAO ESP32C3 and is built with PlatformIO.
+
+> **A home-built instrument, not certified aviation equipment.** It can be wrong, lose its GPS, or run
+> out of battery. Never rely on it as your only source of height, position or landing guidance.
+
+## What it does
+
+**Every version (Basic and Advanced)**
+
+- **Vario beeps** that rise in pitch and quicken with the climb rate, and a **sink alarm** tone.
+- **Voice calls** of your height as you pass heights you choose, and of your flight time.
+- **Automatic takeoff and landing detection**: "Take off" and "Landed, flight time ...".
+- **Bluetooth** to FlyGaggle and other apps (`$LK8EX1` and `$LXWP0` vario sentences).
+- A **web page** on the vario's own Wi-Fi network, opened on your phone: live height, a 10-minute height
+  graph, vario, flight time and battery tiles; every setting; firmware update; a built-in Help tab.
+- A smooth volume control that never jumps, and a battery gauge that learns how long your battery lasts.
+
+**Advanced version only (adds a GPS receiver and a microphone)**
+
+- With the **GPS**: ground speed, **glide ratio**, wind estimate, **landing zone**, a spoken **landing
+  approach circuit**, **emergency glide** guidance back to the landing zone, and **IGC flight logs**
+  (with the 30 seconds before takeoff included).
+- With the **microphone**: the speaker volume **rises with the noise around you** (smoothly), **engine
+  RPM** read from the engine sound, a background-noise tile and a live sound-spectrum page.
+
+## Two versions
+
+| | Basic | Advanced |
+|---|---|---|
+| Hardware | barometer and speaker | adds a u-blox M10 GPS and an analogue microphone |
+| Build | `pio run -e basic` | `pio run -e release` |
+| Guide | [User_Guide_(basic).md](docs/User_Guide_(basic).md) | [User_Guide_(advanced).md](docs/User_Guide_(advanced).md) |
+
+Each is a separate build, and the version shown on the web page ends in `-basic` or `-advanced` so you
+can see which program a vario is running. The two share one code base (see
+[Hardware variants and build flags](#hardware-variants-and-build-flags)).
+
+## Hardware
+
+- **Seeed XIAO ESP32C3** (the brain, with Wi-Fi and Bluetooth)
+- **DPS310** barometer (I2C)
+- **MAX98357A** amplifier and a small speaker (I2S)
+- Battery with a voltage divider on an ADC pin, and a **push button**
+- *Advanced only:* a **u-blox M10 GPS** module (UART) and an **analogue microphone** module (ADC)
+
+The pin assignments are in [src/Pins.h](src/Pins.h).
+
+## Getting started
+
+1. Install [VS Code](https://code.visualstudio.com/) with the PlatformIO extension, and clone this repository.
+2. **Set your own update password**: change `custom_ota_password` in [platformio.ini](platformio.ini). It is
+   asked for whenever new firmware is sent to the vario over Wi-Fi, so do not leave the shared one.
+3. **First install, over the USB cable.** Advanced: `pio run -e release_usb -t upload`. Basic:
+   `pio run -e basic_usb -t upload`. Then install the voice clips (they are in `data/`):
+   `pio run -e release_usb -t uploadfs` (or `-e basic_usb`).
+4. **Join the vario's Wi-Fi** (named `ParaVario-` followed by four characters unique to your unit; the
+   default password is `paramotor`) and the page opens on your phone, or go to `http://192.168.4.1`.
+5. **Later updates go over Wi-Fi**: `pio run -e release -t upload` (or `-e basic`), from a PC joined to
+   the vario's network, or on your home network once you have set the *Server network* in settings.
+
+To change what the voice says, see `tools/vocab.txt` and `tools/make_voice.py`. The full set of build,
+update and maintenance steps is in the user guides.
+
+## Documentation
+
+| Document | What it is |
+|---|---|
+| [User_Guide_(basic).md](docs/User_Guide_(basic).md) | How to fly and use the Basic vario (no GPS, no microphone) |
+| [User_Guide_(advanced).md](docs/User_Guide_(advanced).md) | How to fly and use the Advanced vario (GPS and microphone) |
+| [Feature_Reference.md](docs/Feature_Reference.md) | Every tile, button, sound and setting explained, Basic first, then Advanced |
+| [TESTING.md](docs/TESTING.md) | The hardware-in-the-loop test suite that checks the firmware on a real vario |
+| *Architecture* (below) | How the firmware is put together, for anyone changing it |
+
+The vario's web page also has a **Help** tab, and a Help link on each group of settings, that open these
+guides on GitHub.
+
+## Testing
+
+The firmware is checked by running a whole simulated flight on a real vario. A special build replaces
+the sensors with simulated ones, and a script on the PC sets up each situation, reads the vario's log,
+listens to the speaker through the microphone, and drives the web page in a headless browser. See
+[TESTING.md](docs/TESTING.md).
+
+---
+
+## Architecture
+
+How the firmware is put together, for anyone changing it.
+
+### Hardware variants and build flags
 
 Seeed XIAO ESP32C3 with a DPS310 barometer (I2C), a MAX98357A speaker amplifier (I2S), a battery
 divider on an ADC pin, a push button, and optionally a u-blox M10 GPS (UART) and an analogue
@@ -19,6 +110,8 @@ The GPS and the microphone are optional. Which are fitted is a build choice (`sr
 | `test` | yes | yes | debug build plus simulated sensors, for `tools/hil_test.py` |
 
 `-DPV_HAS_GPS=0` and `-DPV_HAS_MIC=0` can also be used one at a time in a build of your own.
+`-DPV_HAS_SPECTRUM=0` leaves out just the microphone spectrum feature (the Spectrum tab, `/api/spectrum`
+and the code that produces it); noise level, automatic volume and engine RPM are not affected.
 
 The version string carries the variant: `20261111-131219-advanced` (both parts), `...-basic` (neither),
 `...-basic+gps` or `...-basic+mic` (one). It is built in `src/Version.h` from the same flags and appears in
@@ -45,7 +138,7 @@ In normal builds these are compile-time constants (unused branches are removed) 
 `sensors/Gps.cpp` and `sensors/Mic.cpp` are left out entirely. The test build can switch a fitted
 part "off" at run time, which is how the reduced variants are tested on a full vario.
 
-## Layout
+### Layout
 
 ```
 src/
@@ -68,6 +161,8 @@ src/
   flight/
     Flight.*          altitude fusion, ground reference, takeoff / landing -> NavState
     Wind.*            wind from the takeoff run and from circling
+    Glide.*           glide ratio (ground speed over sink rate) for the Glide ratio tile
+    HeightHistory.*   last 10 minutes of height, for the graph on the Flight tab
     Announcer.*       height-boundary, periodic height and flight-time calls
     Approach.*        landing circuit guidance
     Emergency.*       glide-to-landing-zone guidance
@@ -79,13 +174,14 @@ src/
     Volume.*          volume control: noise compensation and rate limiting
   comms/
     BleFeed.*         Bluetooth telemetry (Nordic UART service)
-    WebUi.*           Wi-Fi + HTTP API; WebPage.h is the page; WifiMemory.cpp caps Wi-Fi buffers
+    WebUi.*           Wi-Fi + HTTP API; WebPage.h is the page (Flight, Settings, Spectrum,
+                      Logs & system and Help tabs); WifiMemory.cpp caps Wi-Fi buffers
   logging/IgcLogger.* IGC flight log on LittleFS
   input/Button.*      push button
   test/Sim.*          simulated sensors (test build only)
 ```
 
-## Data flow
+### Data flow
 
 ```
  Baro ─┐
@@ -99,7 +195,7 @@ src/
 rest of the flight logic reads. `GpsData` plays the same role for the receiver: the driver fills
 it, nothing else touches the parser, and without a GPS it simply stays "no link, no fix".
 
-## Tasks and timing
+### Tasks and timing
 
 | Task | Priority | Does |
 |---|---|---|
@@ -119,7 +215,7 @@ Sound latency: about 30 ms of barometer sampling and filtering, up to 20 ms to t
 update, then 64 ms of I2S buffering. The buffer is deliberately that long: erasing flash for the
 flight log can stop every task for tens of milliseconds, and a shorter buffer would click.
 
-## Audio behaviour
+### Audio behaviour
 
 - Speech has priority over the tone. When speech starts the tone fades out over 5 ms first, and
   fades back in afterwards; nothing is ever cut mid-wave.
@@ -132,7 +228,7 @@ flight log can stop every task for tens of milliseconds, and a shorter buffer wo
   click. The microphone ignores the vario's own tone and skips blocks that overlap speech, so
   the vario does not hear itself and turn itself up.
 
-## Robustness
+### Robustness
 
 - **Loop watchdog** (30 s): if the main loop stops, the vario restarts instead of staying silent.
 - **Memory**: about 50 kB is free at run time. Wi-Fi packet buffers are capped
@@ -148,14 +244,14 @@ flight log can stop every task for tens of milliseconds, and a shorter buffer wo
 - **Barometer-only flight**: the ground level is held while climbing or sinking, so takeoff is
   detected and height is right without any GPS.
 
-## Settings
+### Settings
 
 Every tunable is a field of `Settings` (`Settings.h`) with one line in the table in
 `Settings.cpp` giving its group, label, unit and limits. The web page builds itself from that
 table (`/api/schema`), so adding a setting needs no page change. Settings for hardware that is
 not fitted are left out of the page (`available()` in `Settings.cpp`).
 
-## Adding things
+### Adding things
 
 - **A new optional sensor**: add a `PV_HAS_x` flag and `hw::hasX()` to `Hardware.h`, give the
   driver a stub for when it is absent (see `Gps.h`, `Mic.h`), expose its values as plain data,
@@ -164,3 +260,12 @@ not fitted are left out of the page (`available()` in `Settings.cpp`).
 - **A new announcement**: add the clip to `tools/vocab.txt`, regenerate the voice files, and
   call `speech::say()` from the module that knows when (see `Alerts.cpp`).
 - **A test**: see `docs/TESTING.md`.
+
+### Help links
+
+The page's Help tab and the "Help" links on the settings groups open the guides in `docs/` on
+GitHub, always the latest version, so they need the phone to have internet. The address is
+`PV_HELP_URL` in `src/Version.h` (override it with a build flag for a fork). Each settings group is
+mapped to its section in `docs/Feature_Reference.md` by `GROUP_HELP` in `WebPage.h`; the section
+anchors in that document are `<a id="...">` tags, and the test `ui_help` checks that every link
+points at an anchor that exists, so renaming a section there needs the map updated too.

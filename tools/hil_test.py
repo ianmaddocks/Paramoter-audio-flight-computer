@@ -457,7 +457,7 @@ class Browser:
 PAGE_HELPERS = """
 window.tInput=k=>{const f=schema.find(f=>f.k===k);
   for(const d of document.querySelectorAll('#settings details')){
-    if(d.querySelector('summary').textContent!==f.g)continue;
+    if(d.querySelector('summary').firstChild.textContent!==f.g)continue;
     for(const r of d.querySelectorAll('label.row')){
       if(r.querySelector('span').firstChild.textContent===f.l)return r.querySelector('input,select')}}
   return null};
@@ -1043,6 +1043,7 @@ def t_variant_no_gps(v, a):
     GPS announcements or guidance, takeoff and landing still detected, settings and page trimmed."""
     logs_before = {f["n"] for f in v.get_json("/api/logs")["files"]}
     reset(v, baro="on", alt=GROUND_M, vz=0, gps="silent")
+    v.set(landingTimeS=15)  # (30 s of steady height without a GPS) so the page checks finish while still flying
     try:
         m = v.mark()
         v.sim(hasGps=0, reset=1)
@@ -1083,11 +1084,10 @@ def t_variant_no_gps(v, a):
             check_height_graph(p)
             p.check_fits("flight tab without GPS")
             p.tab("settings")
-            groups = p.js("[...document.querySelectorAll('#settings summary')].map(s=>s.textContent)")
+            groups = p.js("[...document.querySelectorAll('#settings summary')].map(s=>s.firstChild.textContent)")
             if "GPS" in groups or "Landing zone" in groups or "Vario" not in groups:
                 raise Fail(f"web page: settings groups without a GPS: {groups}")
-        m2 = v.mark()
-        v.expect("APP", r"Landed after", m2, timeout=25, what="landing from a steady vario")
+        v.expect("APP", r"Landed after", m, timeout=50, what="landing from a steady vario")
         v.never("SAY", r"gps_fix|no_gps", m, 0.5)
         new = [f["n"] for f in v.get_json("/api/logs")["files"] if f["n"] not in logs_before]
         if new:
@@ -1100,6 +1100,7 @@ def t_variant_no_gps(v, a):
         return f"ready, takeoff, {n['agl']} m and landing on the barometer; {len(keys)} settings listed, no log"
     finally:
         v.sim(hasGps=1)
+        v.set(landingTimeS=TEST_SETTINGS["landingTimeS"])
 
 
 def t_variant_no_mic(v, a):
@@ -1191,6 +1192,94 @@ def check_height_graph(p):
     p.wait("(()=>{const c=document.getElementById('hgCv');if(!c.width)return false;"
            "const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;"
            "for(let i=3;i<d.length;i+=4)if(d[i])return true;return false})()", 6, "height graph drawn")
+
+
+def docs_text(name):
+    return open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "docs", name), encoding="utf-8").read()
+
+
+def t_ui_help(v, a):
+    """Help tab and the Help links on the settings groups: right guide for the hardware, links that
+    point at anchors which exist in the documents."""
+    reset(v, baro="on", alt=GROUND_M, vz=0)
+    ref = docs_text("Feature_Reference.md")
+    for g in ("User_Guide_(basic).md", "User_Guide_(advanced).md"):
+        docs_text(g)  # exists
+    p = v.page()
+    p.wait("document.querySelectorAll('#helpBody a.doc').length>=2", 8, "help links built")
+    base = p.js("HELP")
+    if not re.match(r"^https://github\.com/[\w.-]+/[\w.-]+/blob/main/docs/$", base):
+        raise Fail(f"web page: help address is {base}")
+
+    def tab_links():
+        return p.js("[...document.querySelectorAll('#helpBody a')].map(a=>({t:a.firstChild.textContent,h:a.href,"
+                    "n:a.target,r:a.rel}))")
+
+    def check_anchors(links):
+        for l in links:
+            if not l["h"].startswith(base):
+                raise Fail(f"web page: help link {l['t']} leaves the docs folder: {l['h']}")
+            if l["n"] != "_blank" or "noopener" not in l["r"]:
+                raise Fail(f"web page: help link {l['t']} does not open in a new tab")
+            file, _, anchor = l["h"][len(base):].partition("#")
+            if anchor and f'id="{anchor}"' not in ref:
+                slug = anchor
+                heads = [re.sub(r"[^a-z0-9 -]", "", h.lower()).replace(" ", "-")
+                         for h in re.findall(r"^#+ (.*)$", ref, re.M)]
+                if slug not in heads:
+                    raise Fail(f"Feature_Reference.md has no section {anchor} (link {l['t']})")
+
+    p.tab("help")
+    links = tab_links()
+    if links[0]["t"] != "User guide" or "User_Guide_%28advanced%29.md" not in links[0]["h"]:
+        raise Fail(f"web page: first help link on a GPS + microphone vario is {links[0]}")
+    if not any(l["h"].endswith("Feature_Reference.md") for l in links):
+        raise Fail("web page: no link to the feature reference")
+    check_anchors(links)
+    p.check_fits("help tab")
+    if p.js("!!document.getElementById('helpIntro')"):
+        raise Fail("web page: the Help tab still has an introduction paragraph")
+    words = p.js("document.getElementById('helpPage').textContent")
+    if "Basic" in words or "Advanced" in words:
+        raise Fail(f"web page: the Help tab talks about versions: {words[:120]}")
+
+    p.tab("settings")
+    p.wait("document.querySelectorAll('#settings summary .help a').length>0", 8, "group help links")
+    groups = p.js("[...document.querySelectorAll('#settings summary')].map(s=>({g:s.firstChild.textContent,"
+                  "l:[...s.querySelectorAll('.help a')].map(a=>({t:a.textContent,h:a.href,n:a.target,r:a.rel}))}))")
+    bare = [g["g"] for g in groups if not g["l"]]
+    if bare:
+        raise Fail(f"web page: settings groups with no help link: {bare}")
+    for g in groups:
+        for l in g["l"]:
+            check_anchors([{"t": g["g"] + " / " + l["t"], "h": l["h"], "n": l["n"], "r": l["r"]}])
+    shared = {g["g"]: [l["t"] for l in g["l"]] for g in groups}
+    if shared["Audio"] != ["Help", "More help"] or shared["Vario"] != ["Help"]:
+        raise Fail(f"web page: help link names: Audio {shared['Audio']}, Vario {shared['Vario']}")
+
+    # With neither a GPS nor a microphone the Basic guide is the one offered.
+    note = f"{len(links)} links on the Help tab, {len(groups)} settings groups linked, anchors found"
+    try:
+        v.sim(hasGps=0, hasMic=0)
+        p = v.page()
+        p.wait("document.body.classList.contains('nogps')&&document.body.classList.contains('nomic')", 8,
+               "page told there is neither GPS nor microphone")
+        p.tab("help")
+        links = tab_links()
+        if links[0]["t"] != "User guide" or "User_Guide_%28basic%29.md" not in links[0]["h"]:
+            raise Fail(f"web page: first help link without GPS and microphone is {links[0]}")
+        if any("Basic" in l["t"] or "Advanced" in l["t"] for l in links):
+            raise Fail(f"web page: the Help tab talks about versions: {[l['t'] for l in links]}")
+        if any("adv-" in l["h"] for l in links):
+            raise Fail("web page: advanced section links offered without GPS and microphone")
+        p.tab("settings")
+        adv_links = p.js("[...document.querySelectorAll('#settings summary .help a')].filter(a=>a.href.includes('#adv-')).length")
+        if adv_links:
+            raise Fail(f"web page: {adv_links} advanced help links on the settings page without GPS and microphone")
+        note += "; the guide for a vario without GPS and microphone is offered then"
+    finally:
+        v.sim(hasGps=1, hasMic=1)
+    return note
 
 
 def t_ui_flight(v, a):
@@ -1375,7 +1464,7 @@ def t_ui_settings(v, a):
         for f in schema:
             if f["g"] not in groups:
                 groups.append(f["g"])
-        shown = p.js("[...document.querySelectorAll('#settings details>summary')].map(s=>s.textContent)")
+        shown = p.js("[...document.querySelectorAll('#settings details>summary')].map(s=>s.firstChild.textContent)")
         if shown != groups:
             raise Fail(f"web page: setting groups {shown} differ from the firmware's {groups}")
         rows = p.js("document.querySelectorAll('#settings label.row').length")
@@ -1443,6 +1532,8 @@ def t_ui_settings(v, a):
 
 def t_ui_spectrum(v, a):
     """Spectrum tab: graph drawn and updating, speaker tone marked, Pause and Floor work."""
+    if not v.status()["hw"].get("spectrum", True):
+        return "skipped: this firmware is built without the spectrum feature (PV_HAS_SPECTRUM=0)"
     reset(v, baro="on", alt=GROUND_M + 300, vz=0)
     p = v.page()
     p.tab("spectrum")
@@ -1484,7 +1575,7 @@ def t_ui_system(v, a):
     reset(v, baro="on", alt=GROUND_M, vz=0)
     st = v.status()
     p = v.page()
-    for name in ("flight", "settings", "spectrum", "system"):
+    for name in ("flight", "settings", "spectrum", "system", "help"):
         p.tab(name)
         vis = p.js("[...document.querySelectorAll('.page')].filter(x=>!x.hidden).map(x=>x.id)")
         sel = p.js("[...document.querySelectorAll('button[data-tab]')].filter(b=>b.getAttribute('aria-selected')"
@@ -1517,7 +1608,7 @@ def t_ui_system(v, a):
     if p.js("document.getElementById('fwpass').type") != "password":
         raise Fail("web page: update password box is not masked")
     p.check_fits("logs & system tab")
-    return "4 tabs switch, debug log live/pause/clear, firmware box guarded, version and system line"
+    return "5 tabs switch, debug log live/pause/clear, firmware box guarded, version and system line"
 
 
 def t_ota_guard(v, a):
@@ -1561,7 +1652,9 @@ def t_memory(v, a):
     start = getattr(v, "heap_start", st["heap"])
     note = (f"free {st['heap'] // 1024} kB (was {start // 1024} kB at the start), lowest since power-on "
             f"{st['heapMin'] // 1024} kB, largest block {st['heapBlock'] // 1024} kB")
-    if st["heapMin"] < 12000:
+    # The test build keeps a larger debug log (96 lines, against 40 in a release build) and has the
+    # test runner polling it, so its low-water mark is some 7 kB lower than a release build's would be.
+    if st["heapMin"] < 4000:
         raise Fail("free memory fell dangerously low during the tests: " + note)
     if st["heap"] < start - 12000:
         raise Fail("memory was not given back after the tests (leak?): " + note)
@@ -1576,7 +1669,7 @@ TESTS = [
     ("speech", t_speech), ("volume_ramp", t_volume_ramp), ("glide", t_glide),
     ("variant_no_gps", t_variant_no_gps), ("variant_no_mic", t_variant_no_mic),
     ("ui_flight", t_ui_flight), ("ui_actions", t_ui_actions), ("ui_guidance", t_ui_guidance),
-    ("ui_settings", t_ui_settings), ("ui_spectrum", t_ui_spectrum), ("ui_system", t_ui_system),
+    ("ui_settings", t_ui_settings), ("ui_spectrum", t_ui_spectrum), ("ui_system", t_ui_system), ("ui_help", t_ui_help),
     ("ota_guard", t_ota_guard), ("memory", t_memory),
 ]
 

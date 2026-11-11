@@ -1,6 +1,8 @@
 #pragma once
 #include <pgmspace.h>
 
+#include "Version.h"
+
 static const char kIndexHtml[] PROGMEM = R"HTML(<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -14,7 +16,8 @@ footer{text-align:center;color:var(--mut);font-size:12px;padding:20px 0 4px}
 h1{font-size:20px;margin:0}
 h2{font-size:15px;margin:0 0 10px}
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--bd);margin:0 -12px 10px;padding:0 12px}
-.tabs button{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;color:var(--mut);padding:10px 12px}
+.tabs{overflow-x:auto;scrollbar-width:none}
+.tabs button{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;color:var(--mut);padding:10px 9px;white-space:nowrap}
 .tabs button[aria-selected=true]{border-bottom-color:var(--acc);color:var(--acc)}
 div.page[hidden]{display:none}
 .tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
@@ -60,7 +63,12 @@ button.on{outline:2px solid var(--acc)}
 #specCv{width:100%;height:280px;display:block}
 .specbar{display:flex;gap:8px;align-items:center;margin-top:8px}
 .specbar select{padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
-body.nogps .needgps,body.nomic .needmic{display:none}
+body.nogps .needgps,body.nomic .needmic,body.nospec .needspec{display:none}
+summary .help{float:right;font-size:12px;font-weight:400}
+summary .help a{margin-left:12px;color:var(--acc)}
+#helpBody a.doc{display:block;padding:10px 12px;border:1px solid var(--bd);border-radius:10px;margin:8px 0;color:var(--acc);text-decoration:none;font-weight:600}
+#helpBody a.doc small{display:block;color:var(--mut);font-size:12px;font-weight:400}
+#helpBody .jump{margin:6px 0 2px;color:var(--mut);font-size:13px}#helpBody .jump a{margin-right:12px;color:var(--acc);white-space:nowrap}
 .tile.wide{grid-column:span 2}
 .tile.graph{display:flex;flex-direction:column;padding:6px 8px}
 .tile.graph .k{margin-bottom:2px}
@@ -71,8 +79,9 @@ body.nogps .needgps,body.nomic .needmic{display:none}
 <nav class="tabs" role="tablist" aria-label="Main views">
 <button type="button" role="tab" aria-selected="true" data-tab="flight">Flight</button>
 <button type="button" role="tab" aria-selected="false" data-tab="settings">Settings</button>
-<button type="button" role="tab" aria-selected="false" data-tab="spectrum" class="needmic">Spectrum</button>
+<button type="button" role="tab" aria-selected="false" data-tab="spectrum" class="needmic needspec">Spectrum</button>
 <button type="button" role="tab" aria-selected="false" data-tab="system">Logs &amp; system</button>
+<button type="button" role="tab" aria-selected="false" data-tab="help">Help</button>
 </nav>
 <div id="flightPage" class="page" role="tabpanel">
 <div id="ready" class="ready wait"><b id="ready-t">Checking…</b><span id="ready-s"></span></div>
@@ -129,6 +138,10 @@ body.nogps .needgps,body.nomic .needmic{display:none}
 <button data-a="defaults" class="dng">Factory defaults</button>
 </div><p class="mut" id="sys"></p></section>
 </div>
+<div id="helpPage" class="page" role="tabpanel" hidden>
+<section class="card"><h2>Help and guides</h2>
+<div id="helpBody"></div></section>
+</div>
 <footer id="hver"></footer>
 <div id="toast"></div>
 <script>
@@ -175,6 +188,51 @@ function layout(){
 let layKey='';
 const fR=r=>r>=50?'>50 : 1':r.toFixed(1)+' : 1';
 
+// Help: the guides live in the project's docs folder on GitHub (always the latest version).
+const HELP=')HTML" PV_HELP_URL R"HTML(';
+const DOCS={basic:'User_Guide_%28basic%29.md',adv:'User_Guide_%28advanced%29.md',ref:'Feature_Reference.md'};
+const hl=(f,a)=>HELP+f+(a?'#'+a:'');
+// Settings group -> its entry in the Feature Reference (b = the Basic part, a = the Advanced part)
+const GROUP_HELP={'Units':{b:'basic-settings-units-and-audio',a:'adv-settings-units-and-audio'},
+  'Audio':{b:'basic-settings-units-and-audio',a:'adv-settings-units-and-audio'},'Engine RPM':{a:'adv-settings-engine-rpm'},
+  'Vario':{b:'basic-settings-vario'},'Height calls':{b:'basic-settings-height-calls'},
+  'Takeoff & landing':{b:'basic-settings-takeoff-and-landing',a:'adv-settings-takeoff-and-landing'},
+  'Glide':{a:'adv-settings-glide'},'Landing zone':{a:'adv-settings-landing-zone'},'Landing approach':{a:'adv-settings-landing-approach'},
+  'Emergency':{a:'adv-settings-emergency'},'Wind':{a:'adv-settings-wind'},'GPS':{a:'adv-settings-gps'},
+  'Bluetooth':{b:'basic-settings-bluetooth',a:'adv-settings-bluetooth'},'Wi-Fi':{b:'basic-settings-wi-fi'},
+  'Battery':{b:'basic-settings-battery'},'Logging':{a:'adv-settings-logging'}};
+let hwNow={gps:true,mic:true,spectrum:true};
+function mkLink(t,href,cls){const a=document.createElement('a');a.href=href;a.target='_blank';a.rel='noopener';a.textContent=t;if(cls)a.className=cls;return a}
+// A 'Help' link on each settings group that opens its entry in the Feature Reference.
+function addGroupHelp(){
+  const adv=hwNow.gps||hwNow.mic;
+  document.querySelectorAll('#settings details').forEach(d=>{
+    const s=d.querySelector('summary'),old=s.querySelector('.help');if(old)old.remove();
+    const g=GROUP_HELP[s.firstChild.textContent];if(!g)return;
+    const span=document.createElement('span');span.className='help';
+    if(g.b)span.appendChild(mkLink('Help',hl(DOCS.ref,g.b)));
+    if(g.a&&adv)span.appendChild(mkLink(g.b?'More help':'Help',hl(DOCS.ref,g.a)));
+    if(span.childNodes.length)s.appendChild(span);
+  });
+}
+// The Help tab: the user guide for this vario, the feature reference, and shortcuts into the reference
+// for the tiles, buttons and sounds this vario has. It does not mention versions: a given build is
+// one or the other, so it simply links to the right material.
+function buildHelp(){
+  const adv=hwNow.gps||hwNow.mic,el=$('#helpBody');el.innerHTML='';
+  const doc=(t,sub,href)=>{const a=mkLink(t,href,'doc'),s=document.createElement('small');s.textContent=sub;a.appendChild(s);el.appendChild(a)};
+  doc('User guide','How to use this vario, from switching on to landing',hl(adv?DOCS.adv:DOCS.basic));
+  doc('Feature reference','Every tile, button, sound and setting explained, with examples',hl(DOCS.ref));
+  const jump=(label,items)=>{const d=document.createElement('div');d.className='jump';d.append(label+' ');
+    items.forEach(([t,a])=>{d.appendChild(mkLink(t,hl(DOCS.ref,a)));d.append(' ')});el.appendChild(d)};
+  const items=[['Tiles','basic-tiles'],['Buttons','basic-buttons'],['Sounds','basic-sounds'],['Settings','basic-settings-vario'],['Logs & system','basic-system']];
+  if(adv){items.push(['More tiles','adv-tiles'],['More buttons','adv-buttons']);
+    if(hwNow.gps)items.push(['Landing guidance','adv-guidance']);
+    items.push(['More sounds','adv-sounds']);
+    if(hwNow.spectrum!==false)items.push(['Spectrum','adv-spectrum'])}
+  jump('Jump to:',items);
+}
+
 // Rolling height graph: the vario keeps the last ten minutes, fetched every few seconds.
 let hgData=null,hgBusy=false;
 async function pollHeight(){
@@ -207,9 +265,10 @@ async function poll(){
   try{
     const r=await fetch('/api/status',{cache:'no-store'});const s=await r.json();
     // Optional hardware: tiles, buttons and tabs for parts that are not fitted are hidden.
-    const hw=s.hw||{gps:true,mic:true},G=s.gps||{};
-    document.body.classList.toggle('nogps',!hw.gps);document.body.classList.toggle('nomic',!hw.mic);
-    const k=hw.gps+'/'+hw.mic;if(k!==layKey){layKey=k;layout()}
+    const hw=s.hw||{gps:true,mic:true,spectrum:true},G=s.gps||{};
+    document.body.classList.toggle('nogps',!hw.gps);document.body.classList.toggle('nomic',!hw.mic);document.body.classList.toggle('nospec',hw.spectrum===false);
+    hwNow=hw;
+    const k=hw.gps+'/'+hw.mic;if(k!==layKey){layKey=k;layout();buildHelp();addGroupHelp()}
     txt('t-agl',fH(s.agl));txt('t-msl',fH(s.altMsl)+' MSL');
     txt('t-vario',(s.vario>=0?'+':'')+s.vario.toFixed(1)+' m/s');txt('t-mute',s.muted?'muted':'');
     txt('t-speed',G.fix?fS(G.speed):'–');
@@ -288,7 +347,7 @@ function render(){
       '<div class="row"><span>Server network</span><b id="w-server">–</b></div><div class="row"><span>Server IP address</span><b id="w-server-ip">–</b></div>');
     groups[g].forEach(f=>d.appendChild(field(f)));root.appendChild(d);
   }
-  showWifi();
+  showWifi();addGroupHelp();
 }
 let wifiInfo=null;
 function showWifi(){
@@ -451,5 +510,5 @@ async function boot(){
     if(s.debug){selectTab('system');$('#dbg').open=true;pollDbg()}}catch(e){}
 }
 boot();
-layout();pollHeight();
+layout();buildHelp();pollHeight();
 </script></body></html>)HTML";
