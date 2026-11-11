@@ -1085,7 +1085,8 @@ def t_variant_no_gps(v, a):
                           ".filter(i=>document.getElementById(i).offsetParent!==null)")
             if hidden:
                 raise Fail(f"web page: still shown without a GPS: {hidden}")
-            p.wait_text("t-flight", r"^Flying$", 6)
+            p.wait_text("t-flight", r"^\d+:\d\d$", 6, "elapsed flight time while flying")
+            p.wait_text("t-ftime", r"^Flying$", 6)
             p.wait_text("t-agl", r"^1[23]\d ft$", 6, "height shown without a GPS")
             check_tile_layout(p, gps=False, mic=True)
             check_height_graph(p)
@@ -1506,8 +1507,8 @@ def t_ui_guidance(v, a):
     p.tab("flight")
     m = v.mark()
     take_off(v, climb_to=GROUND_M + 100, vz=4)
-    p.wait_text("t-flight", r"^Flying$", 8)
-    p.wait_text("t-ftime", r"^\d+:\d\d · logging$", 8)
+    p.wait_text("t-flight", r"^\d+:\d\d$", 8, "elapsed flight time while flying")
+    p.wait_text("t-ftime", r"^Flying · logging$", 8)
     p.wait("document.getElementById('ready').className==='ready hide'", 5, "ready banner hidden in flight")
     p.wait_text("t-wind", r"^\d+°$", 8, "wind from the takeoff run")
     p.wait_text("t-winds", r"takeoff$")
@@ -1535,6 +1536,7 @@ def t_ui_guidance(v, a):
 
     v.sim(speed=0, vz=-8, to=GROUND_M)
     p.wait_text("t-flight", r"^Grounded$", 20)
+    p.wait_text("t-ftime", r"^last flight \d+:\d\d$", 6, "length of the last flight after landing")
     # Only the log this test created is touched: the vario may hold real flight logs.
     fresh = [f["n"] for f in v.get_json("/api/logs")["files"] if f["n"] not in logs_before]
     if len(fresh) != 1 or not re.match(r"^210101-\d{6}\.igc$", fresh[0]):
@@ -1694,6 +1696,16 @@ def t_ui_system(v, a):
                    "==='true').map(b=>b.dataset.tab)")
         if vis != [name + "Page"] or sel != [name]:
             raise Fail(f"web page: tab {name} shows {vis}, selected {sel}")
+    # Home Screen app support (iPhone: Share > Add to Home Screen): tags in the page and the icon itself
+    tags = p.js("[...document.querySelectorAll('meta')].filter(m=>m.name.startsWith('apple-mobile-web-app')).map(m=>m.name+'='+m.content)")
+    if "apple-mobile-web-app-capable=yes" not in tags or "apple-mobile-web-app-title=ParaVario" not in tags:
+        raise Fail(f"web page: Home Screen app tags missing: {tags}")
+    if p.js("document.querySelector('link[rel=apple-touch-icon]').getAttribute('href')") != "/apple-touch-icon.png":
+        raise Fail("web page: apple-touch-icon link missing")
+    for path in ("/apple-touch-icon.png", "/favicon.ico"):
+        code, body = v._open(path)
+        if code != 200 or body[:8] != b"\x89PNG\r\n\x1a\n" or struct.unpack(">II", body[16:24]) != (180, 180):
+            raise Fail(f"{path}: expected a 180 x 180 PNG, got HTTP {code}, {len(body)} bytes")
     p.wait_text("fwver", rf"^Installed: {re.escape(st['version'])} · git {re.escape(st['git'])} \(debug build\)$", 5)
     p.wait_text("sys", r"^Uptime \d+:\d\d(:\d\d)? · heap \d+ kB · BLE clients \d+ · baro [\d.]+ hPa$", 5)
     p.wait("document.querySelector('#logs').textContent.length>0 && "

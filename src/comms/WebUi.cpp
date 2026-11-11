@@ -19,6 +19,7 @@
 #include "app/VarioSound.h"
 #include "audio/Speech.h"
 #include "audio/Volume.h"
+#include "comms/AppIcon.h"
 #include "comms/WebPage.h"
 #include "nav/Geo.h"
 #include "sensors/Mic.h"
@@ -581,6 +582,13 @@ void handleOtaDone() {
 
 void handleRoot() { server.send_P(200, "text/html", kIndexHtml); }
 
+// The app icon: what an iPhone uses when the page is added to the Home Screen (the page then opens
+// without Safari's bars), and the favicon. Served from flash and cached for a day.
+void handleIcon() {
+  server.sendHeader("Cache-Control", "public, max-age=86400");
+  server.send_P(200, "image/png", reinterpret_cast<const char*>(kAppIcon), sizeof(kAppIcon));
+}
+
 // Anything else (including OS captive-portal probes) is sent to the UI. Registered as the last
 // handler rather than with onNotFound(), which makes the core log "request handler not found"
 // for every connectivity check a phone or PC makes.
@@ -638,6 +646,9 @@ void begin() {
   if (MDNS.begin("paravario")) MDNS.addService("http", "tcp", 80);
 
   route("/", HTTP_GET, handleRoot);
+  route("/apple-touch-icon.png", HTTP_GET, handleIcon);
+  route("/apple-touch-icon-precomposed.png", HTTP_GET, handleIcon);
+  route("/favicon.ico", HTTP_GET, handleIcon);
   route("/api/status", HTTP_GET, handleStatus);
   route("/api/settings", HTTP_GET, handleGetSettings);
   route("/api/settings", HTTP_POST, handlePostSettings);

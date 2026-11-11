@@ -88,7 +88,7 @@ const Field kFields[] = {
     FL(baroTakeoffGainM, "Takeoff & landing", "Takeoff height gain without GPS", "height", 3.0f, 200.0f),
     FL(groundHoldVarioMs, "Takeoff & landing", "Ground level held when climbing or sinking faster than", "m/s",
        0.1f, 3.0f),
-    FL(landingSpeedMs, "Takeoff & landing", "Landed below ground speed", "speed", 0.2f, 10.0f),
+    FL(landingSpeedMs, "Takeoff & landing", "Landed by ground speed", "speed", 0.2f, 10.0f),
     I(landingTimeS, "Takeoff & landing", "Landed after", "s", 5, 300),
 
     I(glideShortS, "Glide", "Glide ratio tile: average over", "s", 1, 10),

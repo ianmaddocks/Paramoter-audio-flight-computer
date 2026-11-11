@@ -8,6 +8,12 @@
 static const char kIndexHtml[] PROGMEM = R"HTML(<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ParaVario">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/favicon.ico">
 <title>ParaVario</title>
 <style>
 :root{--bg:#f2f3f5;--card:#fff;--fg:#15171b;--mut:#6b7280;--acc:#0b6bcb;--bad:#c62828;--ok:#1b8a4b;--warn:#b26a00;--bd:#dfe2e6}
@@ -392,7 +398,10 @@ async function poll(){
     txt('t-vario',(s.vario>=0?'+':'')+s.vario.toFixed(1)+' m/s');txt('t-mute',s.muted?'muted':'');
     txt('t-speed',G.fix?fS(G.speed):'–');
     const L=s.glide||{};txt('t-glide',L.now!=null?fR(L.now):'–');txt('t-glides',(cfg.glideLongS||60)+' s avg '+(L.avg!=null?fR(L.avg):'–'));txt('t-track',G.fix?'track '+Math.round(G.track)+'°':'');
-    txt('t-flight',s.flying?'Flying':'Grounded');txt('t-ftime',s.flightTime?fT(s.flightTime)+(s.logging?' · logging':''):'');
+    // Flight time: the elapsed time is the main value while flying; on the ground it says Grounded and,
+    // after a flight, the length of the last one.
+    txt('t-flight',s.flying?fT(s.flightTime):'Grounded');
+    txt('t-ftime',s.flying?'Flying'+(s.logging?' · logging':''):s.flightTime?'last flight '+fT(s.flightTime):'');
     $('#b-approach').classList.toggle('on',s.mode=='approach');$('#b-emergency').classList.toggle('on',s.mode=='emergency');
     $('#b-mute').textContent=s.muted?'Unmute vario':'Mute vario';
     txt('t-lz',!s.lz.valid?'not set':s.lz.dist!=null?fD(s.lz.dist):'set');
@@ -644,7 +653,7 @@ layout();buildHelp();pollHeight();
 // (Installing the page is not possible over plain HTTP; this works anywhere the browser supports it.)
 (function(){
   const d=document,r=d.documentElement,req=r.requestFullscreen||r.webkitRequestFullscreen,b=$('#b-fs');
-  if(!req)return;b.hidden=false;
+  if(!req||navigator.standalone||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches))return;b.hidden=false;
   const on=()=>!!(d.fullscreenElement||d.webkitFullscreenElement),show=()=>{b.textContent=on()?'Exit full screen':'Full screen'};
   b.onclick=()=>{try{
     if(on())(d.exitFullscreen||d.webkitExitFullscreen).call(d);

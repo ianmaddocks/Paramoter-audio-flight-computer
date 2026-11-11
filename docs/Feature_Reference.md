@@ -52,7 +52,7 @@ The number comes from the barometer, smoothed so it does not jump about. How qui
 ### Flight time
 Whether you are flying, and for how long.
 
-It says `Grounded` before takeoff. After takeoff it says `Flying`, with the time under it: `12:34`. On an Advanced vario `· logging` is added while a flight log is being recorded.
+While you fly the tile shows the elapsed time, for example `12:34`, with `Flying` under it. On an Advanced vario `· logging` is added while a flight log is being recorded. On the ground it says `Grounded`, and after a flight the line under it shows the length of that flight, for example `last flight 35:10`.
 
 Takeoff and landing are detected automatically (see *Takeoff and landing* settings). The flight time starts at takeoff and stops at landing.
 
@@ -91,7 +91,7 @@ Tap it to silence the beeps while you chat or hold the vario; tap again (it read
 ### Full screen
 Hides the browser's bars so the page fills the phone screen.
 
-Tap **Full screen** at the bottom of the Actions and the address bar and the phone's own bars disappear, much as they would in an installed app. The button then reads **Exit full screen**; you can also swipe down from the top edge. You have to tap it each time you open the page, because a browser only allows full screen after a tap. If the browser does not support full screen the button is not shown.
+Tap **Full screen** at the bottom of the Actions and the address bar and the phone's own bars disappear, much as they would in an installed app. The button then reads **Exit full screen**; you can also swipe down from the top edge. You have to tap it each time you open the page, because a browser only allows full screen after a tap. If the browser does not support full screen the button is not shown. That is the case on an iPhone, where Safari does not allow it; there, add the page to the Home Screen instead (Share, then **Add to Home Screen**) and open the vario from its icon: the page then opens without Safari's bars, and the Full screen button is not needed (it is hidden when the page runs that way).
 
 ### Test voice
 Plays a sample announcement so you can check the speaker and the volume.
@@ -686,8 +686,8 @@ How much you must also climb, as well as the speed.
 
 For example, at 33 ft (10 m), "Take off" is announced once you have held takeoff speed and risen that far. Default: 33 ft.
 
-### Landed below ground speed
-The speed below which you count as stopped.
+### Landed by ground speed
+The ground speed below which you count as stopped, so you have landed.
 
 For example, at 5 km/h, walking pace or slower. Default: 5 km/h.
 

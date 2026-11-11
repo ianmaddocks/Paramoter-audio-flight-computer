@@ -81,6 +81,8 @@ There are four tabs:
 
 Heights follow your chosen unit (feet or metres), and the heights you type in settings are in that unit too.
 
+**Using the page like an app.** On Android, tap **Full screen** to hide Chrome's bars. On an iPhone, open the page in Safari, tap Share, then **Add to Home Screen**, and open the vario from the new icon: it opens without Safari's bars.
+
 Details of each tile and button: [reference, Tiles](Feature_Reference.md#basic-tiles), [Buttons](Feature_Reference.md#basic-buttons).
 
 ## Common things to set

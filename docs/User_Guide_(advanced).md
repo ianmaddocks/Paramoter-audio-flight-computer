@@ -112,6 +112,8 @@ The phone has no internet while it's on this network, so turn mobile data on if 
 
 Heights, distances and speeds on the page follow your chosen units, and you always enter them in those units.
 
+**Using the page like an app.** On Android, tap **Full screen** to hide Chrome's bars. On an iPhone, open the page in Safari, tap Share, then **Add to Home Screen**, and open the vario from the new icon: it opens without Safari's bars.
+
 ## Settings
 
 Every setting, with its default, an example and what it does underneath, is in [Feature_Reference.md](Feature_Reference.md). A quick map:
