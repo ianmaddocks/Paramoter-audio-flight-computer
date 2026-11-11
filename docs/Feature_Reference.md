@@ -21,6 +21,8 @@ Heights in the examples use the default unit (feet). You can switch to metres in
 
 Settings are changed on the Settings tab of the web page. A change is saved a moment after you make it. A setting marked **restart** takes effect after the vario is restarted.
 
+The settings most pilots never need to change are collected in an **Advanced settings** section at the end of the list. It starts closed; tap it to open it. It holds the groups Battery, Wi-Fi, GPS, Engine RPM, Wind, Logging (including *Keep this much track before takeoff*) and Glide. A vario without a GPS or a microphone shows only those of them that apply to it.
+
 ---
 
 # Part 1 - Basic

@@ -1268,7 +1268,7 @@ def t_ui_help(v, a):
     p.wait("document.querySelectorAll('#settings summary .help a').length>0", 8, "group help links")
     groups = p.js("[...document.querySelectorAll('#settings summary')].map(s=>({g:s.firstChild.textContent,"
                   "l:[...s.querySelectorAll('.help a')].map(a=>({t:a.textContent,h:a.href}))}))")
-    bare = [g["g"] for g in groups if not g["l"]]
+    bare = [g["g"] for g in groups if not g["l"] and g["g"] != "Advanced settings"]
     if bare:
         raise Fail(f"web page: settings groups with no help link: {bare}")
     for g in groups:
@@ -1578,9 +1578,20 @@ def t_ui_settings(v, a):
         for f in schema:
             if f["g"] not in groups:
                 groups.append(f["g"])
-        shown = p.js("[...document.querySelectorAll('#settings details>summary')].map(s=>s.firstChild.textContent)")
-        if shown != groups:
-            raise Fail(f"web page: setting groups {shown} differ from the firmware's {groups}")
+        # Battery, Wi-Fi, GPS, Engine RPM, Wind, Logging and Glide sit in a collapsed "Advanced settings"
+        # section at the end; the other groups keep the firmware's order.
+        adv_order = ["Battery", "Wi-Fi", "GPS", "Engine RPM", "Wind", "Logging", "Glide"]
+        main_groups = [g for g in groups if g not in adv_order]
+        adv_groups = [g for g in adv_order if g in groups]
+        shown = p.js("[...document.querySelectorAll('#settings>details>summary')].map(s=>s.firstChild.textContent)")
+        want = main_groups + (["Advanced settings"] if adv_groups else [])
+        if shown != want:
+            raise Fail(f"web page: top-level setting groups {shown}, expected {want}")
+        shown_adv = p.js("[...document.querySelectorAll('#advSettings>details>summary')].map(s=>s.firstChild.textContent)")
+        if shown_adv != adv_groups:
+            raise Fail(f"web page: Advanced settings holds {shown_adv}, expected {adv_groups}")
+        if p.js("document.getElementById('advSettings').open"):
+            raise Fail("web page: Advanced settings should start closed")
         rows = p.js("document.querySelectorAll('#settings label.row').length")
         near(rows, len(schema), 0, "number of settings shown")
         missing = p.js("schema.filter(f=>!tInput(f.k)).map(f=>f.k)")

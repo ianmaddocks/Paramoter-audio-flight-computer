@@ -39,6 +39,8 @@ details.card{padding:0}
 summary{padding:12px;font-weight:600;cursor:pointer}
 details .row{margin:0 12px}
 details[open]{padding-bottom:6px}
+details.sub{margin:8px 10px 0}
+.advnote{margin:0 12px 4px}
 .btns{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 button{font:inherit;border:1px solid var(--bd);background:var(--bg);color:var(--fg);border-radius:10px;padding:11px 8px;cursor:pointer}
 button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
@@ -464,16 +466,27 @@ function field(f){
     i.onchange=()=>{const v=parseFloat(i.value);if(!isNaN(v))setVal(f,v/c.f)}}
   row.append(sp,i);return row;
 }
+// Settings that most pilots never need to change sit in one collapsed "Advanced settings" section at the
+// end of the list, in this order.
+const ADV_GROUPS=['Battery','Wi-Fi','GPS','Engine RPM','Wind','Logging','Glide'];
 function render(){
   const root=$('#settings');root.innerHTML='';const groups={};
   for(const f of schema)(groups[f.g]=groups[f.g]||[]).push(f);
-  for(const g in groups){
-    const d=document.createElement('details');d.className='card';d.open=openGroups.has(g);
+  const group=(g,parent,cls)=>{
+    const d=document.createElement('details');d.className=cls;d.open=openGroups.has(g);
     d.ontoggle=()=>d.open?openGroups.add(g):openGroups.delete(g);
     const s=document.createElement('summary');s.textContent=g;d.appendChild(s);
     if(g==='Wi-Fi')d.insertAdjacentHTML('beforeend','<div class="row"><span>Vario network</span><b id="w-ap">–</b></div>'+
       '<div class="row"><span>Server network</span><b id="w-server">–</b></div><div class="row"><span>Server IP address</span><b id="w-server-ip">–</b></div>');
-    groups[g].forEach(f=>d.appendChild(field(f)));root.appendChild(d);
+    groups[g].forEach(f=>d.appendChild(field(f)));parent.appendChild(d);return d};
+  for(const g in groups)if(!ADV_GROUPS.includes(g))group(g,root,'card');
+  const adv=ADV_GROUPS.filter(g=>groups[g]);
+  if(adv.length){
+    const o=document.createElement('details');o.className='card';o.id='advSettings';o.open=openGroups.has('Advanced settings');
+    o.ontoggle=()=>o.open?openGroups.add('Advanced settings'):openGroups.delete('Advanced settings');
+    const s=document.createElement('summary');s.textContent='Advanced settings';o.appendChild(s);
+    const n=document.createElement('p');n.className='mut advnote';n.textContent='Settings most pilots never need to change: '+adv.join(', ')+'.';o.appendChild(n);
+    adv.forEach(g=>group(g,o,'card sub'));root.appendChild(o);
   }
   showWifi();addGroupHelp();
 }

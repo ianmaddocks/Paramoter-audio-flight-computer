@@ -75,7 +75,7 @@ There are four tabs:
 | Tab | What is there |
 |---|---|
 | **Flight** | The ready banner; tiles for **Height**, a **height graph** of the last 10 minutes, **Vario**, **Flight time**, and **Battery**; and buttons for **Mute vario**, **Test voice** and **Full screen** (hides the browser's bars). Refreshed every second. |
-| **Settings** | Every setting, in groups. Change a value and it is saved a moment later. A setting marked *restart* takes effect after a restart. |
+| **Settings** | Every setting, in groups. Change a value and it is saved a moment later. A setting marked *restart* takes effect after a restart. The rarely needed groups (Battery and Wi-Fi on this version) are inside **Advanced settings** at the end. |
 | **Logs & system** | The **Logging** section (live messages from the vario, for finding problems), firmware update, **Restart** and **Factory defaults**. (The flight-log list is empty on this version, because logs need a GPS.) |
 | **Help** | Opens this guide and the feature reference on GitHub (the latest version; the phone needs internet, so turn mobile data on). Each group on the Settings tab also has a **Help** link to its entry in the reference. |
 
