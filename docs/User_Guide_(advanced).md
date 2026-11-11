@@ -102,10 +102,10 @@ The phone has no internet while it's on this network, so turn mobile data on if 
 | Banner | Green **Ready to fly**, or amber with what's missing and the satellite count. Hidden while flying, except during guidance: blue **Approach** with the current circuit leg, or red **Emergency** with the glide range. |
 | Tiles | Refreshed every second. Top group: height above the LZ (and above sea level) with a rolling graph of the last 10 minutes beside it, vario, ground speed and track, **glide ratio**, flight state and time, LZ distance and bearing, wind. Under the Actions: GPS satellites and signal quality (strong, good, ok, poor, none), battery, engine RPM, background noise. |
 | Glide ratio | Ground distance covered per unit of height lost, e.g. `6.7 : 1`. The big value is the average over the last second, the small one the average over the last 60 seconds (both windows are in the Glide settings). Shows `–` when level or climbing, and `>50` above 50. Needs a GPS. |
-| Actions | Landing approach, Emergency glide, Mute vario (same as the button), **Test voice**, **Set LZ here**, **LZ = takeoff**. |
+| Actions | Landing approach, Emergency glide, Mute vario (same as the button), **Test voice**, **Set LZ here**, **LZ = takeoff**, **Full screen** (hides the browser's bars). |
 | Settings | Collapsible groups (see below). Change a value and it is saved a moment later. Settings marked *restart* apply after a restart. |
 | Flight logs | IGC files for each flight. Tap a name to download or Delete to remove. The oldest logs are deleted automatically when space runs low. |
-| Debug log | Live log lines from the vario, with Pause, Clear and Save as file. Opens automatically on the debug firmware. The same lines appear on the USB serial port. |
+| Logging | Live messages from the vario, with Pause, Clear and Save as file, for finding problems. Opens automatically on the debug firmware. The same lines appear on the USB serial port. (Flight recording is set in the Logging group of the settings.) |
 | Firmware update | Shows the installed version. Choose a `.bin` file and tap **Install update** (see *Maintenance*). Disabled while flying. |
 | System | Restart, Factory defaults. |
 | Help | The **Help** tab opens the guides and the feature reference on GitHub (the latest version; the phone needs internet, so turn mobile data on). Each group on the Settings tab also has **Help** links to its entry in the reference. |

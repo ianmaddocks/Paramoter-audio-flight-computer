@@ -88,6 +88,11 @@ The same as the push button.
 
 Tap it to silence the beeps while you chat or hold the vario; tap again (it reads *Unmute vario*) to bring them back.
 
+### Full screen
+Hides the browser's bars so the page fills the phone screen.
+
+Tap **Full screen** at the bottom of the Actions and the address bar and the phone's own bars disappear, much as they would in an installed app. The button then reads **Exit full screen**; you can also swipe down from the top edge. You have to tap it each time you open the page, because a browser only allows full screen after a tap. If the browser does not support full screen the button is not shown.
+
 ### Test voice
 Plays a sample announcement so you can check the speaker and the volume.
 
@@ -363,10 +368,10 @@ The list of recorded flights.
 
 Flight logs (IGC files) are made only when a GPS is fitted, so a Basic vario shows "No flights recorded yet".
 
-### Debug log
-A live window into what the vario is doing, for finding problems.
+### Logging
+A live view of what the vario is doing, useful when something does not work as expected.
 
-Open it, and the vario's own messages scroll past. *Pause* freezes it, *Clear* empties it, *Save as file* keeps a copy to send to someone helping you. It opens by itself on a debug build.
+Open the Logging section and the vario's own messages scroll past. *Pause* freezes them, *Clear* empties the list, and *Save as file* keeps a copy to send to someone who is helping you. (This is not the flight log, which is the list of recorded flights above, and it is not the *Logging* group of settings, which controls flight recording.) The section opens by itself on a debug build.
 
 ### Firmware update
 Installs a new program on the vario from your phone or computer.

@@ -148,7 +148,7 @@ src/
   App.h               the App struct: all sensors, flight logic and outputs
   Hardware.h          optional hardware (GPS, microphone)
   Settings.*          every tunable, with its web-page description; stored in NVS as JSON
-  Log.*               log ring buffer (serial + web page debug log)
+  Log.*               log ring buffer (serial + the web page's Logging section)
   Pins.h, Version.h
   app/
     App.cpp           the main loop: order and timing of everything

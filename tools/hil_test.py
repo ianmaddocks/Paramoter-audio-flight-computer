@@ -1422,6 +1422,13 @@ def t_ui_flight(v, a):
     p.wait_text("t-glide", r"^–$")
     p.wait_text("t-glides", r"^20 s avg –$")
     check_tile_layout(p, gps=True, mic=True)
+    # Full screen button: shown, labelled, and asks the browser for full screen when tapped
+    if p.js("document.getElementById('b-fs').offsetParent===null") or p.text("b-fs") != "Full screen":
+        raise Fail(f"web page: Full screen button missing or mislabelled ({p.text('b-fs')!r})")
+    p.js("window.__fs=0;document.documentElement.requestFullscreen=()=>{window.__fs++;return Promise.resolve()}")
+    p.click("#b-fs")
+    if p.js("window.__fs") != 1:
+        raise Fail("web page: the Full screen button did not ask the browser for full screen")
 
     v.sim(speed=12)
     p.wait_text("t-speed", r"^43 km/h$", 8, "12 m/s shown in km/h")

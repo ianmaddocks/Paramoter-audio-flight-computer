@@ -89,6 +89,7 @@ summary .help a{margin-left:12px;color:var(--acc)}
 #helpBody a.doc small{display:block;color:var(--mut);font-size:12px;font-weight:400}
 #helpBody .jump{margin:6px 0 2px;color:var(--mut);font-size:13px}#helpBody .jump a{margin-right:12px;color:var(--acc);white-space:nowrap}
 .tile.wide{grid-column:span 2}
+.btns .wide{grid-column:span 2}
 .tile.graph{display:flex;flex-direction:column;padding:6px 8px}
 .tile.graph .k{margin-bottom:2px}
 #hgCv{width:100%;height:60px;flex:1 1 auto;display:block}
@@ -126,6 +127,7 @@ R"HTML(
 <button data-a="test_voice">Test voice</button>
 <button data-a="lz_here" class="needgps">Set LZ here</button>
 <button data-a="lz_takeoff" class="needgps">LZ = takeoff</button>
+<button type="button" id="b-fs" class="wide" hidden>Full screen</button>
 </div></section>
 <section class="tiles more" id="tilesMore">
 <div class="tile needgps"><div class="k">GPS</div><div class="v" id="t-gps">–</div><div class="s" id="t-gpss"></div></div>
@@ -152,7 +154,7 @@ R"HTML(<div id="spectrumPage" class="page" role="tabpanel" hidden>
 R"HTML(
 <div id="systemPage" class="page" role="tabpanel" hidden>
 <section class="card"><h2>Flight logs</h2><div id="logs" class="mut">Loading…</div></section>
-<details class="card" id="dbg"><summary>Debug log <small class="mut" id="dbginfo"></small></summary>
+<details class="card" id="dbg"><summary>Logging <small class="mut" id="dbginfo"></small></summary>
 <div class="dbgbar"><button id="dbgpause">Pause</button><button id="dbgclear">Clear</button><button id="dbgsave">Save as file</button></div>
 <pre id="dbglog"></pre></details>
 <section class="card"><h2>Firmware update</h2>
@@ -638,4 +640,16 @@ async function boot(){
 }
 boot();
 layout();buildHelp();pollHeight();
+// Full screen: hides the browser's address bar and the phone's own bars, much as an installed app would.
+// (Installing the page is not possible over plain HTTP; this works anywhere the browser supports it.)
+(function(){
+  const d=document,r=d.documentElement,req=r.requestFullscreen||r.webkitRequestFullscreen,b=$('#b-fs');
+  if(!req)return;b.hidden=false;
+  const on=()=>!!(d.fullscreenElement||d.webkitFullscreenElement),show=()=>{b.textContent=on()?'Exit full screen':'Full screen'};
+  b.onclick=()=>{try{
+    if(on())(d.exitFullscreen||d.webkitExitFullscreen).call(d);
+    else{const p=r.requestFullscreen?r.requestFullscreen({navigationUI:'hide'}):r.webkitRequestFullscreen();if(p&&p.catch)p.catch(()=>toast('Full screen is not available here'))}
+  }catch(e){toast('Full screen is not available here')}};
+  d.addEventListener('fullscreenchange',show);d.addEventListener('webkitfullscreenchange',show);
+})();
 </script></body></html>)HTML";
