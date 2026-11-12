@@ -1,0 +1,36 @@
+ParaVario 20261112-120610 (ae9b1a0-dirty) at paravario.local, 2 tests
+  PASS  memory_events    262.9 s  free 47932 -> [48060, 42916, 42904] B over three rounds, lowest 2724 B, largest block 21492 B, stacks free {'loopTask': 436, 'audio': 2232, 'mic': 2000}
+        memory: free 42896 lowest 2724 largest block 21492 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  soak             723.8 s  10 min flown, free memory 42820 -> 42832 B (trend +0 B/min), lowest 2724 B, wind estimate from 270 at 4.0, no log lines dropped
+        memory: free 42684 lowest 2724 largest block 23540 | others: web pages 0, Wi-Fi stations 0, BLE 0
+Cleanup: simulation off, flight logic reset, settings restored, 4 leftover test log(s) deleted, leftover test logs.
+
+2 passed, 0 failed, 165 log lines missed
+ParaVario 20261112-120610 (ae9b1a0-dirty) at paravario.local, 2 tests
+  FAIL  vario_thresholds  67.1 s  microphone heard 12 dB over the floor at 314 Hz where 1.80 m/s of sink should be silent
+        state: uptime 6164 s, flying False, agl -20 m, vario -1.82, baro ok True, fix False, wind none 0/0.0, heap 48084 (lowest 2724)
+        sim: {"baro": 1, "alt": 379.79, "vz": -1.8, "gps": "real", "lat": 51.5, "lon": 0.5, "speed": 0.0, "track": 0.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [ 6161.176] D NAV: fix=0 good=0 sat=0 hdop=100.0 51.491963,0.520711 gs=0.0 trk=358 gpsAlt=363.0
+          [ 6161.177] D NAV: baro=1 p=97467 t=20.0 std=326.3 msl=326.3 agl=-13.7 vs=-1.80 fly=0 ft=0
+          [ 6161.177] D NAV: lz=0 0.000000,0.000000 elev=340.0 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=51044
+          [ 6161.976] D MIC: noise=-58.3 (blk -55.7) dBFS rpm=0 raw=6787 conf=1.9 fs=2003 tone=0 clear=1 ovf=757504
+          [ 6162.077] D BAT: v=4.160 pct=100 min=360 learned=0
+          [ 6162.177] D NAV: fix=0 good=0 sat=0 hdop=100.0 51.491963,0.520711 gs=0.0 trk=358 gpsAlt=363.0
+          [ 6162.178] D NAV: baro=1 p=97488 t=20.0 std=324.4 msl=324.4 agl=-15.6 vs=-1.80 fly=0 ft=0
+          [ 6162.178] D NAV: lz=0 0.000000,0.000000 elev=340.0 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=50976
+          [ 6163.179] D NAV: fix=0 good=0 sat=0 hdop=100.0 51.491963,0.520711 gs=0.0 trk=358 gpsAlt=363.0
+          [ 6163.180] D NAV: baro=1 p=97508 t=20.0 std=322.6 msl=322.6 agl=-17.3 vs=-1.79 fly=0 ft=0
+          [ 6163.180] D NAV: lz=0 0.000000,0.000000 elev=340.0 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=51216
+          [ 6163.380] D VOL: noise -59.3 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [ 6164.024] D MIC: noise=-59.5 (blk -59.5) dBFS rpm=0 raw=8287 conf=2.3 fs=2003 tone=0 clear=1 ovf=757760
+          [ 6164.080] D BAT: v=4.160 pct=100 min=360 learned=0
+          [ 6164.181] D NAV: fix=0 good=0 sat=0 hdop=100.0 51.491963,0.520711 gs=0.0 trk=358 gpsAlt=363.0
+          [ 6164.182] D NAV: baro=1 p=97529 t=20.0 std=320.8 msl=320.8 agl=-19.2 vs=-1.80 fly=0 ft=0
+          [ 6164.182] D NAV: lz=0 0.000000,0.000000 elev=340.0 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=51008
+          [ 6164.352] I WEB: settings saved
+  PASS  glide             80.7 s  6.7 : 1 now, 6.7 : 1 over 20 s (true 6.7)
+Cleanup: simulation off, flight logic reset, settings restored, 1 leftover test log(s) deleted, leftover test logs.
+
+1 passed, 1 failed
+exit 1

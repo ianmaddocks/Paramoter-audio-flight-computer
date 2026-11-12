@@ -1,0 +1,204 @@
+ParaVario 20261112-081519 (ae9b1a0) at paravario.local, 9 tests
+  FAIL  rpm_speech        13.1 s  announcement 1: RPM read [0] during or after the speech (engine at 2500 rpm): [2502, 2502, 2502, 0, 0, 0, 0, 0, 0, 0, 2545, 2545, 2544, 2545, 2544, 2544, 2545]
+        state: uptime 3682 s, flying False, agl -0 m, vario -0.04, baro ok True, fix True, wind none 0/0.0, heap 48312 (lowest 2168)
+        sim: {"baro": 0, "alt": 0.0, "vz": 0.0, "gps": "real", "lat": 51.5, "lon": 0.5, "speed": 0.0, "track": 0.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [ 3679.001] D NAV: baro=1 p=100748 t=59.3 std=48.2 msl=410.8 agl=-0.1 vs=+0.04 fly=0 ft=0
+          [ 3679.001] D NAV: lz=0 0.000000,0.000000 elev=410.9 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=51512
+          [ 3679.148] D MIC: noise=-38.8 (blk -28.8) dBFS rpm=2545 raw=2545 conf=18.1 fs=2037 tone=0 clear=1 ovf=454464
+          [ 3679.404] D BAT: v=4.163 pct=100 min=360 learned=0
+          [ 3680.009] D NAV: fix=0 good=0 sat=3 hdop=8.2 51.781418,0.940125 gs=0.0 trk=225 gpsAlt=339.3
+          [ 3680.010] D NAV: baro=1 p=100747 t=59.3 std=48.2 msl=410.8 agl=-0.1 vs=+0.02 fly=0 ft=0
+          [ 3680.011] D NAV: lz=0 0.000000,0.000000 elev=410.8 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=48956
+          [ 3681.024] D NAV: fix=1 good=0 sat=5 hdop=2.6 51.781378,0.940209 gs=0.0 trk=225 gpsAlt=339.3
+          [ 3681.025] D NAV: baro=1 p=100748 t=59.3 std=48.2 msl=410.7 agl=-0.1 vs=-0.03 fly=0 ft=0
+          [ 3681.025] D NAV: lz=0 0.000000,0.000000 elev=410.8 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=51512
+          [ 3681.222] D MIC: noise=-30.5 (blk -28.9) dBFS rpm=2544 raw=2543 conf=16.8 fs=2037 tone=0 clear=1 ovf=454720
+          [ 3681.427] D BAT: v=4.163 pct=100 min=360 learned=0
+          [ 3682.030] D NAV: fix=1 good=0 sat=5 hdop=2.6 51.781266,0.940154 gs=0.0 trk=225 gpsAlt=339.3
+          [ 3682.031] D NAV: baro=1 p=100748 t=59.3 std=48.1 msl=410.7 agl=-0.1 vs=-0.03 fly=0 ft=0
+          [ 3682.031] D NAV: lz=0 0.000000,0.000000 elev=410.8 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=51512
+          [ 3682.230] I SIM: micMode=real
+          [ 3682.230] I SIM: micHz=0
+          [ 3682.230] I SIM: micNoise=0
+  FAIL  rpm_glitch         1.8 s  sim {'rpmGlitch': 4000} rejected: b'{"error":"unknown sim key"}'
+        state: uptime 3684 s, flying False, agl -0 m, vario -0.02, baro ok True, fix False, wind none 0/0.0, heap 48276 (lowest 2168)
+        sim: {"baro": 0, "alt": 0.0, "vz": 0.0, "gps": "real", "lat": 51.5, "lon": 0.5, "speed": 0.0, "track": 0.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [ 3683.040] D NAV: baro=1 p=100749 t=59.3 std=48.1 msl=410.7 agl=-0.1 vs=+0.09 fly=0 ft=0
+          [ 3683.040] D NAV: lz=0 0.000000,0.000000 elev=410.8 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=50848
+          [ 3683.047] I SIM: flight state reset
+          [ 3683.139] D RDY: Waiting for satellites
+          [ 3683.162] I WEB: settings saved
+          [ 3683.271] D MIC: noise=-43.2 (blk -59.4) dBFS rpm=1317 raw=1165 conf=1.5 fs=2003 tone=0 clear=1 ovf=454976
+          [ 3683.440] D BAT: v=4.164 pct=100 min=360 learned=0
+          [ 3683.492] I SIM: micMode=synth
+          [ 3683.492] I SIM: micHz=33.333333333333336
+          [ 3683.493] I SIM: micAmp=150
+          [ 3683.493] I SIM: micNoise=60
+          [ 3683.540] D VOL: noise -46.3 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [ 3684.042] D NAV: fix=0 good=0 sat=3 hdop=8.2 51.781230,0.940176 gs=0.0 trk=225 gpsAlt=339.3
+          [ 3684.043] D NAV: baro=1 p=100749 t=59.3 std=48.1 msl=48.1 agl=-0.0 vs=-0.02 fly=0 ft=0
+          [ 3684.043] D NAV: lz=0 0.000000,0.000000 elev=48.1 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=51512
+          [ 3684.483] I SIM: micMode=real
+          [ 3684.483] I SIM: micHz=0
+          [ 3684.483] I SIM: micNoise=0
+  FAIL  wind_change      118.0 s  second fit in the new wind: estimate from 87 at 2.4 is 2.57 m/s from the true wind (from 90 at 5); an obsolete estimate still pulling it? (F2)
+        state: uptime 3803 s, flying True, agl 60 m, vario +0.00, baro ok True, fix True, wind circling 87/2.4, heap 43168 (lowest 2168)
+        sim: {"baro": 1, "alt": 160.0, "vz": 0.0, "gps": "fix", "lat": 51.499382, "lon": 0.494968, "speed": 14.23, "track": 243.7, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 230.8}
+        last log lines:
+          [ 3799.577] D VOL: noise -58.3 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [ 3800.084] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.499629,0.495394 gs=11.0 trk=205 gpsAlt=160.0
+          [ 3800.085] D NAV: baro=1 p=101205 t=20.0 std=10.0 msl=160.0 agl=60.0 vs=-0.00 fly=1 ft=101
+          [ 3800.086] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 87/2.4 mode=none/off mute=0 batt=4.16V heap=40500
+          [ 3800.373] D MIC: noise=-58.2 (blk -58.1) dBFS rpm=0 raw=2906 conf=1.6 fs=2004 tone=0 clear=1 ovf=469568
+          [ 3800.487] D BAT: v=4.164 pct=100 min=360 learned=0
+          [ 3801.091] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.499541,0.495305 gs=12.3 trk=219 gpsAlt=160.0
+          [ 3801.092] D NAV: baro=1 p=101205 t=20.0 std=10.0 msl=160.0 agl=60.0 vs=-0.00 fly=1 ft=102
+          [ 3801.092] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 87/2.4 mode=none/off mute=0 batt=4.16V heap=45972
+          [ 3802.094] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.499459,0.495172 gs=13.4 trk=232 gpsAlt=160.0
+          [ 3802.095] D NAV: baro=1 p=101205 t=20.0 std=10.0 msl=160.0 agl=60.0 vs=+0.00 fly=1 ft=103
+          [ 3802.095] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 87/2.4 mode=none/off mute=0 batt=4.16V heap=46332
+          [ 3802.420] D MIC: noise=-58.2 (blk -58.7) dBFS rpm=0 raw=7477 conf=1.4 fs=2002 tone=0 clear=1 ovf=469824
+          [ 3802.497] D BAT: v=4.164 pct=100 min=360 learned=0
+          [ 3802.959] I SIM: turn=0
+          [ 3803.103] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.499393,0.495002 gs=14.2 trk=244 gpsAlt=160.0
+          [ 3803.103] D NAV: baro=1 p=101205 t=20.0 std=10.0 msl=160.0 agl=60.0 vs=+0.00 fly=1 ft=104
+          [ 3803.104] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 87/2.4 mode=none/off mute=0 batt=4.16V heap=43016
+  FAIL  circuit_right    274.2 s  right-hand: steering calls to a pilot who is on the line or making a called turn: [(3907, '[high] steer_left', 140, -19), (4004, '[high] steer_right', -262, 386)]; legs [('to start', 'upwind', 200, -31, 269, 14.53), ('upwind', 'crosswind', 226, 11, 257, 6.57), ('crosswind', 'downwind', 244, 371, 238, 9.76), ('downwind', 'base', -224, 400, 166, 14.56), ('base', 'final', -228, 28, 78, 9.66)]
+        state: uptime 4078 s, flying True, agl 1 m, vario -1.48, baro ok True, fix True, wind circling 250/4.0, heap 42988 (lowest 2168)
+        sim: {"baro": 1, "alt": 100.93, "vz": 0.0, "gps": "silent", "lat": 51.499991, "lon": 0.499963, "speed": 0.0, "track": 251.1, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 250.7}
+        last log lines:
+          [ 4077.702] I SIM: turnTo=62.101485572890766
+          [ 4077.801] I SIM: vz=0
+          [ 4077.801] I SIM: speed=0
+          [ 4077.801] I SIM: fly=0
+          [ 4077.823] D GPS: suspect fix: moved 1 m in 0.20 s, speed 6.6 -> 0.0 m/s, sats 10
+          [ 4077.823] D FLT: landing candidate: gs 0.0 m/s, agl 1.0 m
+          [ 4077.823] D RDY: GPS position unstable
+          [ 4078.036] D TONE: off 0 Hz
+          [ 4078.108] I SIM: turn=0
+          [ 4078.108] I SIM: fly=0
+          [ 4078.108] I SIM: speed=0
+          [ 4078.108] I SIM: vz=0
+          [ 4078.108] I SIM: gps=silent
+          [ 4078.122] D RDY: GPS not responding
+          [ 4078.243] I WEB: settings saved
+          [ 4078.322] D NAV: fix=1 good=0 sat=10 hdop=0.9 51.499991,0.499963 gs=0.0 trk=251 gpsAlt=100.9
+          [ 4078.322] D NAV: baro=1 p=101916 t=20.0 std=-49.6 msl=100.5 agl=0.5 vs=-1.48 fly=1 ft=260
+          [ 4078.323] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 250/4.0 mode=none/off mute=0 batt=4.16V heap=34844
+  FAIL  fault_baro        70.8 s  barometer not ok with a NaN pressure not reached within 8 s (last NAV: {'fix': '0', 'good': '0', 'sat': '0', 'hdop': '99.0', 'gs': '0.0', 'trk': '234', 'gpsAlt': '-323.8', 'lat': '51.775308', 'lon': '0.924445', 'baro': '1', 'p': '96574', 't': '20.0', 'std': '403.3', 'msl': '403.3', 'agl': '18.2', 'vs': '+2.00', 'fly': '0', 'ft': '0', 'lz': '0', 'elev': '385.1', 'wind': 'none', 'mode': 'none/off', 'mute': '0', 'batt': '4.16V', 'heap': '44764'})
+        state: uptime 4149 s, flying True, agl 26 m, vario +2.00, baro ok True, fix False, wind none 0/0.0, heap 42020 (lowest 2168)
+        sim: {"baro": 1, "alt": 471.21, "vz": 2.0, "gps": "real", "lat": 51.5, "lon": 0.5, "speed": 0.0, "track": 0.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [ 4147.743] D NAV: lz=0 0.000000,0.000000 elev=385.1 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=51260
+          [ 4148.744] D NAV: fix=0 good=0 sat=0 hdop=99.0 51.775308,0.924445 gs=0.0 trk=234 gpsAlt=-323.8
+          [ 4148.744] D NAV: baro=1 p=96505 t=20.0 std=409.2 msl=409.2 agl=24.1 vs=+2.00 fly=0 ft=0
+          [ 4148.745] D NAV: lz=0 0.000000,0.000000 elev=385.1 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=51260
+          [ 4148.905] D MIC: noise=-39.7 (blk -36.1) dBFS rpm=8879 raw=8872 conf=18.4 fs=1975 tone=900 clear=1 ovf=512832
+          [ 4149.126] I SIM: baroFault=none
+          [ 4149.126] I SIM: baroNoise=0
+          [ 4149.126] I SIM: hasGps=1
+          [ 4149.147] D RDY: Waiting for satellites
+          [ 4149.247] D BAT: v=4.164 pct=100 min=360 learned=0
+          [ 4149.379] I WEB: settings saved
+          [ 4149.448] I FLT: takeoff (baro only): gain 25.6 m, ground 385.1 m MSL, LZ 0.000000,0.000000
+          [ 4149.576] I IGC: Logging to /logs/261112-092529.igc (5 s of pre-takeoff history)
+          [ 4149.576] D SAY: [high] takeoff
+          [ 4149.578] I APP: Takeoff, course 0
+          [ 4149.783] D NAV: fix=0 good=0 sat=0 hdop=100.0 51.775308,0.924445 gs=0.0 trk=234 gpsAlt=-323.8
+          [ 4149.783] D NAV: baro=1 p=96480 t=20.0 std=411.3 msl=411.3 agl=26.2 vs=+2.00 fly=1 ft=0
+          [ 4149.784] D NAV: lz=0 0.000000,0.000000 elev=385.1 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=37632
+  FAIL  fault_gps         77.1 s  a weak GPS fix (4 satellites, hdop 4.2) for 14 s in level flight ended the flight (F8)
+        state: uptime 4227 s, flying False, agl 0 m, vario -0.00, baro ok True, fix True, wind takeoff 90/0.0, heap 41656 (lowest 2168)
+        sim: {"baro": 1, "alt": 160.0, "vz": 0.0, "gps": "fix", "lat": 51.5, "lon": 0.509753, "speed": 10.0, "track": 90.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 90.0}
+        last log lines:
+          [ 4225.296] D MIC: noise=-58.8 (blk -58.7) dBFS rpm=0 raw=1266 conf=1.5 fs=2001 tone=0 clear=1 ovf=522304
+          [ 4225.477] D NAV: fix=1 good=0 sat=4 hdop=4.2 51.500000,0.509449 gs=0.0 trk=90 gpsAlt=160.0
+          [ 4225.478] D NAV: baro=1 p=101205 t=20.0 std=10.0 msl=160.0 agl=0.0 vs=-0.00 fly=0 ft=52
+          [ 4225.478] D NAV: lz=1 51.500000,0.500000 elev=160.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.16V heap=51020
+          [ 4225.979] D BAT: v=4.164 pct=100 min=360 learned=0
+          [ 4226.482] D NAV: fix=1 good=0 sat=4 hdop=4.2 51.500000,0.509594 gs=0.0 trk=90 gpsAlt=160.0
+          [ 4226.483] D NAV: baro=1 p=101205 t=20.0 std=10.0 msl=160.0 agl=0.0 vs=-0.00 fly=0 ft=52
+          [ 4226.483] D NAV: lz=1 51.500000,0.500000 elev=160.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.16V heap=51260
+          [ 4227.131] I SIM: gps=fix
+          [ 4227.132] I SIM: sats=10
+          [ 4227.132] I SIM: hdop=0.9
+          [ 4227.132] I SIM: lat=51.5
+          [ 4227.283] D FLT: takeoff speed reached (10.0 m/s), waiting for height gain
+          [ 4227.284] D RDY: ready
+          [ 4227.379] D MIC: noise=-58.9 (blk -58.7) dBFS rpm=0 raw=4664 conf=1.5 fs=2001 tone=0 clear=1 ovf=522560
+          [ 4227.484] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.509739 gs=10.0 trk=90 gpsAlt=160.0
+          [ 4227.485] D NAV: baro=1 p=101205 t=20.0 std=10.0 msl=160.0 agl=0.0 vs=+0.00 fly=0 ft=52
+          [ 4227.485] D NAV: lz=1 51.500000,0.500000 elev=160.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.16V heap=50664
+  FAIL  landing_gps_quality  60.9 s  no GPS, level at 60 m, 29 s: the flight was ended within 14 s with no landing (agl 0.0 m)
+        state: uptime 4288 s, flying False, agl 0 m, vario -0.00, baro ok True, fix True, wind takeoff 90/0.0, heap 48096 (lowest 2168)
+        sim: {"baro": 1, "alt": 160.0, "vz": 0.0, "gps": "fix", "lat": 51.5, "lon": 0.507403, "speed": 10.0, "track": 90.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 90.0}
+        last log lines:
+          [ 4286.589] D BAT: v=4.164 pct=100 min=360 learned=0
+          [ 4286.890] D NAV: fix=0 good=0 sat=10 hdop=0.9 51.500000,0.505151 gs=0.0 trk=90 gpsAlt=160.0
+          [ 4286.891] D NAV: baro=1 p=101205 t=20.0 std=10.0 msl=160.0 agl=0.0 vs=+0.00 fly=0 ft=45
+          [ 4286.891] D NAV: lz=1 51.500000,0.500000 elev=160.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.16V heap=46104
+          [ 4287.214] D MIC: noise=-57.8 (blk -47.0) dBFS rpm=0 raw=6913 conf=2.1 fs=2004 tone=0 clear=0 ovf=529984
+          [ 4287.894] D NAV: fix=0 good=0 sat=10 hdop=0.9 51.500000,0.505151 gs=0.0 trk=90 gpsAlt=160.0
+          [ 4287.895] D NAV: baro=1 p=101205 t=20.0 std=10.0 msl=160.0 agl=0.0 vs=-0.00 fly=0 ft=45
+          [ 4287.895] D NAV: lz=1 51.500000,0.500000 elev=160.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.16V heap=39588
+          [ 4288.573] I SIM: gps=fix
+          [ 4288.573] I SIM: sats=10
+          [ 4288.573] I SIM: hdop=0.9
+          [ 4288.573] I SIM: vz=0
+          [ 4288.594] D RDY: GPS position unstable
+          [ 4288.594] D BAT: v=4.164 pct=100 min=360 learned=0
+          [ 4288.595] D VOL: noise -57.8 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [ 4288.897] D NAV: fix=1 good=0 sat=10 hdop=0.9 51.500000,0.507388 gs=10.0 trk=90 gpsAlt=160.0
+          [ 4288.898] D NAV: baro=1 p=101205 t=20.0 std=10.0 msl=160.0 agl=0.0 vs=-0.00 fly=0 ft=45
+          [ 4288.898] D NAV: lz=1 51.500000,0.500000 elev=160.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.16V heap=47032
+  FAIL  battery_flight    84.5 s  no log line SAY: /\[urgent\] battery_low$/ within 12 s (critical battery call)
+        SAY lines seen: none
+        state: uptime 4373 s, flying True, agl 60 m, vario -0.00, baro ok True, fix True, wind takeoff 90/0.0, heap 43116 (lowest 2168)
+        sim: {"baro": 1, "alt": 160.0, "vz": 0.0, "gps": "fix", "lat": 51.5, "lon": 0.510892, "speed": 10.0, "track": 90.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 3.2, "noise": 0, "noiseDb": -60.0, "hdg": 90.0}
+        last log lines:
+          [ 4369.718] D MIC: noise=-57.7 (blk -58.0) dBFS rpm=0 raw=2928 conf=1.7 fs=2003 tone=0 clear=1 ovf=540224
+          [ 4370.684] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.510395 gs=10.0 trk=90 gpsAlt=160.0
+          [ 4370.685] D NAV: baro=1 p=101205 t=20.0 std=10.0 msl=160.0 agl=60.0 vs=+0.00 fly=1 ft=69
+          [ 4370.685] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=3.20V heap=45844
+          [ 4371.387] D BAT: v=3.200 pct=0 min=0 learned=0
+          [ 4371.702] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.510540 gs=10.0 trk=90 gpsAlt=160.0
+          [ 4371.703] D NAV: baro=1 p=101205 t=20.0 std=10.0 msl=160.0 agl=60.0 vs=+0.00 fly=1 ft=70
+          [ 4371.703] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=3.20V heap=46228
+          [ 4371.762] D MIC: noise=-57.5 (blk -58.0) dBFS rpm=0 raw=1571 conf=1.7 fs=2003 tone=0 clear=1 ovf=540480
+          [ 4372.724] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.510684 gs=10.0 trk=90 gpsAlt=160.0
+          [ 4372.725] D NAV: baro=1 p=101205 t=20.0 std=10.0 msl=160.0 agl=60.0 vs=-0.00 fly=1 ft=71
+          [ 4372.725] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=3.20V heap=46228
+          [ 4373.448] D BAT: v=3.200 pct=0 min=0 learned=0
+          [ 4373.739] I SIM: batt=off
+          [ 4373.752] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.510859 gs=10.0 trk=90 gpsAlt=160.0
+          [ 4373.753] D NAV: baro=1 p=101205 t=20.0 std=10.0 msl=160.0 agl=60.0 vs=-0.00 fly=1 ft=72
+          [ 4373.753] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=3.20V heap=41956
+          [ 4373.834] D MIC: noise=-57.6 (blk -58.0) dBFS rpm=0 raw=1788 conf=1.5 fs=1954 tone=0 clear=1 ovf=540736
+  FAIL  baro_only         99.4 s  level flight at 60 m without a GPS was taken for a landing (F1)
+        state: uptime 4473 s, flying False, agl 0 m, vario -0.00, baro ok True, fix False, wind none 0/0.0, heap 48224 (lowest 2168)
+        sim: {"baro": 1, "alt": 164.0, "vz": 0.0, "gps": "silent", "lat": 51.5, "lon": 0.5, "speed": 0.0, "track": 0.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [ 4469.900] D BAT: v=4.164 pct=100 min=360 learned=0
+          [ 4469.900] D VOL: noise -57.6 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [ 4470.121] D MIC: noise=-57.5 (blk -57.4) dBFS rpm=0 raw=1424 conf=1.8 fs=2003 tone=0 clear=1 ovf=552768
+          [ 4470.201] D NAV: fix=0 good=0 sat=0 hdop=100.0 51.500000,0.510917 gs=0.0 trk=90 gpsAlt=160.0
+          [ 4470.201] D NAV: baro=1 p=100082 t=20.0 std=104.0 msl=104.0 agl=0.0 vs=+0.00 fly=0 ft=33
+          [ 4470.202] D NAV: lz=0 0.000000,0.000000 elev=104.0 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=51408
+          [ 4471.205] D NAV: fix=0 good=0 sat=0 hdop=100.0 51.500000,0.510917 gs=0.0 trk=90 gpsAlt=160.0
+          [ 4471.205] D NAV: baro=1 p=100082 t=20.0 std=104.0 msl=104.0 agl=0.0 vs=+0.00 fly=0 ft=33
+          [ 4471.206] D NAV: lz=0 0.000000,0.000000 elev=104.0 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=51408
+          [ 4471.905] D BAT: v=4.164 pct=100 min=360 learned=0
+          [ 4472.165] D MIC: noise=-57.6 (blk -57.5) dBFS rpm=0 raw=1955 conf=1.6 fs=2003 tone=0 clear=1 ovf=553024
+          [ 4472.205] D NAV: fix=0 good=0 sat=0 hdop=100.0 51.500000,0.510917 gs=0.0 trk=90 gpsAlt=160.0
+          [ 4472.205] D NAV: baro=1 p=100082 t=20.0 std=104.0 msl=104.0 agl=0.0 vs=-0.00 fly=0 ft=33
+          [ 4472.206] D NAV: lz=0 0.000000,0.000000 elev=104.0 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=51408
+          [ 4473.207] D NAV: fix=0 good=0 sat=0 hdop=100.0 51.500000,0.510917 gs=0.0 trk=90 gpsAlt=160.0
+          [ 4473.207] D NAV: baro=1 p=100082 t=20.0 std=104.0 msl=104.0 agl=0.0 vs=-0.00 fly=0 ft=33
+          [ 4473.208] D NAV: lz=0 0.000000,0.000000 elev=104.0 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=51408
+          [ 4473.910] D BAT: v=4.164 pct=100 min=360 learned=0
+Cleanup: simulation off, flight logic reset, settings restored, 9 leftover test log(s) deleted, leftover test logs.
+
+0 passed, 9 failed
+exit 1

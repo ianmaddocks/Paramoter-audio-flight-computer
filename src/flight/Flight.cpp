@@ -18,6 +18,12 @@ constexpr float kMaxGpsAltM = 9000.0f;
 constexpr float kMaxDatumJumpM = 200.0f;  // GPS altitude this far from the baro datum is rejected
 }  // namespace
 
+bool Flight::looksStill(bool speedOk, float speedMs, float landingSpeedMs, bool baroOk, float varioMs, float aglM,
+                        float maxAglM) {
+  if (speedOk) return speedMs < landingSpeedMs;
+  return baroOk && fabsf(varioMs) < 0.3f && aglM < maxAglM;
+}
+
 FlightEvent Flight::update(uint32_t now, const Baro& baro, const GpsData& gps, NavState& n) {
   FlightEvent ev = FlightEvent::None;
   float dt = lastMs_ ? (now - lastMs_) / 1000.0f : 0.1f;
@@ -145,8 +151,9 @@ FlightEvent Flight::update(uint32_t now, const Baro& baro, const GpsData& gps, N
   n.aglM = (g_cfg.lzMode == LZ_MANUAL || groundValid_) ? alt - n.lzElevM : 0.0f;
 
   if (flying_ && ev == FlightEvent::None) {
-    bool slow = n.fix ? n.speedMs < g_cfg.landingSpeedMs : fabsf(n.varioMs) < 0.3f;
-    uint32_t needMs = (uint32_t)g_cfg.landingTimeS * 1000 * (n.fix ? 1 : 2);
+    bool slow = looksStill(n.speedOk, n.speedMs, g_cfg.landingSpeedMs, n.baroOk, n.varioMs, n.aglM,
+                           g_cfg.landingNoSpeedAglM);
+    uint32_t needMs = (uint32_t)g_cfg.landingTimeS * 1000 * (n.speedOk ? 1 : 2);
     if (slow) {
       if (!stillSinceMs_) {
         stillSinceMs_ = now;

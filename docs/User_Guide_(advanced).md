@@ -76,9 +76,9 @@ The circuit is built around the LZ. Upwind and final are flown into wind along t
 5. **Base.** The base turn point is recalculated continuously from your height, so that an engine-off glide along base and final ends on the LZ. If you're high, the downwind leg is extended. If you're low you hear "Too low".
 6. **Final.** "Turn left/right now", then "Too high" / "Too low" against the glide path.
 
-If you drift more than 30° off a leg for 4 s you hear "Steer left" or "Steer right". Guidance ends on landing, once you pass the LZ, or when you press the button to cancel.
+If you drift more than 30° off a leg for 4 s you hear "Steer left" or "Steer right". It is not said while you are making a turn that was just called: for 5 s after a "Turn ... now" (your reaction time), and for as long as your track keeps swinging towards the leg (the angle off the leg shrinking by 3° or more a second), plus 3 s after it stops. A turn that stalls halfway, goes the wrong way or is ignored is called after that. Guidance ends on landing, once you pass the LZ, or when you press the button to cancel.
 
-The vario has no wind sensor. Wind direction is taken from your takeoff run (assumed into wind), then refined from GPS whenever you turn through about 270°. If the windsock tells you otherwise, set the wind manually on the web page (Settings → Wind).
+The vario has no wind sensor. Wind direction is taken from your takeoff run (assumed into wind), then refined from GPS whenever you turn through about 270°. Ground speeds measured before a change of wind (straight flight before you start circling) are recognised as not fitting the circle and left out, and two circling estimates in a row that agree are averaged with each other and not with the older estimate, so after a real change of wind the estimate is right from the second full circle. If the windsock tells you otherwise, set the wind manually on the web page (Settings → Wind).
 
 ## Emergency glide (double press)
 
@@ -99,7 +99,7 @@ The phone has no internet while it's on this network, so turn mobile data on if 
 | Section | Contents |
 |---|---|
 | Banner | Green **Ready to fly**, or amber with what's missing and the satellite count. Hidden while flying, except during guidance: blue **Approach** with the current circuit leg, or red **Emergency** with the glide range. |
-| Tiles | Refreshed every second. Top group: height above the LZ (and above sea level) with a rolling graph of the last 10 minutes beside it, vario, ground speed and track, **glide ratio**, flight state and time, LZ distance and bearing, wind. Under the Actions: GPS satellites and signal quality (strong, good, ok, poor, none), battery, engine RPM, background noise. |
+| Tiles | Refreshed every second. Top group: height above the LZ (and above sea level) with a rolling graph of the last 10 minutes beside it, vario, ground speed and track, **glide ratio**, flight state and time, LZ distance with an arrow to it, wind with an arrow (arrows are relative to your direction of travel). Under the Actions: GPS satellites and signal quality (strong, good, ok, poor, none), battery, engine RPM, background noise. |
 | Glide ratio | Ground distance covered per unit of height lost, e.g. `6.7 : 1`. The big value is the average over the last second, the small one the average over the last 60 seconds (both windows are in the Glide settings). Shows `–` when level or climbing, and `>50` above 50. Needs a GPS. |
 | Actions | Landing approach, Emergency glide, Mute vario (same as the button), **Test voice**, **Set LZ here**, **LZ = takeoff**, **Full screen** (hides the browser's bars). |
 | Settings | Collapsible groups (see below); Battery, Wi-Fi, GPS, Engine RPM, Wind, Logging and Glide are inside **Advanced settings** at the end. Change a value and it is saved a moment later. Settings marked *restart* apply after a restart. |

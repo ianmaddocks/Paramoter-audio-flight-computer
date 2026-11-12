@@ -5,6 +5,13 @@
 // loop; without a GPS it simply stays at these defaults ("no link, no fix"). The flight logic,
 // logger, Bluetooth feed and web page read this and never touch the receiver driver, so they
 // work unchanged on a vario that has no GPS.
+// A position the receiver reports can only be believed if it is on the globe: latitude within +-90, longitude
+// within +-180, not a number, and not exactly 0,0 (what a module with no position often reports). Anything
+// else is treated as no fix (F5).
+inline bool gpsCoordsValid(double lat, double lon) {
+  return lat >= -90.0 && lat <= 90.0 && lon >= -180.0 && lon <= 180.0 && !(lat == 0.0 && lon == 0.0);  // false for NaN
+}
+
 struct GpsData {
   bool link = false;    // receiver found and sending data
   bool fix = false;     // recent valid position with at least 4 satellites

@@ -279,12 +279,13 @@ uint32_t Gps::utcEpoch() {
 
 void Gps::read(uint32_t nowMs, GpsData& out) {
   out.link = locked_;
-  out.fix = gps_.location.isValid() && gps_.location.age() < 2500 && gps_.satellites.value() >= 4;
+  out.lat = gps_.location.lat();
+  out.lon = gps_.location.lng();
+  out.fix = gps_.location.isValid() && gps_.location.age() < 2500 && gps_.satellites.value() >= 4 &&
+            gpsCoordsValid(out.lat, out.lon);
   out.steady = steady(nowMs);
   out.sats = gps_.satellites.value();
   out.hdop = gps_.hdop.isValid() ? gps_.hdop.hdop() : 99.0f;
-  out.lat = gps_.location.lat();
-  out.lon = gps_.location.lng();
   out.speedMs = gps_.speed.mps();
   out.courseDeg = gps_.course.deg();
   out.altValid = gps_.altitude.isValid() && gps_.altitude.age() < 3000;

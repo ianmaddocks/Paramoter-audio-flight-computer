@@ -69,6 +69,7 @@ const Field kFields[] = {
     FL(varioHzPerMs, "Vario", "Tone rise per m/s", "Hz", 0.0f, 400.0f),
     FL(varioAccelNoise, "Vario", "Responsiveness (higher = faster, noisier)", "", 0.05f, 10.0f),
     I(varioSettleS, "Vario", "Settle time at power-on", "s", 0, 30),
+    I(baroStuckS, "Vario", "Barometer frozen after (0 = not checked)", "s", 0, 60),
 
     // Each "Announce" switch sits above its list; the web page greys the list out while it is off
     // (gate table in WebPage.h).
@@ -91,6 +92,7 @@ const Field kFields[] = {
        0.1f, 3.0f),
     FL(landingSpeedMs, "Takeoff & landing", "Landed by ground speed", "speed", 0.2f, 10.0f),
     I(landingTimeS, "Takeoff & landing", "Landed after", "s", 5, 300),
+    FL(landingNoSpeedAglM, "Takeoff & landing", "Landed without GPS speed: only below", "height", 3.0f, 100.0f),
 
     I(glideShortS, "Glide", "Glide ratio tile: average over", "s", 1, 10),
     I(glideLongS, "Glide", "Glide ratio tile: second average over", "s", 10, 120),
@@ -141,6 +143,7 @@ const Field kFields[] = {
     FL(battDivider, "Battery", "Divider ratio", "", 1.0f, 10.0f),
     FL(battCal, "Battery", "Calibration factor", "", 0.8f, 1.2f),
     FL(battLowV, "Battery", "Low battery warning", "V", 3.0f, 4.0f),
+    FL(battCriticalV, "Battery", "Critical battery warning", "V", 3.0f, 3.9f),
     FL(battFullV, "Battery", "Voltage shown as 100%", "V", 4.02f, 4.25f),
     B(battLearn, "Battery", "Learn discharge to estimate minutes left and refine %"),
     I(battRuntimeMin, "Battery", "Runtime on a full battery, used until learned", "min", 30, 1440),

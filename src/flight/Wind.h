@@ -18,6 +18,7 @@ class Wind {
   float speedMs() const;
   float airspeedMs() const;
   WindSource source() const;
+  uint32_t fitCount() const { return fits_; }  // circling fits accepted so far (for the tests)
   const char* sourceName() const;
 
   // Ground glide ratio flying engine-off along the given track, allowing for wind.
@@ -31,12 +32,19 @@ class Wind {
   static constexpr int kMaxSamples = 120;
 
   void tryFit(uint32_t now);
+  static bool solveCircle(const Sample* const* s, const bool* use, int m, float* cx, float* cy, float* r, int* nUsed,
+                          int* binsFilled);
 
   Sample samples_[kMaxSamples];
   int sampleCount_ = 0;
   int sampleHead_ = 0;
   uint32_t lastSampleMs_ = 0;
   uint32_t lastFitMs_ = 0;
+
+  bool pendValid_ = false;  // the last accepted fit (wind vector, where the air is going)
+  float pendE_ = 0, pendN_ = 0;
+  uint32_t pendMs_ = 0;
+  uint32_t fits_ = 0;
 
   WindSource src_ = WindSource::None;
   float fromDeg_ = 0;

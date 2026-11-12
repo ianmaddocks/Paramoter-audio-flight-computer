@@ -89,6 +89,7 @@ class Vario:
         for attempt in range(tries):
             try:
                 req = urllib.request.Request(self.base + path, data=data, method=method)
+                req.add_header("X-HIL", "1")  # the vario counts requests without this as somebody else's
                 if data is not None:
                     req.add_header("Content-Type", "application/json")
                 with urllib.request.urlopen(req, timeout=timeout) as r:
@@ -391,6 +392,8 @@ class Browser:
                 time.sleep(1.5)
             except Fail:
                 pass
+            self.cmd("Network.enable")
+            self.cmd("Network.setExtraHTTPHeaders", headers={"X-HIL": "1"})  # the harness's browser is not 'somebody else'
             self.cmd("Page.navigate", url=url)
             try:
                 self.wait("document.readyState==='complete' && typeof poll==='function' && schema.length>0"
@@ -932,6 +935,95 @@ def t_battery_logic(v, a):
     return f"{n} cases passed: conversion, smoothing, curve, low-battery timing and exceptions"
 
 
+def t_rpmtrack_logic(v, a):
+    """Software-level unit test of the RPM reading logic (sensors/RpmTrack.h): a jump needs a second agreeing
+    window, a lone bad window never shows (F4), the reading is held through speech and drops after the hold time
+    without usable windows (F3)."""
+    n = unit_suite(v, "rpmtrack", 30)
+    return f"{n} cases passed: smoothing, jump confirmation, dropout hold, speech hold"
+
+
+def t_rpm_speech(v, a):
+    """The vario speaks for several seconds with the engine running (F3): the RPM reading must not drop to 0 or move
+    while it does, and must still follow a real change right after. Uses the 'test voice' announcement."""
+    cfg = v.settings()
+    ppr = cfg["rpmPulsesPerRev"]
+    notes = []
+    try:
+        v.sim(micMode="synth", micHz=rpm_hz(2500, ppr), micAmp=150, micNoise=60)
+        rpm_settle(v, 2500, 0.03, 8, "engine at 2500 rpm")
+        for round_ in range(3):
+            m = v.mark()
+            v.action("test_voice")
+            v.expect("SAY", r"system_ready", m, timeout=4, what="announcement started")
+            readings = []
+            end = time.time() + 9.0  # the announcement takes about 6 s
+            while time.time() < end:
+                r_, _ = rpm_now(v)
+                readings.append(r_)
+                time.sleep(0.15)
+            bad = [x for x in readings if abs(x - 2500) > 0.06 * 2500]
+            if bad:
+                raise Fail(f"announcement {round_ + 1}: RPM read {sorted(set(round(x) for x in bad))} during or after the speech "
+                           f"(engine at 2500 rpm): {[round(x) for x in readings]}")
+        notes.append(f"3 announcements of about 6 s: RPM held at 2500 (+-6 %) throughout, {len(readings)} readings each")
+        # a real change straight after speech is followed
+        v.action("test_voice")
+        time.sleep(1.0)
+        v.sim(micHz=rpm_hz(3500, ppr))
+        t = rpm_settle(v, 3500, 0.04, 14, "engine raised to 3500 rpm during/after speech")
+        notes.append(f"change to 3500 during speech followed within {t:.1f} s")
+    finally:
+        v.sim(micMode="real", micHz=0, micNoise=0)
+    return "; ".join(notes)
+
+
+def t_rpm_glitch(v, a):
+    """One analysis window reports a wrong RPM with high confidence (F4): up, down and an octave. The reading must
+    not show it; two windows in a row that agree (the engine really changed) must be followed."""
+    cfg = v.settings()
+    ppr = cfg["rpmPulsesPerRev"]
+    notes = []
+    try:
+        v.sim(micMode="synth", micHz=rpm_hz(2000, ppr), micAmp=150, micNoise=60)
+        rpm_settle(v, 2000, 0.03, 8, "engine at 2000 rpm")
+        seen = []
+        for bad in (4000, 1000, 6000, 3000, 4000):
+            v.sim(rpmGlitch=bad)
+            end = time.time() + 1.2
+            while time.time() < end:
+                r_, _ = rpm_now(v)
+                seen.append(r_)
+                time.sleep(0.05)
+        worst = max(abs(x - 2000) for x in seen)
+        if worst > 120:
+            raise Fail(f"a single bad window reached the reading: readings up to {worst:.0f} rpm away from 2000: "
+                       f"{sorted(set(round(x) for x in seen))}")
+        notes.append(f"5 single bad windows (4000, 1000, 6000, 3000, 4000 rpm): reading stayed within {worst:.0f} rpm of 2000 "
+                     f"over {len(seen)} readings")
+        v.sim(micHz=rpm_hz(3600, ppr))
+        t = rpm_settle(v, 3600, 0.04, 8, "a real change to 3600 rpm")
+        notes.append(f"a real change to 3600 followed in {t:.1f} s")
+    finally:
+        v.sim(micMode="real", micHz=0, micNoise=0)
+    return "; ".join(notes)
+
+
+def t_flight_logic(v, a):
+    """Software-level unit test of the landing decision (flight/Flight.cpp, Flight::looksStill): trusted ground
+    speed, weak or lost GPS, the height and vertical-speed limits, and no evidence at all (F1, F8)."""
+    n = unit_suite(v, "flight", 18)
+    return f"{n} cases passed: speed rule unchanged, no landing from a missing or weak GPS at height, limits exact"
+
+
+def t_baro_logic(v, a):
+    """Software-level unit test of the barometer plausibility checks (sensors/BaroGuard.h): pressure limits and
+    NaN, lone outliers held back, persistent steps accepted once, the rate limit, gaps, frozen readings and
+    recovery (F7)."""
+    n = unit_suite(v, "baro", 29)
+    return f"{n} cases passed: impossible values, lone outliers, steps, rate limit, frozen reading, recovery"
+
+
 def t_rpm(v, a):
     """Engine RPM from the microphone, with a synthetic engine fed in place of the ADC (known firing
     frequency, so the right answer is known): stopped, idle, up, down, rapid changes, noise only, noise
@@ -1177,9 +1269,12 @@ def t_wind_faults(v, a):
         time.sleep(12)
         no_fit(v, 30, "half a circle", flush=False)
         notes.append("half circle: no fit")
-        v.sim(windflush=1, turn=3)  # 9 of 12 direction bins (270 degrees) would take 90 s, the window is 60 s
+        # 2.5 deg/s is 150 degrees of heading in the 60 s window. (3 deg/s, 180 degrees, is not safe: in a headwind
+        # the ground track turns up to twice as fast as the heading, so 180 degrees of heading can cover 9 of the 12
+        # direction bins and give a legitimate fit: the baseline run of ae9b1a0 failed on exactly that.)
+        v.sim(windflush=1, turn=2.5)
         no_fit(v, 70, "a very slow turn", flush=False)
-        notes.append("3 deg/s turn (180 degrees in the 60 s window): no fit")
+        notes.append("2.5 deg/s turn (150 degrees in the 60 s window): no fit")
         v.sim(turn=0)
 
         # ---- data that is not believed: logged as rejected, estimate untouched
@@ -1225,6 +1320,51 @@ def t_wind_faults(v, a):
             notes.append("manual wind used and kept while circling")
         finally:
             v.set(windManual=TEST_SETTINGS["windManual"], windFromDeg=0, windSpeedMs=0)
+    finally:
+        v.sim(turn=0)
+    return "; ".join(notes)
+
+
+def t_wind_change(v, a):
+    """A change of wind in flight (F2): after a fit in one wind the aircraft flies straight for 8 s (samples of the
+    old wind stay in the window), the wind changes to the opposite direction and the circling goes on. The first
+    fit in the new wind must not be biased by the old samples (the firmware averages it with the old estimate,
+    so the expected value is the mean of the two), and the second, which agrees with the first, must give the
+    new wind itself rather than a further half step. A fit in the third wind then goes back the same way."""
+    notes = []
+    try:
+        airborne(v, hdg=270, air=10, wfrom=270, wspd=4)
+        v.sim(windflush=1, windSpd=5.0, turn=18)
+        w = next_fit(v, "fit in the first wind")
+        a_vec = wind_vec(270, 5.0)
+        if wind_err(w, a_vec) > 0.6:
+            raise Fail(f"first wind: estimate {w}, true wind from 270 at 5 m/s")
+        est = wind_vec(w["from"], w["speed"])
+        notes.append(f"wind A from 270 at 5 -> from {w['from']:.0f} at {w['speed']:.1f}")
+
+        v.sim(turn=0)
+        time.sleep(8)  # straight: about 16 samples of the old wind in the window
+        v.sim(windFrom=90, windSpd=5.0, turn=18)
+        b_vec = wind_vec(90, 5.0)
+        w1 = next_fit(v, "first fit after the change", timeout=90)
+        want = ((est[0] + b_vec[0]) / 2, (est[1] + b_vec[1]) / 2)
+        err = wind_err(w1, want)
+        if err > 0.6:
+            raise Fail(f"first fit after the wind change is {err:.2f} m/s from the mean of the old estimate and the new "
+                       f"wind (from {w1['from']:.0f} at {w1['speed']:.1f}); old samples biasing it? (F2)")
+        notes.append(f"first fit after the change: {err:.2f} m/s from the expected mean")
+
+        w2 = next_fit(v, "second fit in the new wind", timeout=90)
+        err2 = wind_err(w2, b_vec)
+        if err2 > 0.6:
+            raise Fail(f"second fit in the new wind: estimate from {w2['from']:.0f} at {w2['speed']:.1f} is {err2:.2f} m/s "
+                       f"from the true wind (from 90 at 5); an obsolete estimate still pulling it? (F2)")
+        notes.append(f"second fit in the new wind: {err2:.2f} m/s from the true wind")
+
+        w3 = next_fit(v, "third fit in the new wind", timeout=90)
+        if wind_err(w3, b_vec) > 0.6:
+            raise Fail(f"third fit in the new wind drifted: from {w3['from']:.0f} at {w3['speed']:.1f}")
+        notes.append("third fit stays on it")
     finally:
         v.sim(turn=0)
     return "; ".join(notes)
@@ -1476,14 +1616,12 @@ def check_circuit(pl, cfg, up, wfrom, wspd, side, label, allow_steer=False, x_to
         raise Fail(f"{label}never reached the ground")
     miss = math.hypot(*pl.touchdown)
     notes.append(f"touchdown {miss:.0f} m from the field")
-    # Steering calls: none for a pilot on the line. Within 10 s of a turn call one is expected from a pilot
-    # who is still turning (docs/TEST_FINDINGS.md, F6): counted, not failed.
-    stray = [(t, m, p_) for t, m, p_ in pl.steer if not any(0 <= t - pt <= 10.0 for pt in pl.phase_t)]
-    in_turn = len(pl.steer) - len(stray)
-    notes.append(f"{in_turn} steering calls while still turning after a turn call")
-    if not allow_steer and stray:
-        raise Fail(f"{label}steering calls to a pilot on the line, away from any turn: "
-                   f"{[(round(t), m, round(p_[0]), round(p_[1])) for t, m, p_ in stray]}; legs {pl.legs}")
+    # Steering calls: none for a pilot who is on the line or who is making the turn that was just called (F6:
+    # a pilot who reacts after a few seconds and then turns for 4 to 8 s was told "steer" in the middle of it).
+    if not allow_steer and pl.steer:
+        raise Fail(f"{label}steering calls to a pilot who is on the line or making a called turn: "
+                   f"{[(round(t), m, round(p_[0]), round(p_[1])) for t, m, p_ in pl.steer]}; legs {pl.legs}")
+    notes.append("no steering call during any called turn" if not pl.steer else f"{len(pl.steer)} steering calls (a turn was ignored on purpose)")
     return "; ".join(notes)
 
 
@@ -1560,7 +1698,9 @@ def t_circuit_events(v, a):
 # Designed behaviour, from the code (docs/TEST_FINDINGS.md has what is not handled):
 #   barometer: no sample for 2 s, or a pressure outside 20000..110000 Pa, means "Barometer not working"
 #     (banner, vario tones off); samples returning restart the filter, the vario settles again, no reboot.
-#     No other plausibility check exists: a frozen value, a single wild sample and noise are not detected.
+#     Plausibility checks (BaroGuard.h): the same reading for baroStuckS (5 s) = frozen = not working; one sample
+#     further than an aircraft can move is held back and only accepted if the next one agrees (a persistent
+#     step); NaN is impossible. Noise is not detected (it only raises the wobble of the reading).
 #   GPS: no position for 5 s in flight is announced ("no GPS"); a fix needs a valid position under 2.5 s old
 #     and 4 satellites. The flight goes on.
 #   battery: below the low-battery voltage for 10 s one call, repeated every 5 minutes; under 2.5 V is taken
@@ -1581,8 +1721,9 @@ def baro_back(v, m):
 
 @no_baro_takeoff
 def t_fault_baro(v, a):
-    """Barometer faults: no samples, impossible pressure (both: detected, banner, tones off, recovery without
-    a reboot), a frozen value, one wild sample and noise (not detected: what the vario does is recorded)."""
+    """Barometer faults: no samples, impossible pressure, NaN, a frozen value (all: detected, banner, tones off,
+    recovery without a reboot), one wild sample (held back: no tone, no reading), persistent steps (accepted once,
+    no tone), intermittent dropouts, and noise (not a fault: the reading's wobble is bounded)."""
     notes = []
     reset(v, baro="on", alt=GROUND_M + 300, vz=0)
     v.sim(hasGps=0)  # the ready check names the first thing wrong; with a GPS module that would be the GPS
@@ -1609,29 +1750,94 @@ def t_fault_baro(v, a):
             time.sleep(1)
             notes.append(f"{fault}: detected, banner, silent, recovered")
 
-        # frozen value: the vario cannot tell. Recorded: it reads 0 and says nothing.
+        # impossible value that is not a number
+        m = v.mark()
+        v.sim(baroFault="nan", vz=2.0)
+        baro_state(v, False, 8, "barometer not ok with a NaN pressure")
+        silent_for(v, 3.0, "NaN pressure")
+        m = v.mark()
+        v.sim(baroFault="none", vz=0)
+        baro_back(v, m)
+        notes.append("NaN pressure: detected, silent, recovered")
+
+        # frozen value (F7): the same reading for baroStuckS (5 s) is a dead sensor, not level flight
         m = v.mark()
         v.sim(baroFault="stuck", vz=2.0)
-        time.sleep(12)
-        n = v.nav()
-        if n["baro"] != "1" or abs(float(n["vs"])) > 0.1 or v.find("RDY", r"Barometer", m):
-            raise Fail(f"frozen barometer: behaviour changed (now flagged or reading): {n}, see docs/TEST_FINDINGS.md F7")
+        baro_state(v, False, 5 + 6, "barometer not ok with a frozen reading")
+        if not v.status()["baro"]["frozen"]:
+            raise Fail("frozen reading: baro not ok but not reported as frozen")
+        v.expect("BARO", r"frozen", m, timeout=3, what="frozen reading logged")
+        if not v.status()["flying"]:
+            v.expect("RDY", r"Barometer not working", m, timeout=8, what="banner")
         silent_for(v, 3.0, "frozen barometer")
+        m = v.mark()
         v.sim(baroFault="none", vz=0)
-        time.sleep(1)
-        notes.append("frozen value: not detected (reads 0 m/s, no banner, silent) - F7")
+        baro_back(v, m)
+        if v.status()["baro"]["frozen"]:
+            raise Fail("still reported frozen after the reading moves again")
+        notes.append("frozen value: detected after 5 s, banner, silent, recovered")
 
-        # one wild sample
+        # one wild sample (F7): held back, the vario never sees it
+        reset(v, baro="on", alt=GROUND_M + 300, vz=0)
+        time.sleep(7)
+        rej0 = v.status()["baro"]["rej"]
+        m = v.mark()
+        v.sim(baroSpike=30.0)
+        seen = []
+        for _ in range(12):
+            time.sleep(0.5)
+            seen.append(abs(float(v.nav()["vs"])))
+        spurious = [l for l in v.lines[m:] if l.tag == "TONE" and re.match(r"(climb|sink)", l.msg)]
+        if spurious or max(seen) > 0.15:
+            raise Fail(f"a single 30 m wild sample reached the vario: {len(spurious)} tone change(s), readings up to {max(seen):.2f} m/s")
+        if v.status()["baro"]["rej"] <= rej0:
+            raise Fail("the wild sample was not counted as rejected")
+        notes.append("one 30 m wild sample: held back, no tone, vario unmoved")
+        for spike in (-30.0, 12.0):  # the other way, and a smaller one
+            m = v.mark()
+            v.sim(baroSpike=spike)
+            time.sleep(4)
+            if [l for l in v.lines[m:] if l.tag == "TONE" and re.match(r"(climb|sink)", l.msg)] or abs(float(v.nav()["vs"])) > 0.15:
+                raise Fail(f"a single {spike:+.0f} m sample reached the vario")
+        notes.append("-30 m and +12 m single samples: held back too")
+
+        # a persistent step (two samples agree, or the level stays moved): accepted once, the filter restarts there,
+        # and the vario does not sound a climb for the 25 m step
+        for what, apply, undo in (("two wild samples in a row", lambda: v.sim(baroSpikeN=2, baroSpike=30.0), None),
+                                  ("a 25 m step that stays", lambda: v.sim(baroStep=25.0), lambda: v.sim(baroStep=0.0))):
+            jumps0 = v.status()["baro"]["jumps"]
+            m = v.mark()
+            apply()
+            time.sleep(1.5)
+            if v.status()["baro"]["jumps"] <= jumps0:
+                raise Fail(f"{what}: not recognised as a step")
+            v.expect("BARO", r"stepped from", m, timeout=3, what=f"{what}: logged")
+            time.sleep(3)
+            if abs(float(v.nav()["vs"])) > 0.3 or [l for l in v.lines[m:] if l.tag == "TONE" and re.match(r"(climb|sink)", l.msg)]:
+                raise Fail(f"{what}: the vario reacted to the step")
+            if undo:
+                undo()
+                time.sleep(4)
+            v.sim(baroSpikeN=1)
+            notes.append(f"{what}: accepted as a step, no tone")
+
+        # intermittent: dropouts shorter than 2 s go unnoticed, longer ones are detected and recovered from
         reset(v, baro="on", alt=GROUND_M + 300, vz=0)
         time.sleep(7)
         m = v.mark()
-        v.sim(baroSpike=30.0)
-        time.sleep(6)
-        spurious = [l for l in v.lines[m:] if l.tag == "TONE" and re.match(r"(climb|sink)", l.msg)]
-        n = v.nav()
-        if abs(float(n["vs"])) > 0.2:
-            raise Fail(f"after a single 30 m wild sample the vario still reads {n['vs']} m/s 6 s later")
-        notes.append(f"one 30 m wild sample: {len(spurious)} tone change(s), reading calm again within 6 s - F7")
+        for _ in range(8):  # 1.2 s with no samples, timed by the vario itself (an HTTP round trip is not precise enough)
+            v.sim(baroDropMs=1200)
+            time.sleep(2.5)
+        if v.nav()["baro"] != "1" or v.find("BARO", r"stopped responding|no usable", m):
+            raise Fail("dropouts of 1.2 s were reported as a barometer failure")
+        silent_for(v, 2.0, "intermittent barometer")
+        for i in range(3):
+            m = v.mark()
+            v.sim(baroFault="dead")
+            baro_state(v, False, 8, f"barometer not ok in dropout {i + 1}")
+            v.sim(baroFault="none")
+            baro_back(v, m)
+        notes.append("intermittent: 1.2 s dropouts ignored, 3 s dropouts detected and recovered x3")
 
         # noise
         v.sim(baroFault="noise", baroNoise=0.4)
@@ -1647,10 +1853,18 @@ def t_fault_baro(v, a):
 
 def t_fault_gps(v, a):
     """GPS faults in flight: a dropout is announced after 5 s and the flight goes on, the position comes back
-    without a reboot, a bad fix (too few satellites) is not used; and what the vario does with a weak fix
-    and with impossible coordinates is recorded."""
+    without a reboot, a bad fix (too few satellites) is not used, a weak fix (F8) and impossible coordinates (F5) do not
+    end the flight and the coordinates are not taken for a fix."""
     notes = []
     try:
+        # position 0, 0 (what a module with no position often reports) is no fix. On the ground: in the air the
+        # simulated aircraft would fly on from it and leave 0, 0 at once.
+        on_ground_with_fix(v)
+        v.sim(lat=0.0, lon=0.0)
+        v.wait_nav(lambda n: n["fix"] == "0", 6, "no fix with position 0, 0")
+        v.sim(lat=51.5, lon=0.5)
+        v.wait_nav(lambda n: n["fix"] == "1", 10, "fix back after position 0, 0")
+        notes.append("position 0, 0 on the ground: no fix, back after")
         airborne(v, hdg=90, air=10, wfrom=270, wspd=0, climb=60.0)
         st = v.status()
         if not st["flying"]:
@@ -1684,27 +1898,101 @@ def t_fault_gps(v, a):
         v.wait_nav(lambda n: n["fix"] == "1", 8, "fix back with 10 satellites")
         notes.append("3 satellites: no fix; back with 10")
 
-        # weak fix in flight (4 satellites, hdop 4.2): the speed from it is not trusted. Recorded: does the
-        # flight survive it? (landing is declared after 5 s of slow ground speed in this build)
+        # weak fix in flight (4 satellites, hdop 4.2): the speed from it is not trusted and reads zero. The flight
+        # must go on (F8: the zero speed used to be taken for a landing after the landing time)
         v.sim(sats=4, hdop=4.2)
         time.sleep(14)
-        still = v.status()["flying"]
-        notes.append(f"weak fix (4 satellites, hdop 4.2) for 14 s in flight: flight {'kept' if still else 'ENDED (F8)'}")
+        if not v.status()["flying"]:
+            raise Fail("a weak GPS fix (4 satellites, hdop 4.2) for 14 s in level flight ended the flight (F8)")
+        notes.append("weak fix (4 satellites, hdop 4.2) for 14 s in flight: flight kept")
         v.sim(sats=10, hdop=0.9)
-        # F8 is a known, unfixed defect: reproduced here and reported, not failed. If it stops reproducing the
-        # note changes and this check should become a plain assertion that the flight is kept.
 
-        # impossible coordinates: recorded
-        v.sim(lat=95.0)
-        time.sleep(4)
-        g = v.status()["gps"]
-        shown = g["lat"]
-        v.sim(lat=51.5)
-        v.wait_nav(lambda n: n["fix"] == "1", 8, "fix back after impossible latitude")
-        notes.append(f"latitude 95 deg sent: status shows {shown:.4f} with fix {g['fix']} - F5")
+        # impossible coordinates (F5): not a fix, nothing from them is used, the flight goes on, recovery follows
+        for what, bad in (("latitude 95", dict(lat=95.0)), ("latitude -91", dict(lat=-91.0)),
+                          ("longitude 200", dict(lon=200.0))):
+            v.sim(**bad)
+            v.wait_nav(lambda n: n["fix"] == "0", 6, f"no fix with {what}")
+            if not v.status()["flying"]:
+                raise Fail(f"{what} ended the flight")
+            v.sim(lat=51.5, lon=0.5)
+            v.wait_nav(lambda n: n["fix"] == "1", 10, f"fix back after {what}")
+        notes.append("latitude 95 / -91 and longitude 200: no fix each time, flight kept, fix back")
     finally:
         v.sim(gps="fix", sats=10, hdop=0.9, lat=51.5)
     return "; ".join(notes)
+
+
+# ---- flight state against GPS quality (F1, F8) -------------------------------------------------
+# Designed behaviour: a landing needs evidence that the aircraft is standing on the ground. With a trusted GPS
+# ground speed that is the speed. With no fix, a weak fix (few satellites / poor HDOP) or stale data the speed
+# says nothing, so it takes a steady barometer AND a height above the landing zone under
+# landingNoSpeedAglM (15 m), for twice the landing time. Level or gently climbing/sinking flight at height
+# is never a landing, however long the GPS is gone.
+
+def gps_quality_case(v, what, fault, vz, hold, notes):
+    m = v.mark()
+    v.sim(**fault)
+    v.sim(vz=vz)
+    end = time.time() + hold
+    while time.time() < end:
+        time.sleep(2)
+        if not v.status()["flying"]:
+            raise Fail(f"{what}: the flight was ended within {hold - (end - time.time()):.0f} s with no landing "
+                       f"(agl {v.nav()['agl']} m)")
+    n = v.nav()
+    v.sim(gps="fix", sats=10, hdop=0.9, vz=0)
+    v.wait_nav(lambda n: n["fix"] == "1" and n["fly"] == "1", 12, f"{what}: fix back, still flying")
+    notes.append(what)
+
+
+def t_landing_gps_quality(v, a):
+    """A bad or missing GPS must not end a flight, and a real landing is still found without it: level and
+    gently climbing or sinking flight at 60 and 200 m with no GPS, a weak fix, too few satellites and
+    stale data, for several times the landing time; a long loss (70 s); recovery; then real landings on the
+    barometer alone, with no GPS and with a weak fix."""
+    notes = []
+    land_s = TEST_SETTINGS["landingTimeS"]
+    hold = 2 * land_s * 2.5 + 4  # 29 s: well over twice the landing time
+    weak = dict(gps="fix", sats=4, hdop=4.2)
+    try:
+        airborne(v, hdg=90, air=10, wfrom=270, wspd=0, climb=60.0)
+        for name, fault in (("no GPS", dict(gps="silent")), ("weak fix", weak),
+                            ("too few satellites", dict(gps="fix", sats=3, hdop=0.9)),
+                            ("no fix", dict(gps="nofix"))):
+            gps_quality_case(v, f"{name}, level at 60 m, {hold:.0f} s", fault, 0.0, hold, notes)
+        # higher and with a little vertical speed: still not a landing
+        m = v.mark()
+        v.sim(vz=3.0, to=GROUND_M + 200)
+        v.expect("SIM", r"reached target altitude", m, timeout=80, what="up to 200 m")
+        for name, fault in (("no GPS", dict(gps="silent")), ("weak fix", weak)):
+            for vz in (0.0, 0.2, -0.2):
+                gps_quality_case(v, f"{name}, {vz:+.1f} m/s at about 200 m, {hold:.0f} s", fault, vz, hold, notes)
+        # a long loss
+        gps_quality_case(v, "no GPS for 70 s at 200 m", dict(gps="silent"), 0.0, 70, notes)
+        # recovery: the position comes back and the flight is the same flight (not a second takeoff)
+        m = v.mark()
+        time.sleep(3)
+        if v.find("FLT", r"^takeoff", m) or v.find("APP", r"Landed", m):
+            raise Fail("the flight restarted or ended when the GPS came back")
+
+        # a real landing without GPS: down to the ground, then standing still
+        m = v.mark()
+        v.sim(gps="silent", vz=-3.0, to=GROUND_M + 2)
+        v.expect("SIM", r"reached target altitude", m, timeout=90, what="down to the ground")
+        t0 = time.time()
+        v.expect("APP", r"Landed after", m, timeout=2 * land_s + 12, what="landing found on the barometer alone")
+        notes.append(f"landing with no GPS found {time.time() - t0:.0f} s after touchdown")
+
+        # a real landing with a weak fix
+        airborne(v, hdg=90, air=10, wfrom=270, wspd=0, climb=60.0)
+        m = v.mark()
+        v.sim(**weak, vz=-3.0, to=GROUND_M + 2)
+        v.expect("SIM", r"reached target altitude", m, timeout=60, what="down to the ground, weak fix")
+        v.expect("APP", r"Landed after", m, timeout=2 * land_s + 12, what="landing found with a weak fix")
+        notes.append("landing with a weak fix found")
+    finally:
+        v.sim(gps="fix", sats=10, hdop=0.9, vz=0)
+    return "; ".join(notes[-6:]) + f" ({len(notes)} cases kept the flight)"
 
 
 def t_fault_battery(v, a):
@@ -1746,6 +2034,55 @@ def t_fault_battery(v, a):
     return "; ".join(notes)
 
 
+def t_battery_flight(v, a):
+    """Battery warnings in flight (F5): the ordinary low-battery call, the critical call (urgent, not the ordinary one),
+    and a battery reading that disappears in flight after a real one was seen (urgent: the vario cannot say what is
+    left), against the same 0 V on the ground, which is just USB power and stays silent. Recovery silences it again."""
+    notes = []
+    try:
+        airborne(v, hdg=90, air=10, wfrom=270, wspd=0, climb=60.0)
+        v.sim(batt=3.9)
+        time.sleep(3)
+        m = v.mark()
+        v.never("SAY", r"battery_low", m, 8)
+        # low: normal priority, after 10 s
+        m = v.mark()
+        v.sim(batt=3.40)
+        v.expect("SAY", r"\[normal\] battery_low$", m, timeout=16, what="low battery call")
+        notes.append("3.40 V: ordinary call")
+        # critical: urgent after 5 s
+        m = v.mark()
+        t0 = time.time()
+        v.sim(batt=3.20)
+        v.expect("SAY", r"\[urgent\] battery_low$", m, timeout=12, what="critical battery call")
+        notes.append(f"3.20 V: urgent call after {time.time() - t0:.0f} s")
+        # a recovered reading is silent, and a lost one in flight is called
+        m = v.mark()
+        v.sim(batt=3.9)
+        v.never("SAY", r"battery_low", m, 8)
+        m = v.mark()
+        v.sim(batt=0.0)
+        v.expect("SAY", r"\[urgent\] battery_low$", m, timeout=14, what="battery reading lost in flight")
+        notes.append("reading lost in flight (0 V): urgent call")
+        m = v.mark()
+        v.sim(batt=3.9)
+        v.never("SAY", r"battery_low", m, 8)
+        notes.append("recovered: silent")
+        # the same 0 V on the ground: USB power, silent
+        m = v.mark()
+        v.sim(vz=-3.0, to=GROUND_M + 2)
+        v.expect("SIM", r"reached target altitude", m, timeout=60, what="down to the ground")
+        v.sim(fly=0, speed=0)  # the aircraft model would go on at 10 m/s along the ground; stand still
+        v.expect("APP", r"Landed after", m, timeout=30, what="landed")
+        m = v.mark()
+        v.sim(batt=0.0)
+        v.never("SAY", r"battery_low", m, 14)
+        notes.append("0 V on the ground: silent (USB power)")
+    finally:
+        v.sim(batt="off")
+    return "; ".join(notes)
+
+
 # ---- memory and long-running behaviour ---------------------------------------------------------
 # Criteria come from what the build measures when it is idle (below), not from numbers picked in advance:
 # the lowest free memory may fall at most MEM_DROP_B further than the idle run-up, free memory after
@@ -1760,6 +2097,14 @@ def mem_now(v, settle=3.0):
     """Free memory once things have gone quiet: the best of five readings after a pause (a single reading
     moves by several kB with whatever the web server and log are holding at that moment)."""
     time.sleep(settle)
+    # Free memory steps up by about 5 kB when the network stack lets go of sockets that the requests left behind
+    # (up to a minute or two): wait until it has stopped moving before taking the reading.
+    recent = []
+    for _ in range(30):
+        recent = (recent + [v.status()["heap"]])[-4:]
+        if len(recent) == 4 and max(recent) - min(recent) < 600:
+            break
+        time.sleep(2.0)
     best = None
     for _ in range(5):
         st = v.status()
@@ -1816,8 +2161,12 @@ def t_memory_events(v, a):
         raise Fail(f"free memory after round 3 ({marks[2]['heap']} B) is {leak} B below the lowest of rounds 1 and 2 "
                    f"({marks[0]['heap']}, {marks[1]['heap']}): a leak?")
     drop = idle["low"] - marks[2]["low"]
-    if drop > MEM_DROP_B or marks[2]["low"] < 8000:
-        raise Fail(f"lowest free memory fell from {idle['low']} to {marks[2]['low']} B (allowed: down by {MEM_DROP_B}, never under 8000)")
+    # The lowest-since-power-on mark is cumulative, so tests that ran earlier (a page load takes it to a few kB: F9) can
+    # have set it. This test is judged on what it did itself: a fall of more than MEM_DROP_B, or a new low under 8000 B.
+    new_low = marks[2]["low"] < idle["low"]
+    if drop > MEM_DROP_B or (new_low and marks[2]["low"] < 8000):
+        raise Fail(f"lowest free memory fell from {idle['low']} to {marks[2]['low']} B (allowed: down by {MEM_DROP_B}, "
+                   f"and no new low under 8000)")
     st = marks[2]["stack"]
     return (f"free {idle['heap']} -> {[m['heap'] for m in marks]} B over three rounds, lowest {marks[2]['low']} B, largest block "
             f"{marks[2]['block']} B, stacks free {st}")
@@ -1877,7 +2226,7 @@ def t_soak(v, a):
     else:
         slope = 0.0
     low = min(m["low"] for _, m in samples)
-    if idle["low"] - low > MEM_DROP_B or low < 8000:
+    if idle["low"] - low > MEM_DROP_B or (low < idle["low"] and low < 8000):  # judged on what the soak did itself
         raise Fail(f"lowest free memory fell from {idle['low']} to {low} B during the soak")
     w = st["wind"]
     if wind_err(w, wind_vec(270, 4.0)) > 1.5:
@@ -2024,8 +2373,14 @@ def t_baro_only(v, a):
     v.expect("SIM", r"reached target", m, timeout=40)
     n = v.wait_nav(lambda n: 56 < float(n["agl"]) < 63 and abs(float(n["vs"])) < 0.2, 8,
                    "height above ground from barometer alone (true value 60 m)")
+    # level at 60 m with a steady vario for more than twice the landing time is flight, not a landing (F1)
+    time.sleep(2 * TEST_SETTINGS["landingTimeS"] * 2 + 4)
+    if not v.status()["flying"]:
+        raise Fail("level flight at 60 m without a GPS was taken for a landing (F1)")
     m2 = v.mark()
-    v.expect("APP", r"Landed after", m2, timeout=20, what="landing from steady vario (2 x landing time)")
+    v.sim(vz=-3, to=GROUND_M + 2)
+    v.expect("SIM", r"reached target", m2, timeout=40, what="down to the ground")
+    v.expect("APP", r"Landed after", m2, timeout=20, what="landing from steady vario on the ground (2 x landing time)")
     for f in v.get_json("/api/logs")["files"]:
         if f["n"] not in before:
             v._open("/api/log?name=" + urllib.parse.quote(f["n"]), method="DELETE")
@@ -2202,28 +2557,41 @@ def t_volume_ramp(v, a):
         time.sleep(1.0)
         near(v.status()["vol"]["vario"], 10, 1, "volume before the change")
         v.set(volumeRampPctS=30)
-        t0 = time.time()
+        t0 = time.time()  # the ramp starts somewhere between t0 and t_set (the HTTP round trip is not instant)
         v.set(varioVolume=100)
-        seen = []
+        t_set = time.time()
+        seen = []  # (time before the request, time after the reply, volume): the device read it in between
         while time.time() - t0 < 4.6:
-            seen.append((time.time() - t0, v.status()["vol"]["vario"]))
+            tb = time.time()
+            x = v.status()["vol"]["vario"]
+            seen.append((tb - t0, time.time() - t0, x))
             time.sleep(0.2)
-        # 30 %/s from 10 %: about 40 % after a second, full after three.
-        early = max(x for t, x in seen if t < 1.0)
-        mid = [x for t, x in seen if 1.2 < t < 1.8]
-        if early > 46:
-            raise Fail(f"volume jumped: {early} % within a second of raising the setting (limit 30 %/s)")
-        if not mid or not 25 <= mid[0] <= 70:
-            raise Fail(f"volume about 1.5 s into the ramp is {mid}, expected 35 to 65 %")
-        if any(b < a_ for (_, a_), (_, b) in zip(seen, seen[1:])):
-            raise Fail(f"volume did not rise steadily: {[x for _, x in seen]}")
-        near(seen[-1][1], 100, 0, "volume at the end of the ramp")
+        t_set -= t0
+        # 30 %/s from 10 %: about 40 % after a second, full after three. Judged against the earliest and latest the
+        # reading can have been taken, so a slow reply cannot fake a jump or a crawl.
+        fast = [(ta, x) for tb, ta, x in seen if x > 10 + 30.0 * ta + 6]
+        if fast:
+            raise Fail(f"volume rose faster than 30 %/s: {fast[0][1]} % only {fast[0][0]:.2f} s after the change was sent")
+        slow = [(tb - t_set, x) for tb, ta, x in seen if tb > t_set and x < min(100.0, 10 + 30.0 * (tb - t_set)) - 12]
+        if slow:
+            raise Fail(f"volume rose slower than 30 %/s: {slow[0][1]} % {slow[0][0]:.2f} s after the change was applied")
+        if any(b < a_ for (_, _, a_), (_, _, b) in zip(seen, seen[1:])):
+            raise Fail(f"volume did not rise steadily: {[x for _, _, x in seen]}")
+        near(seen[-1][2], 100, 0, "volume at the end of the ramp")
+        early = max(x for tb, ta, x in seen if ta < 1.0)
+        mid = [x for tb, ta, x in seen if 1.2 < ta < 1.8]
+        d0 = time.time()
         v.set(varioVolume=10)
-        time.sleep(1.0)
+        d_set = time.time()
+        time.sleep(0.8)
+        tb = time.time()
         down = v.status()["vol"]["vario"]
-        if not 50 <= down <= 95:
-            raise Fail(f"volume a second after lowering the setting is {down} %, expected a gradual fall")
-        return f"10 -> 100 %: {early} % within 1 s, {mid[0]} % at 1.5 s, 100 % by 4.5 s; falls gradually too"
+        ta = time.time()
+        # a gradual fall at 30 %/s: no faster than that since the request began, no slower than it since it was applied
+        if down < 100 - 30.0 * (ta - d0) - 6 or down > max(10.0, 100 - 30.0 * (tb - d_set)) + 12:
+            raise Fail(f"volume {down} % read between {tb - d_set:.1f} and {ta - d0:.1f} s after lowering the setting "
+                       f"from 100 %, expected a gradual fall at 30 %/s")
+        return f"10 -> 100 %: {early} % within 1 s, {mid[0] if mid else '-'} % at 1.5 s, 100 % by 4.5 s; never faster or slower than 30 %/s; falls gradually too"
     finally:
         v.set(volumeRampPctS=TEST_SETTINGS["volumeRampPctS"], varioVolume=a.volume, speechVolume=a.volume)
 
@@ -2286,7 +2654,13 @@ def t_variant_no_gps(v, a):
                             ".firstChild.textContent==='GPS').querySelectorAll('label.row').length")
             if gps_rows != 1:
                 raise Fail(f"web page: the GPS group should hold only the GPS module setting without a GPS, not {gps_rows}")
-        v.expect("APP", r"Landed after", m, timeout=50, what="landing from a steady vario")
+        time.sleep(2 * TEST_SETTINGS["landingTimeS"] * 2 + 4)
+        if not v.status()["flying"]:
+            raise Fail("level flight at 40 m without a GPS was taken for a landing (F1)")
+        m = v.mark()
+        v.sim(vz=-3, to=GROUND_M + 2)
+        v.expect("SIM", r"reached target", m, timeout=40, what="down to the ground")
+        v.expect("APP", r"Landed after", m, timeout=50, what="landing from a steady vario on the ground")
         v.never("SAY", r"gps_fix|no_gps", m, 0.5)
         new = [f["n"] for f in v.get_json("/api/logs")["files"] if f["n"] not in logs_before]
         if new:
@@ -2674,7 +3048,7 @@ def t_ui_flight(v, a):
     p.wait_text("t-speed", r"^0 km/h$")
     p.wait_text("t-track", r"^track \d+°$")
     p.wait_text("t-flight", r"^Grounded$")
-    near(p.wait_text("t-lz", r"^\d+ m( ↑)?$", what="distance to the landing zone").split()[0], 0, 6, "LZ distance")
+    near(p.wait_text("t-lz", r"^\d+ m$", what="distance to the landing zone").split()[0], 0, 6, "LZ distance")
     p.wait_text("t-lzs", r"ft MSL$")
     p.wait_text("t-wind", r"^unknown$")
     p.wait_text("t-gpss", r"^Fix · signal strong$")
@@ -2777,7 +3151,14 @@ def t_ui_guidance(v, a):
     p.wait_text("t-flight", r"^\d+:\d\d$", 8, "elapsed flight time while flying")
     p.wait_text("t-ftime", r"^Flying · logging$", 8)
     p.wait("document.getElementById('ready').className==='ready hide'", 5, "ready banner hidden in flight")
-    p.wait_text("t-wind", r"^(↑|\d+°)$", 8, "wind from the takeoff run (an arrow once moving, degrees standing still)")
+    p.wait("(()=>{const a=document.getElementById('a-wind');return !a.hidden&&/rotate/.test(a.style.transform)})()", 8,
+           "wind from the takeoff run shown as an arrow once moving")
+    p.wait("!document.getElementById('a-lz').hidden", 8, "landing zone arrow shown once moving")
+    p.wait("(()=>{const a=document.getElementById('a-track');return !a.hidden&&/rotate/.test(a.style.transform)})()", 8,
+           "ground speed tile arrow (track against north) shown once moving")
+    p.wait("getComputedStyle(document.querySelector('#t-speed .cmp'),'::before').content==='\"N\"'", 4,
+           "the N that marks the arrow as north-referenced")
+    p.wait("!/bearing/.test(document.getElementById('t-lzs').textContent)", 4, "no bearing on the landing zone tile")
     p.wait_text("t-winds", r"takeoff$")
     v.expect("SIM", r"reached target", m, timeout=40)
 
@@ -3092,10 +3473,10 @@ def t_memory(v, a):
 TESTS = [
     ("boot", t_boot), ("settings", t_settings), ("vario_climb", t_vario_climb),
     ("vario_sink", t_vario_sink), ("vario_thresholds", t_vario_thresholds), ("vario_logic", t_vario_logic),
-    ("mute", t_mute), ("auto_volume", t_auto_volume), ("rpm_logic", t_rpm_logic), ("rpm", t_rpm), ("geo_logic", t_geo_logic), ("wind_logic", t_wind_logic),
-    ("circuit_logic", t_circuit_logic), ("battery_logic", t_battery_logic), ("wind", t_wind), ("wind_faults", t_wind_faults), ("circuit_right", t_circuit_right), ("circuit_left_wind", t_circuit_left_wind),
+    ("mute", t_mute), ("auto_volume", t_auto_volume), ("rpm_logic", t_rpm_logic), ("rpm", t_rpm), ("rpm_speech", t_rpm_speech), ("rpm_glitch", t_rpm_glitch), ("geo_logic", t_geo_logic), ("wind_logic", t_wind_logic),
+    ("circuit_logic", t_circuit_logic), ("battery_logic", t_battery_logic), ("flight_logic", t_flight_logic), ("rpmtrack_logic", t_rpmtrack_logic), ("baro_logic", t_baro_logic), ("wind", t_wind), ("wind_faults", t_wind_faults), ("wind_change", t_wind_change), ("circuit_right", t_circuit_right), ("circuit_left_wind", t_circuit_left_wind),
     ("circuit_events", t_circuit_events),
-    ("fault_baro", t_fault_baro), ("fault_gps", t_fault_gps), ("fault_battery", t_fault_battery),
+    ("fault_baro", t_fault_baro), ("fault_gps", t_fault_gps), ("fault_battery", t_fault_battery), ("landing_gps_quality", t_landing_gps_quality), ("battery_flight", t_battery_flight),
     ("memory_events", t_memory_events), ("soak", t_soak),
     ("gps_states", t_gps_states), ("flight", t_flight), ("baro_only", t_baro_only),
     ("guidance", t_guidance), ("battery", t_battery), ("battery_learner", t_battery_learner),
@@ -3110,6 +3491,8 @@ TESTS = [
 # Tests during which the log legitimately loses lines (the vario restarts, so its log ring starts again).
 # Anywhere else a dropped line means a test may have judged an incomplete log, and the test is failed.
 # memory_events floods the vario with requests and resets on purpose, faster than the log feed can follow.
+# The *_logic tests run production code over thousands of simulated seconds in one request (the circuit suite logs
+# every phase change and trace line, as it would in flight) and assert on the suite's own report, never on the log.
 DROPS_ALLOWED = {"boot", "memory_events"}
 
 
@@ -3119,6 +3502,28 @@ def isolate(v, a):
     v.sim(off=1)
     v.sim(reset=1)
     v.set(**TEST_SETTINGS, speechVolume=a.volume, varioVolume=a.volume)
+
+
+def outside(v):
+    """Anybody but the harness using the vario? The vario counts web clients that made a request in the last 15 s
+    without the harness's X-HIL header (whichever network they are on, so a phone page counts too), the stations
+    joined to its own access point, and BLE connections. (The first two keys exist from the build of this change on.)"""
+    try:
+        st = v.status()
+    except Fail:
+        return None
+    w = st.get("wifi", {})
+    return dict(web=w.get("webOthers"), sta=w.get("apClients"), ble=st.get("ble"))
+
+
+def outside_text(o):
+    if not o:
+        return "unknown"
+    return f"web pages {o['web'] if o['web'] is not None else '?'}, Wi-Fi stations {o['sta']}, BLE {o['ble']}"
+
+
+def has_outside(o):
+    return bool(o) and any((o.get(k) or 0) > 0 for k in ("web", "sta", "ble"))
 
 
 def diagnostics(v, since):
@@ -3189,10 +3594,15 @@ def main():
     saved = v.settings()
     logs_before = {f["n"] for f in v.get_json("/api/logs")["files"]}
     results = []
+    touched = []  # tests during which something other than the harness was using the vario
     cleanup = []  # (step, error or None)
     try:
         for name, fn in tests:
             t0 = time.time()
+            try:
+                v.poll()  # lines dropped while the previous test ended belong to that test, not this one
+            except Fail:
+                pass
             dropped0 = v.dropped
             try:
                 isolate(v, a)
@@ -3201,10 +3611,12 @@ def main():
                 print(f"  FAIL  {name:16} could not start from a clean state: {e}")
                 continue
             since = len(v.lines)
+            ext0 = outside(v)
             try:
                 note = fn(v, a)
+                v.poll()
                 lost = v.dropped - dropped0
-                if lost and name not in DROPS_ALLOWED:
+                if lost and name not in DROPS_ALLOWED and not name.endswith("_logic"):
                     raise Fail(f"{lost} log line(s) were dropped during the test, so it may have judged an incomplete log "
                                f"(the test itself passed: {note})")
                 results.append((name, True, note))
@@ -3212,10 +3624,16 @@ def main():
             except Fail as e:
                 results.append((name, False, str(e)))
                 print(f"  FAIL  {name:16} {time.time() - t0:5.1f} s  {e}\n        {diagnostics(v, since)}")
+            ext1 = outside(v)
+            if has_outside(ext0) or has_outside(ext1):
+                touched.append(name)
+                print(f"        WARNING: somebody else was using the vario during this test (before: {outside_text(ext0)}; "
+                      f"after: {outside_text(ext1)}): its timing, memory and log results may be affected")
             if a.memory:
                 try:
                     st = v.status()
-                    print(f"        memory: free {st['heap']} lowest {st['heapMin']} largest block {st['heapBlock']}")
+                    print(f"        memory: free {st['heap']} lowest {st['heapMin']} largest block {st['heapBlock']}"
+                          f" | others: {outside_text(ext1)}")
                 except Fail:
                     pass
     finally:
@@ -3255,6 +3673,8 @@ def main():
         for l, e in bad:
             print(f"WARNING: cleanup step '{l}' failed: {e}")
     failed = [r for r in results if not r[1]]
+    if touched:
+        print(f"\nNOTE: {len(touched)} test(s) ran while a phone, browser or BLE client was connected: {', '.join(touched)}")
     print(f"\n{len(results) - len(failed)} passed, {len(failed)} failed"
           f"{', ' + str(v.dropped) + ' log lines missed' if v.dropped else ''}")
     if failed:

@@ -55,7 +55,8 @@ bool Baro::configure() {
   dps_.configurePressure(DPS310_32HZ, DPS310_8SAMPLES);
   dps_.configureTemperature(DPS310_2HZ, DPS310_2SAMPLES);
   dps_.setMode(DPS310_CONT_PRESTEMP);
-  lastSampleUs_ = 0;
+  lastSampleUs_ = lastAcceptUs_ = 0;
+  guard_.reset();
   kf_ = AltKalman();
   warmupLeft_ = kWarmupSamples;
   settled_ = false;
@@ -67,9 +68,8 @@ bool Baro::configure() {
 void Baro::updateSim(uint32_t nowMs) {
   uint32_t us = micros();
   if (lastSampleUs_ && us - lastSampleUs_ < 31000) return;  // the sensor's 32 Hz
-  float dt = lastSampleUs_ ? (us - lastSampleUs_) * 1e-6f : 0.03f;
+  float realDt = lastSampleUs_ ? (us - lastSampleUs_) * 1e-6f : 0.03f;
   lastSampleUs_ = us;
-  if (dt <= 0.0f || dt > 1.0f) dt = 0.03f;
   // The same rules as for the real sensor: no samples for 2 s means not ok, a pressure outside the
   // possible range is dropped, and the filter starts afresh when samples return after a loss (what
   // configure() does for the real sensor).
@@ -82,13 +82,21 @@ void Baro::updateSim(uint32_t nowMs) {
     return;
   }
   float alt = sim::baroAltStdM();
-  float pa = sim::baroPressureOverride() > 0 ? sim::baroPressureOverride()
+  float pa = sim::baroPressureOverride() != 0 ? sim::baroPressureOverride()
                                              : 101325.0f * powf(1.0f - alt / 44330.8f, 1.0f / 0.190263f);
-  if (pa < 20000.0f || pa > 110000.0f) {
+  if (!BaroGuard::pressureValid(pa)) {
     if (ok_ && nowMs - lastGoodMs_ > 2000) {
       ok_ = false;
       simLost_ = true;
       LOGW("BARO", "DPS310 stopped responding");
+    }
+    return;
+  }
+  if (!screen(pa, alt, nowMs, realDt)) {
+    if (ok_ && nowMs - lastGoodMs_ > 2000) {  // nothing usable for 2 s, whatever the reason
+      ok_ = false;
+      simLost_ = true;
+      LOGW("BARO", "no usable barometer samples for 2 s");
     }
     return;
   }
@@ -98,6 +106,9 @@ void Baro::updateSim(uint32_t nowMs) {
     settled_ = false;
     settleStartMs_ = 0;
   }
+  float dt = lastAcceptUs_ ? (us - lastAcceptUs_) * 1e-6f : 0.03f;
+  lastAcceptUs_ = us;
+  if (dt <= 0.0f || dt > 1.0f) dt = 0.03f;
   rawAltStdM_ = alt;
   pressurePa_ = pa;
   tempC_ = 20.0f;
@@ -112,7 +123,8 @@ void Baro::update(uint32_t nowMs) {
   if (simEpoch_ != sim::baroEpoch()) {  // simulation switched or its altitude jumped
     simEpoch_ = sim::baroEpoch();
     kf_ = AltKalman();
-    lastSampleUs_ = 0;
+    lastSampleUs_ = lastAcceptUs_ = 0;
+    guard_.reset();
   }
   if (sim::baroOn()) return updateSim(nowMs);
   if (!present_) {
@@ -134,25 +146,63 @@ void Baro::update(uint32_t nowMs) {
   sensors_event_t t, p;
   if (!dps_.getEvents(&t, &p)) return;
   float pa = p.pressure * 100.0f;
-  if (pa < 20000.0f || pa > 110000.0f) return;
+  if (!BaroGuard::pressureValid(pa)) return;  // also false for NaN
 
   uint32_t us = micros();
-  float dt = lastSampleUs_ ? (us - lastSampleUs_) * 1e-6f : 0.03f;
+  float realDt = lastSampleUs_ ? (us - lastSampleUs_) * 1e-6f : 0.03f;
   lastSampleUs_ = us;
+
+  if (warmupLeft_) {  // the first readings jump while the sensor's own filter settles: not screened, not used
+    --warmupLeft_;
+    lastGoodMs_ = nowMs;
+    return;
+  }
+  float alt = pressureToAltStd(pa);
+  if (!screen(pa, alt, nowMs, realDt)) return;
+  float dt = lastAcceptUs_ ? (us - lastAcceptUs_) * 1e-6f : 0.03f;
+  lastAcceptUs_ = us;
   if (dt <= 0.0f || dt > 1.0f) dt = 0.03f;
 
   pressurePa_ = pa;
   tempC_ = t.temperature;
-  rawAltStdM_ = pressureToAltStd(pa);
+  rawAltStdM_ = alt;
   sampleDtS_ = dt;
   lastGoodMs_ = nowMs;
-  if (warmupLeft_) {
-    --warmupLeft_;
-    return;
-  }
   kf_.update(rawAltStdM_, dt, g_cfg.varioAccelNoise, kMeasVar);
   ok_ = true;
   updateSettled(nowMs);
+}
+
+// Runs one sample through the plausibility checks (BaroGuard.h). False: do not use it.
+bool Baro::screen(float pa, float altM, uint32_t nowMs, float dtS) {
+  switch (guard_.check(pa, altM, dtS, nowMs, (uint32_t)g_cfg.baroStuckS * 1000)) {
+    case BaroGuard::Verdict::Accept:
+      return true;
+    case BaroGuard::Verdict::Reject:
+      ++rejected_;
+      if (nowMs - lastRejectLogMs_ > 5000) {
+        lastRejectLogMs_ = nowMs;
+        LOGW("BARO", "implausible sample ignored (%.1f m, last good %.1f m, %lu so far)", altM, rawAltStdM_,
+             (unsigned long)rejected_);
+      }
+      return false;
+    case BaroGuard::Verdict::Jump:
+      ++jumps_;
+      LOGW("BARO", "pressure stepped from %.1f to %.1f m and stayed: filter restarted", rawAltStdM_, altM);
+      kf_ = AltKalman();
+      return true;
+    case BaroGuard::Verdict::Stuck:
+      if (ok_) LOGW("BARO", "pressure reading frozen for %d s: barometer not working", (int)g_cfg.baroStuckS);
+      ok_ = false;
+      return false;
+    case BaroGuard::Verdict::Recovered:
+      LOGI("BARO", "pressure reading live again");
+      kf_ = AltKalman();
+      settled_ = false;
+      settleStartMs_ = 0;
+      return true;
+  }
+  return false;
 }
 
 void Baro::updateSettled(uint32_t nowMs) {

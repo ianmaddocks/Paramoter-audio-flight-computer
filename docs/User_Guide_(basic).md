@@ -56,12 +56,12 @@ All of these can be changed or switched off in Settings; see the *Height calls*,
 With no GPS the vario uses the barometer alone.
 
 - **Takeoff:** you have climbed about 50 feet (15 m) from where you stood. A slow rise, such as walking up a slope or carrying the vario upstairs, is not taken for a takeoff, because the vario follows slow changes in pressure while you are on the ground and only "locks" the ground level when it sees a real climb (faster than 0.5 m/s).
-- **Landing:** the height has stayed steady for twice the *Landed after* time (60 seconds by default).
+- **Landing:** the height has stayed steady for twice the *Landed after* time (60 seconds by default) **and** you are within 50 feet (15 m) of the landing zone height (*Landed without GPS speed: only below*).
 
 **Things to know**
 
 - If you take off and **climb more slowly than 0.5 m/s** at first, the ground level keeps following you up. A normal climb-out is faster than that. If you often climb out slowly, lower the setting *Ground level held when climbing or sinking faster than*.
-- Flying **perfectly level for a minute or more** can look like a landing ("Landed, flight time ..." in mid-air). If that happens, increase *Landed after*. After a false landing the vario needs another 50 foot climb before it notices you are flying again.
+- Flying **perfectly level** is not taken for a landing, however long it lasts, because the vario also needs you to be close to the ground. The other way round: if you land more than 50 feet (15 m) above where you took off, the landing is not noticed until you raise *Landed without GPS speed: only below*.
 - If you **switch the vario on in the air**, it treats where you are as the ground until you climb 50 feet; heights will not be right. Switch it on at the launch.
 
 ## The web page
@@ -98,7 +98,8 @@ Details of each tile and button: [reference, Tiles](Feature_Reference.md#basic-t
 | Change when heights are spoken | Boundaries when climbing / descending | [Height calls](Feature_Reference.md#basic-settings-height-calls) |
 | Stop the height every minute | Periodic height every = 0 | [Height calls](Feature_Reference.md#basic-settings-height-calls) |
 | Detect takeoff sooner or later | Takeoff height gain without GPS | [Takeoff and landing](Feature_Reference.md#basic-settings-takeoff-and-landing) |
-| Stop a false "Landed" | Landed after (increase) | [Takeoff and landing](Feature_Reference.md#basic-settings-takeoff-and-landing) |
+| Landing not noticed on high ground | Landed without GPS speed: only below (increase) | [Takeoff and landing](Feature_Reference.md#basic-settings-takeoff-and-landing) |
+| Stop a false "Landed" close to the ground | Landed after (increase) | [Takeoff and landing](Feature_Reference.md#basic-settings-takeoff-and-landing) |
 | Name my vario in the app | Device name | [Bluetooth](Feature_Reference.md#basic-settings-bluetooth) |
 | Reach the vario from my home computer | Server network name and password | [Wi-Fi](Feature_Reference.md#basic-settings-wi-fi) |
 
@@ -128,5 +129,6 @@ The Battery tile shows the percentage, the voltage, and an estimate of the time 
 | Banner says `Vario settling` for a long time | The vario is being moved or is in a draught. Keep it still for a few seconds. |
 | Banner says `Barometer not working` | The barometer is not detected; check its wiring. |
 | "Take off" never comes | You have not climbed 50 feet yet, or the climb was slower than *Ground level held ...* (default 0.5 m/s). |
-| A false "Landed" in flight | Very level flying; increase *Landed after*. |
+| "Landed" when you have not landed | Only possible within 50 feet (15 m) of the landing zone height; increase *Landed after*. |
+| "Barometer not working" in flight or on the bench | The reading froze (same value for 5 s) or was impossible. It recovers by itself; if it recurs, check the sensor; see *Barometer frozen after*. |
 | Cannot find the vario's Wi-Fi | Look for `ParaVario-` followed by four characters, not just `ParaVario`. |

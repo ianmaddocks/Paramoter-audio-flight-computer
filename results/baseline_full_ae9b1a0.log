@@ -1,0 +1,239 @@
+ParaVario 20261112-081519 (ae9b1a0) at paravario.local, 46 tests
+  PASS  boot               5.5 s  beep 0.25 s at 900 Hz, 'Ready' 1.01 s later (vario answered again after 3 s)
+        memory: free 51264 lowest 36616 largest block 29684
+  PASS  settings           1.4 s  round trip and clamping ok
+        memory: free 44676 lowest 30916 largest block 22516
+  PASS  vario_climb       26.3 s  tone 802 Hz, heard at -34 dBFS (+43 dB on silence)
+        memory: free 43524 lowest 21864 largest block 23540
+  PASS  vario_sink        16.4 s  tone 288 Hz, heard at -27 dBFS (52 dB over floor)
+        memory: free 48688 lowest 21864 largest block 27636
+  PASS  vario_thresholds  87.3 s  climb: silent at 0.25, 730 Hz at 0.35 (expected 735), heard 48 dB over floor; sink: silent at -1.80, 310 Hz at -2.20 (expected 306), heard 53 dB over floor
+        memory: free 46276 lowest 21864 largest block 25588
+  PASS  vario_logic        2.4 s  43 cases passed: thresholds exact (>= climb, <= sink), formulas and limits, all silencing conditions
+        memory: free 48608 lowest 21864 largest block 27636
+  PASS  mute              12.8 s  muted climb silent, tone back after unmute
+        memory: free 37300 lowest 21864 largest block 14836
+  PASS  auto_volume       22.2 s  -60 dBFS -> 20/40%, -40 dBFS -> 60/70%, -20 dBFS -> 100/100%
+        memory: free 48580 lowest 21864 largest block 27636
+  PASS  rpm_logic          1.2 s  22 cases passed: speeds 1500..8000 rpm within 1.5 %, pulses per revolution, noise and silence give no RPM
+        memory: free 43420 lowest 21012 largest block 17396
+  PASS  rpm               92.0 s  stopped: 0; idle 2000 found in 0.7 s, steady 1975..2035; up 2000->5000 followed in steps; down 5000->2000 followed in steps; rapid 2000/4000 alternation: 31 readings, none outside 1800..4400 (0 zero); noise: engine kept at 2000 under noise; loud noise alone gives 0; input lost -> 0 after 2.3 s; recovered in 0.2 s
+        memory: free 45860 lowest 21012 largest block 25588
+  PASS  geo_logic          1.2 s  39 cases passed: wrap, distance (incl. date line), bearings, local offsets, vector bearing, clock positions
+        memory: free 42988 lowest 21012 largest block 23540
+  PASS  wind_logic         1.3 s  56 cases passed: fit accuracy, turn direction, 0/360, noise, no-fit and refused cases, averaging, ground glide
+        memory: free 37832 lowest 21012 largest block 15860
+  PASS  circuit_logic      4.0 s  48 cases passed: leg order, turn points, base turn from height, overshoot, wrong way, refusals
+        memory: free 46508 lowest 21012 largest block 22516
+  PASS  battery_logic      0.7 s  33 cases passed: conversion, smoothing, curve, low-battery timing and exceptions
+        memory: free 43280 lowest 21012 largest block 20468
+  PASS  wind             236.5 s  takeoff run: from 270, source takeoff; head, tail and cross winds give the right ground speed and drift; straight flight leaves the estimate; wind from 270 at 5 m/s, right turns -> from 270 at 5.0; wind from 355 at 7 m/s, left turns (0/360 wrap) -> from 321 at 4.5; wind from 5 at 3 m/s, right turns -> from 339 at 3.5; wind from 180 at 8 m/s, left turns -> from 195 at 2.5; no wind -> from 195 at 1.2; wind from 225 at 6 m/s -> from 220 at 3.5; steady wind: error 2.49 -> 1.24 -> 0.62 -> 0.31 m/s over successive fits
+        memory: free 43364 lowest 12856 largest block 22516
+  FAIL  wind_faults      213.8 s  a very slow turn: the estimate moved from {'valid': True, 'from': 270.0036, 'speed': 4.999642, 'src': 'circling'} to {'valid': True, 'from': 270.0056, 'speed': 4.999477, 'src': 'circling'} without a fit
+        state: uptime 730 s, flying True, agl 60 m, vario +0.00, baro ok True, fix True, wind circling 270/5.0, heap 43200 (lowest 12856)
+        sim: {"baro": 1, "alt": 160.0, "vz": 0.0, "gps": "fix", "lat": 51.494764, "lon": 0.509578, "speed": 7.05, "track": 339.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 311.2}
+        last log lines:
+          [  726.929] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.494572,0.509736 gs=6.3 trk=325 gpsAlt=160.0
+          [  726.930] D NAV: baro=1 p=101205 t=20.0 std=10.0 msl=160.0 agl=60.0 vs=-0.00 fly=1 ft=195
+          [  726.930] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/5.0 mode=none/off mute=0 batt=4.16V heap=46312
+          [  727.029] D BAT: v=4.164 pct=100 min=360 learned=0
+          [  727.281] D MIC: noise=-60.6 (blk -60.4) dBFS rpm=0 raw=5753 conf=1.7 fs=1997 tone=0 clear=1 ovf=89952
+          [  727.934] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.494620,0.509686 gs=6.5 trk=330 gpsAlt=160.0
+          [  727.935] D NAV: baro=1 p=101205 t=20.0 std=10.0 msl=160.0 agl=60.0 vs=-0.00 fly=1 ft=196
+          [  727.935] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/5.0 mode=none/off mute=0 batt=4.16V heap=46140
+          [  728.142] I WIND: Wind fit: from 270 deg 5.0 m/s, airspeed 10.0 m/s (rms 0.00)
+          [  728.940] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.494673,0.509641 gs=6.7 trk=334 gpsAlt=160.0
+          [  728.941] D NAV: baro=1 p=101205 t=20.0 std=10.0 msl=160.0 agl=60.0 vs=+0.00 fly=1 ft=197
+          [  728.941] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/5.0 mode=none/off mute=0 batt=4.16V heap=46312
+          [  729.040] D BAT: v=4.164 pct=100 min=360 learned=0
+          [  729.319] D MIC: noise=-60.7 (blk -60.6) dBFS rpm=0 raw=2206 conf=1.5 fs=2027 tone=0 clear=1 ovf=90208
+          [  729.944] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.494729,0.509600 gs=7.0 trk=338 gpsAlt=160.0
+          [  729.945] D NAV: baro=1 p=101205 t=20.0 std=10.0 msl=160.0 agl=60.0 vs=+0.00 fly=1 ft=198
+          [  729.945] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/5.0 mode=none/off mute=0 batt=4.16V heap=45680
+          [  730.158] I SIM: turn=0
+        memory: free 43180 lowest 12856 largest block 23540
+  PASS  circuit_right    271.8 s  crosswind turn at x=225 (expected 225); downwind turn at y=372 (expected 371); base turn at x=-229 for 168 m (expected -230; final 273 m); final turn at y=30, 79 m up; touchdown 3 m from the field; 3 steering calls while still turning after a turn call
+        memory: free 43280 lowest 12856 largest block 22516
+  PASS  circuit_left_wind 290.1 s  crosswind turn at x=278 (expected 277); downwind turn at y=-374 (expected -374); base turn at x=-263 for 165 m (expected -264; final 304 m); final turn at y=-60, 80 m up; touchdown 20 m from the field; 3 steering calls while still turning after a turn call
+        memory: free 43256 lowest 11772 largest block 22516
+  PASS  circuit_events   318.9 s  crosswind turn at x=226 (expected 225); downwind turn at y=372 (expected 370); base turn at x=-220 for 164 m (expected -217; final 261 m); final turn at y=37, 76 m up; touchdown 4 m from the field; 3 steering calls while still turning after a turn call; start point called 4 times while flying away, no leg change during the 6 s GPS loss, 3 steer right calls while the turn was ignored
+        memory: free 43280 lowest 4788 largest block 17396
+  PASS  fault_baro       124.4 s  dead: detected, banner, silent, recovered; range: detected, banner, silent, recovered; frozen value: not detected (reads 0 m/s, no banner, silent) - F7; one 30 m wild sample: 5 tone change(s), reading calm again within 6 s - F7; 0.4 m noise: vario reads within +-0.13 m/s
+        memory: free 48448 lowest 4788 largest block 27636
+  PASS  fault_gps         90.1 s  dropout: announced after 5 s, flight kept, approach refused, fix back without reboot; 3 satellites: no fix; back with 10; weak fix (4 satellites, hdop 4.2) for 14 s in flight: flight ENDED (F8); latitude 95 deg sent: status shows 95.0000 with fix True - F5
+        memory: free 48472 lowest 4788 largest block 27636
+  PASS  fault_battery     76.4 s  flickering 3.4/3.6 V: 0 call(s) in 40 s; 0.0 V: 0 %, no call; 6.0 V: 100 %, no call
+        memory: free 48516 lowest 4788 largest block 27636
+  FAIL  memory_events    203.4 s  lowest free memory fell from 4788 to 4788 B (allowed: down by 6000, never under 8000)
+        state: uptime 2107 s, flying False, agl 0 m, vario +0.00, baro ok True, fix True, wind none 0/0.0, heap 48516 (lowest 4788)
+        sim: {"baro": 1, "alt": 458.17, "vz": 0.0, "gps": "real", "lat": 51.5, "lon": 0.5, "speed": 0.0, "track": 0.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [ 2103.615] D NAV: baro=1 p=96632 t=20.0 std=398.2 msl=25.4 agl=1.0 vs=+0.00 fly=0 ft=0
+          [ 2103.616] D NAV: lz=1 51.778099,0.930052 elev=24.4 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=51640
+          [ 2104.619] D NAV: fix=1 good=1 sat=6 hdop=1.7 51.778107,0.930057 gs=2.2 trk=33 gpsAlt=17.6
+          [ 2104.619] D NAV: baro=1 p=96632 t=20.0 std=398.2 msl=25.3 agl=0.8 vs=+0.00 fly=0 ft=0
+          [ 2104.620] D NAV: lz=1 51.778104,0.930056 elev=24.6 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=51640
+          [ 2105.021] D BAT: v=4.164 pct=100 min=360 learned=0
+          [ 2105.388] D MIC: noise=-65.7 (blk -65.8) dBFS rpm=0 raw=1463 conf=1.7 fs=2003 tone=0 clear=1 ovf=259424
+          [ 2105.624] D NAV: fix=1 good=1 sat=6 hdop=1.7 51.778100,0.930054 gs=0.6 trk=37 gpsAlt=17.4
+          [ 2105.624] D NAV: baro=1 p=96632 t=20.0 std=398.2 msl=25.2 agl=0.6 vs=-0.00 fly=0 ft=0
+          [ 2105.625] D NAV: lz=1 51.778100,0.930054 elev=24.7 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=51640
+          [ 2106.647] D NAV: fix=1 good=1 sat=6 hdop=1.7 51.778098,0.930046 gs=0.7 trk=37 gpsAlt=18.1
+          [ 2106.647] D NAV: baro=1 p=96632 t=20.0 std=398.2 msl=25.2 agl=0.4 vs=-0.00 fly=0 ft=0
+          [ 2106.648] D NAV: lz=1 51.778098,0.930046 elev=24.8 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=51640
+          [ 2107.049] D BAT: v=4.164 pct=100 min=360 learned=0
+          [ 2107.434] D MIC: noise=-65.7 (blk -65.9) dBFS rpm=0 raw=3234 conf=1.5 fs=1974 tone=0 clear=1 ovf=259680
+          [ 2107.651] D NAV: fix=1 good=1 sat=6 hdop=1.7 51.778092,0.930036 gs=0.2 trk=37 gpsAlt=17.4
+          [ 2107.651] D NAV: baro=1 p=96632 t=20.0 std=398.2 msl=25.1 agl=0.3 vs=+0.00 fly=0 ft=0
+          [ 2107.652] D NAV: lz=1 51.778092,0.930036 elev=24.8 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=51044
+        memory: free 48504 lowest 4788 largest block 25588
+  FAIL  soak             707.3 s  lowest free memory fell from 4788 to 3992 B during the soak
+        state: uptime 2815 s, flying True, agl 370 m, vario +0.85, baro ok True, fix True, wind circling 270/4.0, heap 42972 (lowest 3992)
+        sim: {"baro": 1, "alt": 469.89, "vz": 0.0, "gps": "fix", "lat": 51.489086, "lon": 0.533208, "speed": 12.77, "track": 129.3, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 144.0}
+        last log lines:
+          [ 2812.116] D MIC: noise=-36.6 (blk -35.0) dBFS rpm=9774 raw=9774 conf=24.1 fs=2038 tone=801 clear=1 ovf=346944
+          [ 2812.330] D BAT: v=4.162 pct=100 min=360 learned=0
+          [ 2813.035] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.489285,0.532818 gs=12.8 trk=129 gpsAlt=467.6
+          [ 2813.036] D NAV: baro=1 p=97567 t=20.0 std=317.7 msl=467.6 agl=367.6 vs=+1.01 fly=1 ft=691
+          [ 2813.036] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/4.0 mode=none/off mute=0 batt=4.16V heap=46300
+          [ 2813.940] D VOL: noise -46.2 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [ 2814.040] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.489212,0.532961 gs=12.8 trk=129 gpsAlt=468.6
+          [ 2814.041] D NAV: baro=1 p=97555 t=20.0 std=318.7 msl=468.6 agl=368.6 vs=+1.01 fly=1 ft=692
+          [ 2814.041] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/4.0 mode=none/off mute=0 batt=4.16V heap=46300
+          [ 2814.163] D MIC: noise=-46.8 (blk -49.2) dBFS rpm=9733 raw=9736 conf=3.3 fs=2009 tone=801 clear=1 ovf=347200
+          [ 2814.341] D BAT: v=4.162 pct=100 min=360 learned=0
+          [ 2815.045] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.489139,0.533104 gs=12.8 trk=129 gpsAlt=469.6
+          [ 2815.046] D NAV: baro=1 p=97543 t=20.0 std=319.7 msl=469.6 agl=369.6 vs=+1.01 fly=1 ft=693
+          [ 2815.046] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/4.0 mode=none/off mute=0 batt=4.16V heap=46300
+          [ 2815.245] I SIM: turn=0
+          [ 2815.246] I SIM: vz=0
+          [ 2815.563] D TONE: climb 785 Hz
+          [ 2815.766] D TONE: climb 768 Hz
+        memory: free 43180 lowest 3992 largest block 20468
+  PASS  gps_states        23.9 s  not responding / waiting / weak fix ignored / good fix ready
+        memory: free 45524 lowest 3992 largest block 21492
+  PASS  flight           111.6 s  88 IGC records, 12 s before takeoff, alt 100..165 m, 5 without fix
+        memory: free 48156 lowest 3992 largest block 27636
+  PASS  baro_only         87.2 s  slow rise ignored, takeoff at 2 m/s and landing without GPS, agl reads 60.1 m at a true 60 m
+        memory: free 48424 lowest 3992 largest block 25588
+  PASS  guidance          70.3 s  refusals, emergency 6 o'clock + on course, approach start and cancel
+        memory: free 48332 lowest 3992 largest block 27636
+  PASS  battery           36.2 s  curve ok, minutes [360, 354, 288, 180, 43, 0], real battery back at 4.164 V
+        memory: free 48284 lowest 3992 largest block 27636
+  PASS  battery_learner    4.6 s  4 h run -> 234.2 min at 4.10 V, pace-scaled 59 min, blended 199.4, charging unknown
+        memory: free 48112 lowest 3992 largest block 27636
+  PASS  speech            22.3 s  clip sequence ok, speech peaks +36 dB over the quiet room
+        memory: free 48272 lowest 3992 largest block 27636
+  PASS  volume_ramp       12.5 s  10 -> 100 %: 28 % within 1 s, 55 % at 1.5 s, 100 % by 4.5 s; falls gradually too
+        memory: free 48412 lowest 3992 largest block 27636
+  FAIL  glide            105.8 s  web page: #t-glide shows '–', expected /^6\.\d : 1$/ (glide ratio tile)
+        state: uptime 3291 s, flying True, agl 25 m, vario +0.00, baro ok True, fix True, wind takeoff 90/0.0, heap 43000 (lowest 3168)
+        sim: {"baro": 1, "alt": 125.0, "vz": 0.0, "gps": "fix", "lat": 51.5, "lon": 0.513038, "speed": 10.0, "track": 90.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [ 3287.808] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.16V heap=45908
+          [ 3288.804] D BAT: v=4.164 pct=100 min=360 learned=0
+          [ 3288.805] D VOL: noise -64.2 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [ 3288.805] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.512603 gs=10.0 trk=90 gpsAlt=125.0
+          [ 3288.805] D NAV: baro=1 p=101626 t=20.0 std=-25.0 msl=125.0 agl=25.0 vs=+0.00 fly=1 ft=90
+          [ 3288.806] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.16V heap=46292
+          [ 3289.804] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.512748 gs=10.0 trk=90 gpsAlt=125.0
+          [ 3289.805] D NAV: baro=1 p=101626 t=20.0 std=-25.0 msl=125.0 agl=25.0 vs=+0.00 fly=1 ft=91
+          [ 3289.805] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.16V heap=44560
+          [ 3289.813] D MIC: noise=-64.4 (blk -65.1) dBFS rpm=0 raw=1421 conf=1.5 fs=1999 tone=0 clear=1 ovf=406336
+          [ 3290.812] D BAT: v=4.164 pct=100 min=360 learned=0
+          [ 3290.813] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.512894 gs=10.0 trk=90 gpsAlt=125.0
+          [ 3290.813] D NAV: baro=1 p=101626 t=20.0 std=-25.0 msl=125.0 agl=25.0 vs=+0.00 fly=1 ft=92
+          [ 3290.813] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.16V heap=45324
+          [ 3291.822] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.513038 gs=10.0 trk=90 gpsAlt=125.0
+          [ 3291.823] D NAV: baro=1 p=101626 t=20.0 std=-25.0 msl=125.0 agl=25.0 vs=+0.00 fly=1 ft=93
+          [ 3291.823] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.16V heap=41760
+          [ 3291.896] D MIC: noise=-64.2 (blk -64.0) dBFS rpm=0 raw=2960 conf=1.6 fs=1999 tone=0 clear=1 ovf=406592
+        memory: free 43156 lowest 3168 largest block 20468
+  PASS  variant_no_gps    61.6 s  ready, takeoff, 40.1 m and landing on the barometer; 48 settings listed, no log
+        memory: free 43324 lowest 3168 largest block 21492
+  PASS  variant_no_mic    20.4 s  volume back to the set 40/20 % at -20 dBFS noise, 80 settings listed, no spectrum
+        memory: free 46820 lowest 3168 largest block 10740
+  PASS  gps_detect        28.0 s  unknown -> not fitted after 10 s -> found when it starts sending -> kept when silent; set by hand both ways; page followed
+        memory: free 43492 lowest 3168 largest block 9204
+  PASS  ui_flight         29.7 s  banner, 11 tiles, height graph and layout correct; speed, vario, battery and GPS changes followed
+        memory: free 48396 lowest 3168 largest block 19444
+  PASS  ui_actions        23.6 s  mute, test voice, Set LZ here (refused and accepted), LZ = takeoff
+        memory: free 44872 lowest 3168 largest block 9204
+  PASS  ui_guidance       61.7 s  flying tiles, emergency and approach banners, 210101-125759.igc listed and deleted from the page
+        memory: free 48120 lowest 3168 largest block 19444
+  PASS  ui_settings       16.2 s  16 groups, 89 settings; number, feet, list, checkbox gate, unit switch, text
+        memory: free 48408 lowest 2168 largest block 25588
+  FAIL  ui_spectrum       13.1 s  web page: spectrum updates only 1.0/s
+        state: uptime 3553 s, flying False, agl 0 m, vario +0.00, baro ok True, fix False, wind none 0/0.0, heap 43044 (lowest 2168)
+        sim: {"baro": 1, "alt": 400.0, "vz": 0.0, "gps": "real", "lat": 51.5, "lon": 0.5, "speed": 0.0, "track": 0.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [ 3549.261] D MIC: noise=-62.5 (blk -61.6) dBFS rpm=0 raw=2992 conf=1.7 fs=2003 tone=0 clear=1 ovf=438432
+          [ 3549.568] D NAV: fix=0 good=0 sat=0 hdop=100.0 51.773629,0.921768 gs=0.0 trk=210 gpsAlt=107.5
+          [ 3549.569] D NAV: baro=1 p=97307 t=20.0 std=340.0 msl=340.0 agl=0.0 vs=+0.00 fly=0 ft=0
+          [ 3549.569] D NAV: lz=0 0.000000,0.000000 elev=340.0 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=43808
+          [ 3550.993] D BAT: v=4.164 pct=100 min=360 learned=0
+          [ 3550.993] D NAV: fix=0 good=0 sat=0 hdop=100.0 51.773629,0.921768 gs=0.0 trk=210 gpsAlt=107.5
+          [ 3550.993] D NAV: baro=1 p=97307 t=20.0 std=340.0 msl=340.0 agl=0.0 vs=+0.00 fly=0 ft=0
+          [ 3550.994] D NAV: lz=0 0.000000,0.000000 elev=340.0 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=36852
+          [ 3551.524] D MIC: noise=-62.2 (blk -62.7) dBFS rpm=0 raw=1357 conf=1.7 fs=1903 tone=0 clear=1 ovf=438688
+          [ 3551.789] D VOL: noise -62.2 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [ 3551.989] D NAV: fix=0 good=0 sat=0 hdop=100.0 51.773629,0.921768 gs=0.0 trk=210 gpsAlt=107.5
+          [ 3551.989] D NAV: baro=1 p=97307 t=20.0 std=340.0 msl=340.0 agl=0.0 vs=+0.00 fly=0 ft=0
+          [ 3551.990] D NAV: lz=0 0.000000,0.000000 elev=340.0 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=51616
+          [ 3552.992] D BAT: v=4.164 pct=100 min=360 learned=0
+          [ 3552.992] D NAV: fix=0 good=0 sat=5 hdop=1.7 51.773629,0.921768 gs=0.0 trk=210 gpsAlt=107.5
+          [ 3552.992] D NAV: baro=1 p=97307 t=20.0 std=340.0 msl=340.0 agl=0.0 vs=+0.00 fly=0 ft=0
+          [ 3552.993] D NAV: lz=0 0.000000,0.000000 elev=340.0 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=51584
+          [ 3553.583] D MIC: noise=-62.5 (blk -62.0) dBFS rpm=0 raw=2270 conf=1.8 fs=1903 tone=0 clear=1 ovf=438944
+        memory: free 48104 lowest 2168 largest block 25588
+  PASS  spectrum_setting  14.6 s  tab removed when off, back when on (default is off: True)
+        memory: free 48396 lowest 2168 largest block 25588
+  PASS  ui_system         15.9 s  5 tabs switch, debug log live/pause/clear, firmware box guarded, version and system line
+        memory: free 48356 lowest 2168 largest block 15860
+  PASS  ui_help           20.4 s  13 links on the Help tab, 17 settings groups linked, guides rendered in the page; the guide for a vario without a GPS is offered then
+        memory: free 39272 lowest 2168 largest block 16372
+  PASS  ota_guard          3.4 s  refused with a wrong and a missing password; vario kept running
+        memory: free 48292 lowest 2168 largest block 25588
+  FAIL  memory            16.1 s  free memory fell dangerously low during the tests: free 47 kB (was 48 kB at the start), lowest since power-on 2 kB, largest block 24 kB
+        state: uptime 3625 s, flying False, agl -0 m, vario -0.03, baro ok True, fix False, wind none 0/0.0, heap 48124 (lowest 2168)
+        sim: {"baro": 0, "alt": 0.0, "vz": 0.0, "gps": "real", "lat": 51.5, "lon": 0.5, "speed": 0.0, "track": 0.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [ 3621.280] D NAV: lz=0 0.000000,0.000000 elev=48.2 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=51476
+          [ 3621.742] D MIC: noise=-60.0 (blk -58.4) dBFS rpm=0 raw=3215 conf=1.5 fs=1966 tone=0 clear=1 ovf=447328
+          [ 3622.287] D NAV: fix=0 good=0 sat=0 hdop=100.0 51.769400,0.908309 gs=0.0 trk=210 gpsAlt=107.5
+          [ 3622.288] D NAV: baro=1 p=100749 t=59.3 std=48.1 msl=48.1 agl=-0.1 vs=-0.00 fly=0 ft=0
+          [ 3622.288] D NAV: lz=0 0.000000,0.000000 elev=48.2 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=51476
+          [ 3622.894] D BAT: v=4.164 pct=100 min=360 learned=0
+          [ 3623.094] D VOL: noise -60.4 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [ 3623.294] D NAV: fix=0 good=0 sat=0 hdop=100.0 51.769400,0.908309 gs=0.0 trk=210 gpsAlt=107.5
+          [ 3623.294] D NAV: baro=1 p=100749 t=59.3 std=48.1 msl=48.1 agl=-0.1 vs=-0.01 fly=0 ft=0
+          [ 3623.295] D NAV: lz=0 0.000000,0.000000 elev=48.1 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=48380
+          [ 3623.785] D MIC: noise=-60.4 (blk -60.5) dBFS rpm=0 raw=4186 conf=1.5 fs=2040 tone=0 clear=1 ovf=447584
+          [ 3624.306] D NAV: fix=0 good=0 sat=0 hdop=100.0 51.769400,0.908309 gs=0.0 trk=210 gpsAlt=107.5
+          [ 3624.307] D NAV: baro=1 p=100749 t=59.3 std=48.1 msl=48.1 agl=-0.1 vs=-0.03 fly=0 ft=0
+          [ 3624.307] D NAV: lz=0 0.000000,0.000000 elev=48.1 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=51480
+          [ 3624.910] D BAT: v=4.164 pct=100 min=360 learned=0
+          [ 3625.315] D NAV: fix=0 good=0 sat=0 hdop=100.0 51.769400,0.908309 gs=0.0 trk=210 gpsAlt=107.5
+          [ 3625.315] D NAV: baro=1 p=100749 t=59.3 std=48.0 msl=48.0 agl=-0.1 vs=-0.02 fly=0 ft=0
+          [ 3625.316] D NAV: lz=0 0.000000,0.000000 elev=48.1 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=46112
+        memory: free 46572 lowest 2168 largest block 14324
+        low memory: web: lowest 30916 -> 23568 B during request  (free now 23568)
+        low memory: lowest free memory 31256 -> 23568 B after web server (free now 23568)
+        low memory: lowest free memory 23568 -> 21864 B after web server (free now 25896)
+        low memory: route GET /api/debuglog lowered the low-water mark 21012 -> 16356 B (free now 34636)
+        low memory: web: lowest 21012 -> 16356 B during request /api/debuglog (free now 36548)
+        low memory: lowest free memory 21864 -> 16356 B after web server (free now 36548)
+        low memory: web: lowest 15184 -> 12856 B during request  (free now 20604)
+        low memory: lowest free memory 16356 -> 12856 B after web server (free now 20604)
+        low memory: lowest free memory 12856 -> 9444 B after flight logic (free now 15268)
+        low memory: web: lowest 11772 -> 9444 B during idle before  (free now 15268)
+        low memory: lowest free memory 9444 -> 7116 B after flight logic (free now 17336)
+        low memory: web: lowest 9444 -> 7116 B during idle before  (free now 17336)
+        low memory: lowest free memory 7116 -> 4788 B after flight logic (free now 11520)
+        low memory: web: lowest 7116 -> 4788 B during idle before  (free now 11520)
+        low memory: lowest free memory 4788 -> 3168 B after web server (free now 35984)
+Note: the web page came up without its settings 1 time(s) and was reloaded.
+Cleanup: close the browser, simulation off, flight logic reset, settings restored, 14 leftover test log(s) deleted, leftover test logs.
+
+40 passed, 6 failed, 304 log lines missed
+exit 1

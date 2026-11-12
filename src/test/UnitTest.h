@@ -46,4 +46,7 @@ void geoUnitSuite(UnitReport& r);
 void windUnitSuite(UnitReport& r);
 void circuitUnitSuite(UnitReport& r);
 void batteryUnitSuite(UnitReport& r);
+void flightUnitSuite(UnitReport& r);
+void baroUnitSuite(UnitReport& r);
+void rpmTrackUnitSuite(UnitReport& r);
 #endif

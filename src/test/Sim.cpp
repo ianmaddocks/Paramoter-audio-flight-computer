@@ -53,13 +53,18 @@ struct State {
 
   BaroFault baroFault = BaroFault::None;
   float baroNoiseM = 0;
-  float baroSpikeM = 0;      // added to the next sample, once
+  float baroSpikeM = 0;      // added to the next baroSpikeN samples
+  int baroSpikeN = 1;
+  int baroSpikeLeft = 0;
+  float baroStepM = 0;       // added to every sample
+  uint32_t baroDeadUntilMs = 0;  // no samples until then (a dropout timed by the vario itself)
   float baroHeldM = 0;       // the frozen value of a stuck sensor
 
   MicMode mic = MicMode::Real;
   float micHz = 0;       // engine firing frequency; 0 = no engine
   float micAmp = 150;    // engine signal amplitude, ADC counts
   float micNoise = 0;    // white noise amplitude, ADC counts
+  float rpmGlitch = 0;   // one analysis window reports this RPM
 
   uint32_t lastMs = 0;
 } s;
@@ -86,17 +91,27 @@ float baroAltStdM() {
   static uint32_t rng = 777;
   float v = s.altM - s.baroOffsetM;
   if (s.baroFault == BaroFault::Stuck) return s.baroHeldM;
+  rng = rng * 1664525u + 1013904223u;  // a real sensor's last digits never stand still: about 3 cm of noise
+  v += ((rng >> 8) / 8388608.0f - 1.0f) * 0.05f;
+  v += s.baroStepM;
   s.baroHeldM = v;
   if (s.baroFault == BaroFault::Noise) {
     rng = rng * 1664525u + 1013904223u;
     v += ((rng >> 8) / 8388608.0f - 1.0f) * s.baroNoiseM;
   }
-  v += s.baroSpikeM;
-  s.baroSpikeM = 0;
+  if (s.baroSpikeLeft > 0) {
+    v += s.baroSpikeM;
+    --s.baroSpikeLeft;
+  }
   return v;
 }
-bool baroAvail() { return s.baroFault != BaroFault::Dead; }
-float baroPressureOverride() { return s.baroFault == BaroFault::Range ? 5000.0f : 0.0f; }
+bool baroAvail() {
+  if (s.baroDeadUntilMs && (int32_t)(s.baroDeadUntilMs - millis()) > 0) return false;
+  return s.baroFault != BaroFault::Dead;
+}
+float baroPressureOverride() {
+  return s.baroFault == BaroFault::Range ? 5000.0f : s.baroFault == BaroFault::Nan ? NAN : 0.0f;
+}
 GpsMode gpsMode() { return s.gps; }
 bool gpsFitted() { return s.hasGps; }
 bool takeGpsForget() {
@@ -130,6 +145,13 @@ int32_t micSample() {
   rng = rng * 1664525u + 1013904223u;
   x += ((rng >> 8) / 8388608.0f - 1.0f) * s.micNoise;
   return constrain((int32_t)lroundf(2048.0f + x), 0, 4095);
+}
+
+bool takeRpmGlitch(float* rpm) {
+  if (s.rpmGlitch <= 0) return false;
+  *rpm = s.rpmGlitch;
+  s.rpmGlitch = 0;
+  return true;
 }
 
 bool battOn() { return s.batt; }
@@ -273,17 +295,27 @@ bool set(const String& key, const String& value) {
     s.gpsForget = on;
   } else if (key == "baroFault") {
     s.baroFault = value == "dead" ? BaroFault::Dead : value == "range" ? BaroFault::Range
-                  : value == "stuck" ? BaroFault::Stuck : value == "noise" ? BaroFault::Noise : BaroFault::None;
+                  : value == "stuck" ? BaroFault::Stuck : value == "noise" ? BaroFault::Noise
+                  : value == "nan" ? BaroFault::Nan : BaroFault::None;
   } else if (key == "baroNoise") {
     s.baroNoiseM = f;
   } else if (key == "baroSpike") {
     s.baroSpikeM = f;
+    s.baroSpikeLeft = s.baroSpikeN;
+  } else if (key == "baroSpikeN") {
+    s.baroSpikeN = (int)f;
+  } else if (key == "baroDropMs") {
+    s.baroDeadUntilMs = millis() + (uint32_t)f;
+  } else if (key == "baroStep") {
+    s.baroStepM = f;
   } else if (key == "micMode") {
     s.mic = value == "synth" ? MicMode::Synth : value == "dead" ? MicMode::Dead : MicMode::Real;
   } else if (key == "micHz") {
     s.micHz = f;
   } else if (key == "micAmp") {
     s.micAmp = f;
+  } else if (key == "rpmGlitch") {
+    s.rpmGlitch = f;
   } else if (key == "micNoise") {
     s.micNoise = f;
   } else if (key == "hasMic") {

@@ -16,6 +16,13 @@ constexpr float kLookaheadM = 150.0f;
 constexpr float kMinGuidanceSpeed = 3.0f;
 constexpr uint32_t kOffHeadingHoldMs = 4000;
 constexpr uint32_t kSteerRepeatMs = 10000;
+// A turn call is followed by the pilot's reaction and then 4 to 8 s of turning, during which the track is
+// still far from the new leg: no steering call for kTurnGraceMs after a turn call, and none while the error
+// is shrinking (by kTurnProgressDeg or more over a second or longer; the call waits kProgressHoldMs after
+// the last such sample, so a turn that stalls half way, or goes the wrong way, is still called).
+constexpr uint32_t kTurnGraceMs = 5000;
+constexpr float kTurnProgressDeg = 3.0f;
+constexpr uint32_t kProgressHoldMs = 3000;
 constexpr uint32_t kGlideCallRepeatMs = 15000;
 constexpr float kSideDetectDeg = 45.0f;
 constexpr float kSideDetectM = 40.0f;
@@ -58,6 +65,9 @@ void Approach::setPhase(ApPhase p, uint32_t now) {
   phaseSinceMs_ = now;
   lastUpdateMs_ = now;
   offSinceMs_ = 0;
+  progressUntilMs_ = 0;
+  prevDiffMs_ = 0;
+  graceUntilMs_ = p == ApPhase::ToStart ? 0 : now + kTurnGraceMs;
 }
 
 void Approach::turnCall(bool right) {
@@ -72,7 +82,18 @@ void Approach::steerTo(const NavState& nav, float desiredDeg) {
     return;
   }
   float diff = geo::wrap180(desiredDeg - nav.trackDeg);
-  if (fabsf(diff) <= g_cfg.offHeadingDeg) {
+  const float absDiff = fabsf(diff);
+  if (!prevDiffMs_ || nav.ms - prevDiffMs_ >= 1000) {  // the error about once a second: shrinking = turning the right way
+    if (prevDiffMs_ && nav.ms - prevDiffMs_ <= 3000 && prevAbsDiff_ - absDiff >= kTurnProgressDeg)
+      progressUntilMs_ = nav.ms + kProgressHoldMs;
+    prevAbsDiff_ = absDiff;
+    prevDiffMs_ = nav.ms;
+  }
+  if (absDiff <= g_cfg.offHeadingDeg) {
+    offSinceMs_ = 0;
+    return;
+  }
+  if (nav.ms < graceUntilMs_ || nav.ms < progressUntilMs_) {  // a turn is under way: let the pilot finish it
     offSinceMs_ = 0;
     return;
   }
@@ -121,6 +142,7 @@ bool Approach::start(const NavState& nav, const Wind& wind) {
   xStart_ = xCross_ - g_cfg.upwindLegM;
   descendCalled_ = tooLowCalled_ = false;
   lastSteerMs_ = lastGlideCallMs_ = 0;
+  graceUntilMs_ = progressUntilMs_ = 0;
   setPhase(ApPhase::ToStart, nav.ms);
   callStartPoint(nav, toFrame(nav), true);
   LOGI("APR", "Approach: upwind %.0f, start x=%.0f, crosswind x=%.0f, nominal base x=%.0f", upwindDeg_,
