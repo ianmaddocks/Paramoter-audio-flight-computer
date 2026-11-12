@@ -7,9 +7,11 @@ Every tile, button, sound and setting, explained. It applies to both versions of
 
 There is only one program: the vario finds out at power-on whether a GPS module is fitted and shows the Basic or the Advanced features accordingly.
 
-**Part 1** covers everything a Basic vario has, and an Advanced vario has it too (including the microphone features: background noise, engine RPM, automatic volume and the Spectrum tab). **Part 2** covers what the GPS adds; each of those features is marked *Advanced Feature*. On a vario without a GPS module they are simply not shown on the page.
+**Part 1** covers everything a Basic vario has, and an Advanced vario has it too (including the microphone features: background noise, engine RPM, automatic volume and the Spectrum tab). **Part 2** covers what the GPS adds; each of those features is marked *GPS Module*. On a vario without a GPS module they are simply not shown on the page.
 
 Heights in the examples use the default unit (feet). You can switch to metres in Settings.
+
+**The push button.** Every vario has one. What it does is explained under [Push button](#basic-buttons), and, with a GPS module, under [Push button (with GPS)](#adv-buttons).
 
 **Contents**
 
@@ -72,7 +74,7 @@ The engine speed, worked out from the sound the microphone hears.
 
 For example, `5400 rpm`. It says `off` when no engine sound is recognised. Under it, `est 5400 · conf 6.2` is the raw estimate and how sure the vario is of it.
 
-The microphone hears the engine's firing frequency and its harmonics, and the vario finds the pattern. If the *conf* number is low the reading is not shown. Tune it in the Engine RPM settings.
+The microphone hears the engine's firing frequency and its harmonics, and the vario finds the pattern. If the *conf* number is low the reading is not shown. Tune it in the Engine RPM settings. The same group has *Show the Spectrum tab* (default: off).
 
 ### Background noise
 How loud it is around the vario, as heard by the microphone.
@@ -163,6 +165,8 @@ You hear "Battery low" when the voltage falls below *Low battery warning*. It re
 <a id="basic-spectrum"></a>
 ## Spectrum tab
 
+The Spectrum tab is off by default. Switch it on with *Show the Spectrum tab* in **Advanced settings → Engine RPM**; switched off, the tab is removed from the tab list.
+
 ### Microphone spectrum
 A graph of the sounds the microphone hears, by pitch.
 
@@ -181,12 +185,12 @@ Choose what you are used to. Everything shown on the page and every height spoke
 ### Speech volume
 How loud the spoken calls are.
 
-The scale runs from 0 (silent) to 100 (as loud as it goes). Use *Test voice* while adjusting. Default: 90 %.
+The scale runs from 0 (silent) to 100 (as loud as it goes). Use *Test voice* while adjusting. Default: 5 %.
 
 ### Vario volume
 How loud the beeps are.
 
-Set it so the beeps are clear over your engine noise or wind but not painful. The start-up beep is at this volume, so it is a quick way to check. Default: 60 %.
+Set it so the beeps are clear over your engine noise or wind but not painful. The start-up beep is at this volume, so it is a quick way to check. Default: 5 %.
 
 ### Fastest volume change
 Stops the volume from changing suddenly.
@@ -205,17 +209,17 @@ Between the two noise levels you set (below), the volume rises in proportion. Th
 ### Noise for set volume (see Background noise tile)
 The noise level at or below which the normal volume is used.
 
-Read the Background noise tile when it is quiet (for example -45 dBFS) and enter that. Default: -45 dBFS.
+Read the Background noise tile when it is quiet (for example -52 dBFS) and enter that. Default: -52 dBFS.
 
 ### Noise for full volume
 The noise level at which the volume reaches 100 %.
 
-Read the tile with the engine at full power in flight (for example -15 dBFS) and enter that. Halfway between the two noise levels you get half-way between your set volume and 100 %. Default: -15 dBFS.
+Read the tile with the engine at full power in flight (for example -30 dBFS) and enter that. Halfway between the two noise levels you get half-way between your set volume and 100 %. Default: -30 dBFS.
 
 ### Volume fall time after noise drops
 How slowly the volume comes back down after a loud moment.
 
-A short burst of noise (a gust, a shout) should not make the volume go up and down. With 5 s it takes about 5 s to follow the noise down. Default: 5 s.
+A short burst of noise (a gust, a shout) should not make the volume go up and down. With 5 s it takes about 5 s to follow the noise down; at the default of 1 s it follows quickly. Default: 1 s.
 
 The volume rises with the noise within about a second, but only falls at this slower pace.
 
@@ -408,7 +412,7 @@ Leave it at 2.0 unless you have changed the resistors on the battery divider.
 ### Calibration factor
 A fine adjustment so the voltage shown matches a voltmeter.
 
-If the vario shows 4.00 V but a meter on the battery says 4.10 V, set it to 1.025 (4.10 divided by 4.00). Default: 1.0.
+If the vario shows 4.00 V but a meter on the battery says 4.10 V, set it to 1.025 (4.10 divided by 4.00). Default: 0.999.
 
 ### Low battery warning
 The voltage at which "Battery low" is spoken.
@@ -476,13 +480,13 @@ Tap it to show the part of this reference that explains that group. Where a grou
 
 # Part 2 - Advanced
 
-These features need a GPS module and are marked *Advanced Feature*. A vario finds out by itself whether a GPS module is fitted (see the *GPS module* setting); without one these features, and their settings, are simply not shown.
+These features need a GPS module and are marked *GPS Module*. A vario finds out by itself whether a GPS module is fitted (see the *GPS module* setting); without one these features, and their settings, are simply not shown.
 
 <a id="adv-tiles"></a>
 ## Tiles (Flight tab)
 
 ### Ground speed
-*Advanced Feature*
+*GPS Module*
 
 How fast you are moving over the ground, as measured by the GPS.
 
@@ -491,7 +495,7 @@ For example, `43 km/h` with `track 90°` under it, which means you are travellin
 With a weak GPS signal the speed is unreliable (it can show 40 km/h while standing still), so below 6 satellites or with poor accuracy the tile shows 0 rather than a false number.
 
 ### Glide ratio
-*Advanced Feature*
+*GPS Module*
 
 How far you are travelling forward, measured by the GPS, for each unit of height you are losing.
 
@@ -500,7 +504,7 @@ For example, `6.7 : 1` means for every 1 m you sink you move forward 6.7 m. A hi
 The big number averages the last second and moves quickly; the small one averages the last minute and is steadier. Both windows can be changed in the Glide settings. The ratio is ground speed divided by sink rate, each averaged over the window, so it already includes the wind: a headwind lowers it, a tailwind raises it. The minute average includes any climb in that minute, so after a thermal it shows the overall figure. Above 50 the tile shows `>50`. It only counts in flight, with a good GPS fix.
 
 ### Landing zone
-*Advanced Feature*
+*GPS Module*
 
 How far away the landing zone (LZ) is, and in which direction.
 
@@ -509,7 +513,7 @@ For example, `620 m` with `85° · 330 ft MSL` under it: the LZ is 620 metres aw
 By default the LZ is the spot where you stood before taking off. You can pick a different one (see *Set LZ here*).
 
 ### Wind
-*Advanced Feature*
+*GPS Module*
 
 Where the wind comes from and how strong it is.
 
@@ -518,7 +522,7 @@ For example, `270°` with `18 km/h · takeoff` under it means a west wind. The w
 The vario has no wind sensor. It first assumes you took off into the wind (your takeoff run direction), then improves the estimate whenever you turn through about 270° by watching how your ground speed changes around the circle. If you know better, set the wind by hand in the Wind settings.
 
 ### GPS
-*Advanced Feature*
+*GPS Module*
 
 How many satellites the GPS can see and how good the signal is.
 
@@ -530,14 +534,14 @@ More satellites and a lower HDOP (a measure of how spread-out they are) mean bet
 ## Banner
 
 ### Ready to fly (with GPS)
-*Advanced Feature*
+*GPS Module*
 
 Also waits for the GPS and the landing zone.
 
 The bar shows what is missing: `GPS not responding`, `Waiting for satellites` (with `4 / 6 satellites`), `GPS accuracy low`, `GPS position unstable`, `Vario settling`, or `Landing zone not set`. It turns green when all is well.
 
 ### Approach and Emergency banners
-*Advanced Feature*
+*GPS Module*
 
 The bar changes colour while guidance is running.
 
@@ -547,7 +551,7 @@ Blue `Approach` with the current circuit leg, or red `Emergency` with your glide
 ## Buttons and actions
 
 ### Push button (with GPS)
-*Advanced Feature*
+*GPS Module*
 
 One button, three kinds of press.
 
@@ -556,14 +560,14 @@ One button, three kinds of press.
 A single press takes effect about half a second after you let go, because the vario waits to see if a second press follows. A press while emergency guidance is running does nothing for approach; starting an emergency cancels any approach.
 
 ### Landing approach / Emergency glide (page buttons)
-*Advanced Feature*
+*GPS Module*
 
 The same as the single and double press.
 
 Tap to start, tap again to stop. The button lights up while active.
 
 ### Set LZ here
-*Advanced Feature*
+*GPS Module*
 
 Makes the spot where you are standing the landing zone.
 
@@ -572,7 +576,7 @@ Walk to the middle of the field you want to land in and tap it; you hear "Landin
 It also switches *Landing zone* to *Manual* and stores your position and height.
 
 ### LZ = takeoff
-*Advanced Feature*
+*GPS Module*
 
 Goes back to using your takeoff point as the landing zone.
 
@@ -582,7 +586,7 @@ Tap it after a trip to a different field, to make the next takeoff point the LZ 
 ## Guidance
 
 ### Landing approach
-*Advanced Feature*
+*GPS Module*
 
 Talks you around a landing circuit to the landing zone.
 
@@ -607,7 +611,7 @@ The circuit is built around the LZ: upwind and final are flown into the wind alo
 Stages: (1) to circuit start, with clock-position updates (12 o'clock is straight ahead) and "Descend to 400 feet" if you are high; (2) upwind, turning into wind if needed; (3) crosswind: you choose which way to turn and the vario follows your choice (or fix it in the settings); (4) downwind; (5) base: the turn point is recalculated all the time from your height so that an engine-off glide along base and final lands on the LZ - if you are high the downwind leg is extended, if you are low you hear "Too low"; (6) final. Guidance ends when you land, pass the LZ, or cancel.
 
 ### Emergency glide
-*Advanced Feature*
+*GPS Module*
 
 Tells you whether you can glide to the landing zone, and steers you there.
 
@@ -619,19 +623,19 @@ The range comes from your height, the *Glide ratio (engine off)*, and the *Trim 
 ## Sounds you hear
 
 ### "GPS fix"
-*Advanced Feature*
+*GPS Module*
 
 Said once, when the GPS first finds your position.
 
 ### "No GPS"
-*Advanced Feature*
+*GPS Module*
 
 Said if the GPS position is lost for 5 seconds in flight.
 
 Height and vario carry on from the barometer, but speed, wind and guidance are unavailable until the fix returns.
 
 ### Takeoff and landing calls
-*Advanced Feature*
+*GPS Module*
 
 With a GPS, takeoff is spotted from speed.
 
@@ -641,14 +645,14 @@ You hear "Take off" when you have been running at takeoff speed for a few second
 ## Settings: Units and Audio
 
 ### Distance (unit)
-*Advanced Feature*
+*GPS Module*
 
 Metres (and kilometres) or feet (and miles).
 
 Distances to the landing zone and in guidance are spoken and shown in this unit. Default: Metres / km.
 
 ### Speed (unit)
-*Advanced Feature*
+*GPS Module*
 
 Kilometres per hour, miles per hour or knots, for the page.
 
@@ -657,7 +661,7 @@ Choose the one you think in; the Ground speed tile follows it. Takeoff and landi
 <a id="adv-settings-takeoff-and-landing"></a>
 ## Settings: Takeoff and landing
 
-*Advanced Feature*
+*GPS Module*
 
 ### Takeoff ground speed
 The speed at which the vario starts to think you are taking off.
@@ -672,7 +676,7 @@ For example, at 5 s, a quick sprint does not count; a proper run does. Default: 
 ### Takeoff height gain
 How much you must also climb, as well as the speed.
 
-For example, at 33 ft (10 m), "Take off" is announced once you have held takeoff speed and risen that far. Default: 33 ft.
+For example, at 10 ft (3 m), "Take off" is announced once you have held takeoff speed and risen that far. Default: 10 ft.
 
 ### Landed by ground speed
 The ground speed below which you count as stopped, so you have landed.
@@ -684,7 +688,7 @@ With a GPS, landing is declared when your ground speed stays below this for *Lan
 <a id="adv-settings-glide"></a>
 ## Settings: Glide
 
-*Advanced Feature*
+*GPS Module*
 
 ### Glide ratio tile: average over / second average over
 The two time windows for the Glide ratio tile.
@@ -708,7 +712,7 @@ Once the vario has measured the wind by circling, it replaces this with the meas
 <a id="adv-settings-landing-zone"></a>
 ## Settings: Landing zone
 
-*Advanced Feature*
+*GPS Module*
 
 ### Landing zone (mode)
 Where the landing zone comes from: your takeoff point, or a place you set.
@@ -723,7 +727,7 @@ Easiest is to stand on the field and tap *Set LZ here*, which fills all three in
 <a id="adv-settings-landing-approach"></a>
 ## Settings: Landing approach
 
-*Advanced Feature*
+*GPS Module*
 
 These settings shape the landing circuit.
 
@@ -775,7 +779,7 @@ For example, at 20 s you hear it every 20 s (sooner if you are well off course).
 <a id="adv-settings-emergency"></a>
 ## Settings: Emergency
 
-*Advanced Feature*
+*GPS Module*
 
 ### Distance update every
 How often the distance to the landing zone is repeated.
@@ -790,7 +794,7 @@ For example, at 15°, when you point within 15° of the LZ you hear "On course".
 <a id="adv-settings-wind"></a>
 ## Settings: Wind
 
-*Advanced Feature*
+*GPS Module*
 
 ### Use manual wind (overrides estimate)
 Tells the vario the wind instead of letting it guess.
@@ -805,7 +809,7 @@ The wind you enter when manual wind is on.
 <a id="adv-settings-gps"></a>
 ## Settings: GPS
 
-*Advanced Feature*
+*GPS Module*
 
 ### GPS module
 Whether the vario has a GPS module: found automatically, or set by hand.
@@ -837,7 +841,7 @@ HDOP is lower for better accuracy. At 2.0 the banner waits for a good geometry. 
 <a id="adv-settings-bluetooth"></a>
 ## Settings: Bluetooth
 
-*Advanced Feature*
+*GPS Module*
 
 ### Send pseudo-GPS
 Also sends position data to the app over Bluetooth.
@@ -854,7 +858,7 @@ Once a second is enough for most apps. Default: 1 Hz.
 <a id="adv-settings-logging"></a>
 ## Settings: Logging
 
-*Advanced Feature*
+*GPS Module*
 
 ### Record IGC flight logs
 Records each flight to a file you can download.

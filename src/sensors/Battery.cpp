@@ -37,10 +37,13 @@ void Battery::update(uint32_t nowMs) {
     for (int i = 0; i < 16; ++i) sum += analogReadMilliVolts(pins::BATT_ADC);
     mv = sum / 16.0f;
   }
-  float v = mv / 1000.0f * g_cfg.battDivider * g_cfg.battCal;
-  volts_ = volts_ == 0 ? v : volts_ + (v - volts_) * 0.2f;
+  volts_ = batteryFilter(volts_, batteryVoltsFromMv(mv));
   if (g_cfg.battLearn) learner_.update(volts_, nowMs);
 }
+
+float batteryVoltsFromMv(float mv) { return mv / 1000.0f * g_cfg.battDivider * g_cfg.battCal; }
+
+float batteryFilter(float prev, float v) { return prev == 0 ? v : prev + (v - prev) * 0.2f; }
 
 float batteryCurvePct(float volts) {
   // Top point is the user's "full" voltage (100%); below 4.00 V it follows a typical LiPo curve.

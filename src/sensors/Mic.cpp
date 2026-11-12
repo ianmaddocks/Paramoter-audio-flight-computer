@@ -9,6 +9,8 @@
 
 #include <algorithm>
 #include <math.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 #include "Log.h"
 #include "Pins.h"
@@ -171,6 +173,43 @@ float refineHz(const float* mag, float c, int kLimit, float binHz) {
   return wsum > 0 ? sum / wsum * binHz : c * binHz;
 }
 
+}  // namespace
+
+// RPM candidates: fundamental bins for the configured RPM range, 1/2 bin apart; the one whose harmonic
+// series scores best wins, its confidence is its score over the median candidate's.
+void rpmFromSpectrum(const float* mag, float binHz, float ppr, float rpmMin, float rpmMax, float* rpm,
+                     float* confidence) {
+  const int kLimit = std::min(kN / 2, (int)(kMaxAnalysisHz / binHz));
+  const float cMin = std::max(2.0f, rpmMin * ppr / 60.0f / binHz);
+  const float cMax = std::min((float)kLimit - 1, rpmMax * ppr / 60.0f / binHz);
+  // The score buffers are shared: the mic task and (test build) the unit tests both call this
+  static StaticSemaphore_t lockBuf;
+  static SemaphoreHandle_t lock = xSemaphoreCreateMutexStatic(&lockBuf);
+  xSemaphoreTake(lock, portMAX_DELAY);
+  int n = 0;
+  float bestScore = -1, bestC = 0;
+  for (float c = cMin; c <= cMax && n < kMaxCandidates; c += 0.5f, ++n) {
+    scores[n] = harmonicScore(mag, c, kLimit);
+    if (scores[n] > bestScore) {
+      bestScore = scores[n];
+      bestC = c;
+    }
+  }
+  float raw = 0, conf = 0;
+  if (n >= 3 && bestScore > 0) {
+    std::copy(scores, scores + n, scoreSort);
+    std::nth_element(scoreSort, scoreSort + n / 2, scoreSort + n);
+    float median = scoreSort[n / 2];
+    conf = median > 0 ? bestScore / median : 0;
+    raw = refineHz(mag, bestC, kLimit, binHz) * 60.0f / ppr;
+  }
+  xSemaphoreGive(lock);
+  *rpm = raw;
+  *confidence = conf;
+}
+
+namespace {
+
 void process(uint32_t nowMs) {
   const float binHz = fsDec / kN;
   const float windowMs = kN * 1000.0f / fsDec;
@@ -221,28 +260,8 @@ void process(uint32_t nowMs) {
   float* mag = im;
   for (int k = 0; k < kN / 2; ++k) mag[k] = sqrtf(pw[k]);
 
-  // RPM candidates: fundamental bins for the configured RPM range, 1/2 bin apart.
-  const float ppr = g_cfg.rpmPulsesPerRev;
-  const int kLimit = std::min(kN / 2, (int)(kMaxAnalysisHz / binHz));
-  const float cMin = std::max(2.0f, g_cfg.rpmMin * ppr / 60.0f / binHz);
-  const float cMax = std::min((float)kLimit - 1, g_cfg.rpmMax * ppr / 60.0f / binHz);
-  int n = 0;
-  float bestScore = -1, bestC = 0;
-  for (float c = cMin; c <= cMax && n < kMaxCandidates; c += 0.5f, ++n) {
-    scores[n] = harmonicScore(mag, c, kLimit);
-    if (scores[n] > bestScore) {
-      bestScore = scores[n];
-      bestC = c;
-    }
-  }
   float raw = 0, conf = 0;
-  if (n >= 3 && bestScore > 0) {
-    std::copy(scores, scores + n, scoreSort);
-    std::nth_element(scoreSort, scoreSort + n / 2, scoreSort + n);
-    float median = scoreSort[n / 2];
-    conf = median > 0 ? bestScore / median : 0;
-    raw = refineHz(mag, bestC, kLimit, binHz) * 60.0f / ppr;
-  }
+  rpmFromSpectrum(mag, binHz, g_cfg.rpmPulsesPerRev, (float)g_cfg.rpmMin, (float)g_cfg.rpmMax, &raw, &conf);
 
   const float dt = kHop / fsDec;
   if (speechClear) {
@@ -310,7 +329,8 @@ void micTask(void*) {
       if (d.type2.unit != 0) continue;
       if (d.type2.channel == micCh) {
         ++rateCount;
-        onMicSample(d.type2.data);
+        // Test build: a synthetic engine / noise / dead input replaces the ADC samples
+        onMicSample(sim::micMode() != sim::MicMode::Real ? sim::micSample() : d.type2.data);
       } else if (d.type2.channel == battCh) {
         battSum += d.type2.data;
         ++battN;

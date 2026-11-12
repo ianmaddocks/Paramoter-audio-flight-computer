@@ -14,6 +14,10 @@ There is only one program for both. The vario finds out at power-on whether a GP
 
 Every tile, button and setting is explained in [Feature_Reference.md](Feature_Reference.md), Part 1. This guide tells you how to use the vario; the reference tells you what each control does. Links below point to the entries you are most likely to want.
 
+## The push button
+There is one push button. On this version **any press** switches the vario beeps off or on. You hear "Vario muted" or "Vario on". Spoken calls (heights, flight time, battery) are never muted.
+
+
 ## Before you fly
 
 1. **Switch on.** You hear a short climb beep, then a second later **"Ready"**. The beep is at your vario volume, so you can judge how loud the beeps will be.
@@ -24,10 +28,6 @@ Every tile, button and setting is explained in [Feature_Reference.md](Feature_Re
 Heights are measured from where you took off, not from sea level and not from the ground below you.
 
 > **No beeps on the ground?** That is intended. With the default setting *Only when flying* the beeps start once takeoff is detected. To hear the beeps while testing the vario on the ground, turn that setting off, or just wait until you are airborne.
-
-## The button
-
-There is one push button. On this version **any press** switches the vario beeps off or on. You hear "Vario muted" or "Vario on". Spoken calls (heights, flight time, battery) are never muted.
 
 ## What you will hear
 

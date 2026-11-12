@@ -35,6 +35,14 @@ float rpm();
 float rpmRaw();
 float rpmConfidence();
 
+// The arithmetic part of the RPM estimate, separate from the microphone so it can be tested with
+// synthetic spectra: the engine speed whose harmonic series best fits a magnitude spectrum of 512 bins
+// (0..Nyquist, binHz apart), for an engine that fires pulsesPerRev times per turn and runs between
+// rpmMin and rpmMax. *confidence is the best harmonic score over the median score (about 1 when there
+// is no engine). *rpm and *confidence are 0 when there is nothing to fit.
+void rpmFromSpectrum(const float* mag, float binHz, float pulsesPerRev, float rpmMin, float rpmMax, float* rpm,
+                     float* confidence);
+
 // Latest FFT spectrum for the web UI's Spectrum tab. 512 bins, 0..Nyquist, each a byte:
 // dBFS = byte / 2.5 - 100 (0 = below -100 dBFS, 250 = a full-scale sine). Computed before the
 // speaker-tone notch, so it shows everything the mic hears. The spectrum is only computed while

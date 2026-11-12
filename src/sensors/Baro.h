@@ -48,4 +48,5 @@ class Baro {
   uint32_t settleStartMs_ = 0;
   uint32_t quietSinceMs_ = 0;
   uint32_t simEpoch_ = 0;
+  bool simLost_ = false;  // test build: the simulated sensor stopped delivering
 };

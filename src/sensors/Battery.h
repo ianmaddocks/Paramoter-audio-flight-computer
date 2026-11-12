@@ -7,6 +7,11 @@
 // "voltage shown as 100%" setting, never above 100).
 float batteryCurvePct(float volts);
 
+// ADC pin millivolts to battery volts through the divider and the calibration setting.
+float batteryVoltsFromMv(float mv);
+// One step of the smoothing of the reading (the first reading, prev = 0, is taken as it is).
+float batteryFilter(float prev, float reading);
+
 class Battery {
  public:
   void begin();

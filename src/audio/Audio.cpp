@@ -279,8 +279,33 @@ void begin() {
   xTaskCreate(audioTask, "audio", 4096, nullptr, 5, nullptr);
 }
 
+#if PV_TEST
+namespace {
+bool gCapture = false;
+int gSaid = 0;
+char gSaidText[16][96];
+}  // namespace
+
+void testCapture(bool on) {
+  gCapture = on;
+  gSaid = 0;
+}
+int testSaid() { return gSaid; }
+const char* testSaidText(int i) { return i >= 0 && i < gSaid && i < 16 ? gSaidText[i] : ""; }
+#endif
+
 void say(const Utterance& u) {
   if (u.count == 0) return;
+#if PV_TEST
+  if (gCapture) {
+    static const char* kP[] = {"low", "normal", "high", "urgent"};
+    char* t = gSaidText[gSaid < 16 ? gSaid : 15];
+    size_t len = snprintf(t, 96, "[%s]", kP[(int)u.prio]);
+    for (int i = 0; i < u.count && len < 90; ++i) len += snprintf(t + len, 96 - len, " %s", u.clips[i]);
+    ++gSaid;
+    return;
+  }
+#endif
 #if PV_DEBUG
   char text[100];
   size_t len = 0;

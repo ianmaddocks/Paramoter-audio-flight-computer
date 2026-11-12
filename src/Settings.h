@@ -16,18 +16,19 @@ struct Settings {
   int32_t distUnit = DU_METRES;
   int32_t speedUnit = SU_KMH;
 
-  int32_t speechVolume = 90;
-  int32_t varioVolume = 60;
+  int32_t speechVolume = 5;
+  int32_t varioVolume = 5;
   int32_t volumeRampPctS = 40;  // fastest change of the applied volume, % per second
   bool autoVolume = true;
-  float noiseQuietDb = -45.0f;  // dBFS at the mic: at or below this the set volumes are used
-  float noiseLoudDb = -15.0f;   // at or above this both volumes go to 100 %
-  int32_t noiseReleaseS = 5;
+  float noiseQuietDb = -52.0f;  // dBFS at the mic: at or below this the set volumes are used
+  float noiseLoudDb = -30.0f;   // at or above this both volumes go to 100 %
+  int32_t noiseReleaseS = 1;
 
   float rpmPulsesPerRev = 1.0f;  // single-cylinder two-stroke fires once per revolution
   int32_t rpmMin = 1200;
   int32_t rpmMax = 10000;
   float rpmMinConfidence = 3.0f;
+  bool spectrumEnabled = false;  // show the Spectrum tab (needs a build with the spectrum feature)
 
   bool varioEnabled = true;
   bool varioOnlyInFlight = true;
@@ -53,7 +54,7 @@ struct Settings {
 
   float takeoffSpeedMs = 15.0f / 3.6f;
   int32_t takeoffTimeS = 5;
-  float takeoffGainM = 10.0f;
+  float takeoffGainM = 3.048f;  // 10 ft
   float baroTakeoffGainM = 15.0f;   // height gain that counts as takeoff with no usable GPS
   float groundHoldVarioMs = 0.5f;   // ground level stops following the baro above this rate
   float landingSpeedMs = 5.0f / 3.6f;
@@ -109,7 +110,7 @@ struct Settings {
   int32_t serverGiveUpS = 30;
 
   float battDivider = 2.0f;
-  float battCal = 1.0f;
+  float battCal = 0.999f;
   float battLowV = 3.5f;
   float battFullV = 4.09f;
   bool battLearn = true;

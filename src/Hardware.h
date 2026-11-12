@@ -56,7 +56,8 @@ bool hasMic();  // defined in test/Sim.cpp
 constexpr bool hasMic() { return PV_HAS_MIC; }
 #endif
 
-// The microphone spectrum feature is built in and a microphone is (still) in use.
-inline bool hasSpectrum() { return PV_HAS_SPECTRUM && hasMic(); }
+// The microphone spectrum feature is built in, switched on in the settings (Engine RPM group) and a
+// microphone is (still) in use. Defined in Settings.cpp.
+bool hasSpectrum();
 
 }  // namespace hw

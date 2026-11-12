@@ -61,4 +61,5 @@ const char* appNotReadyReason();
 #if PV_TEST
 // Test build: back to the state just after power-on, without restarting.
 void testResetFlight();
+void testFlushWind();  // forgets the circling samples gathered so far (the estimate is kept)
 #endif

@@ -37,15 +37,15 @@ void logTone(const char* mode, float hz) {
 #endif
 }
 
-float climbHz(float varioMs) {
-  return constrain(g_cfg.varioBaseHz + g_cfg.varioHzPerMs * varioMs, 200.0f, 2500.0f);
+float climbHz(const Settings& cfg, float varioMs) {
+  return constrain(cfg.varioBaseHz + cfg.varioHzPerMs * varioMs, 200.0f, 2500.0f);
 }
 
 void updateStartup(uint32_t now) {
   if (startup == Startup::Beep) {
     if (!startupMs) {
       startupMs = now ? now : 1;
-      const float hz = climbHz(kStartBeepClimbMs);
+      const float hz = climbHz(g_cfg, kStartBeepClimbMs);
       audio::setTone(hz, 0, 0);  // continuous until stopped below
 #if PV_TEST
       gBeepStartMs = startupMs;
@@ -71,24 +71,40 @@ void updateStartup(uint32_t now) {
 }
 
 void updateTone(const NavState& n, bool muted) {
-  const bool allowed = g_cfg.varioEnabled && !muted && n.baroOk && (!g_cfg.varioOnlyInFlight || n.flying);
-  const float v = n.varioMs;
-  if (allowed && g_cfg.varioClimbBeeps && v >= g_cfg.climbThreshold) {
-    const float hz = climbHz(v);
-    const uint16_t period = (uint16_t)constrain(500.0f - 70.0f * v, 150.0f, 500.0f);
-    audio::setTone(hz, period / 2, period / 2);
-    logTone("climb", hz);
-  } else if (allowed && g_cfg.varioSinkAlarm && v <= g_cfg.sinkThreshold) {
-    const float hz = constrain(g_cfg.varioBaseHz * 0.5f + 20.0f * v, 150.0f, 1000.0f);
-    audio::setTone(hz, 0, 0);
-    logTone("sink", hz);
-  } else {
-    audio::setTone(0, 0, 0);
-    logTone("off", 0);
+  const ToneCommand c = toneFor(n, muted, g_cfg);
+  switch (c.mode) {
+    case ToneCommand::Mode::Climb:
+      audio::setTone(c.hz, c.onMs, c.offMs);
+      logTone("climb", c.hz);
+      break;
+    case ToneCommand::Mode::Sink:
+      audio::setTone(c.hz, 0, 0);
+      logTone("sink", c.hz);
+      break;
+    default:
+      audio::setTone(0, 0, 0);
+      logTone("off", 0);
+      break;
   }
 }
 
 }  // namespace
+
+ToneCommand toneFor(const NavState& n, bool muted, const Settings& cfg) {
+  const bool allowed = cfg.varioEnabled && !muted && n.baroOk && (!cfg.varioOnlyInFlight || n.flying);
+  const float v = n.varioMs;
+  ToneCommand c = {ToneCommand::Mode::Off, 0.0f, 0, 0};
+  if (allowed && cfg.varioClimbBeeps && v >= cfg.climbThreshold) {
+    c.mode = ToneCommand::Mode::Climb;
+    c.hz = climbHz(cfg, v);
+    const uint16_t period = (uint16_t)constrain(500.0f - 70.0f * v, 150.0f, 500.0f);
+    c.onMs = c.offMs = period / 2;
+  } else if (allowed && cfg.varioSinkAlarm && v <= cfg.sinkThreshold) {
+    c.mode = ToneCommand::Mode::Sink;
+    c.hz = constrain(cfg.varioBaseHz * 0.5f + 20.0f * v, 150.0f, 1000.0f);
+  }
+  return c;
+}
 
 void update(uint32_t nowMs, const NavState& nav, bool muted) {
   if (startup != Startup::Done) updateStartup(nowMs);

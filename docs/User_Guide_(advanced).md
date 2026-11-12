@@ -6,6 +6,16 @@ This guide is for the **Advanced** vario, which has a GPS module. A vario withou
 
 There is only one program for both. The vario finds out at power-on whether a GPS module is fitted and shows the Advanced or the Basic features to match.
 
+## The push button
+| Press | What it does |
+|---|---|
+| **Single press** | Starts **landing approach** guidance ("Landing approach…"). Press again to cancel ("Approach cancelled"). Does nothing while emergency mode is on. |
+| **Double press** | Starts **emergency glide** guidance ("Emergency, glide range…"). Double press again to cancel ("Emergency cancelled"). Starting emergency mode cancels any landing approach. |
+| **Long press** (hold about 1 s) | Mutes or unmutes the **vario beeps** ("Vario muted" / "Vario on"). Spoken calls are never muted. |
+
+A single press takes effect about half a second after you let go, because the vario waits to see whether a second press follows. (On a vario without a GPS every press mutes.)
+
+
 ## Before you fly
 
 1. Switch on. You hear a short climb beep at the vario volume (so you can judge the level), then, a second later, **"Ready"**.
@@ -20,16 +30,6 @@ A vario with no GPS module (see [User_Guide_(basic).md](User_Guide_(basic).md)) 
 How the vario knows: at power-on it listens for the GPS module. If it hears nothing for a few seconds it treats the GPS as not fitted. Once a GPS has been seen it is remembered, so a GPS that later goes quiet shows `GPS not responding` rather than disappearing. You can also set it by hand: **GPS module** in Settings, Advanced settings, GPS (Auto-detect, Always present or Not fitted).
 
 A GPS that stops working in flight leaves you with the vario, heights and height calls; "No GPS" is spoken after 5 seconds.
-
-## Button
-
-| Press | What it does |
-|---|---|
-| **Single press** | Starts **landing approach** guidance ("Landing approach…"). Press again to cancel ("Approach cancelled"). Does nothing while emergency mode is on. |
-| **Double press** | Starts **emergency glide** guidance ("Emergency, glide range…"). Double press again to cancel ("Emergency cancelled"). Starting emergency mode cancels any landing approach. |
-| **Long press** (hold about 1 s) | Mutes or unmutes the **vario beeps** ("Vario muted" / "Vario on"). Spoken calls are never muted. |
-
-A single press takes effect about half a second after you let go, because the vario waits to see whether a second press follows. (On a vario without a GPS every press mutes.)
 
 ## What you will hear
 

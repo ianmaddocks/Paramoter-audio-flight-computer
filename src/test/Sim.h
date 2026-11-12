@@ -8,11 +8,18 @@
 //
 // Keys: baro, alt, vz, to, baroOffset, gps (fix|nofix|silent|real), lat, lon, speed, track,
 // gpsAltErr, gpsAlt, sats, hdop, batt, noise, hasGps, hasMic (0 = behave as a vario with no GPS /
-// microphone), gpsForget (forget that a GPS was ever seen and start detecting again), off
-// (everything back to real).
+// microphone), gpsForget (forget that a GPS was ever seen and start detecting again), micMode
+// (real|synth|dead), micHz (engine firing frequency in Hz: rpm x pulses per rev / 60), micAmp (engine
+// signal amplitude, ADC counts), micNoise (white noise amplitude, ADC counts), baroFault (none|dead|range|stuck|noise: no samples /
+// impossible pressure / frozen value / random error of +-baroNoise m), baroNoise (metres), baroSpike (adds
+// that many metres to the next sample only), off (everything back
+// to real).
 namespace sim {
 
 enum class GpsMode : uint8_t { Real, Fix, NoFix, Silent };
+// Real: the ADC; Synth: an engine at a given firing frequency plus noise; Dead: a flat input (no signal at all)
+enum class BaroFault : uint8_t { None, Dead, Range, Stuck, Noise };
+enum class MicMode : uint8_t { Real, Synth, Dead };
 
 #if PV_TEST
 bool baroOn();
@@ -24,6 +31,11 @@ bool gpsFitted();       // false: behave as a vario with no GPS module
 bool takeGpsForget();   // true once after "gpsForget"
 // Writes one epoch of NMEA (GGA + RMC) for the simulated fix. Returns the length, 0 if none due.
 size_t gpsNmea(uint32_t nowMs, char* out, size_t size);
+
+bool baroAvail();        // false: the sensor gives no samples at all
+float baroPressureOverride();  // > 0: this pressure (Pa) is what the sensor reports, whatever the altitude
+MicMode micMode();
+int32_t micSample();  // one synthetic ADC sample (12-bit counts), called at the ADC rate by the mic task
 
 bool battOn();
 float battV();
@@ -42,6 +54,10 @@ inline GpsMode gpsMode() { return GpsMode::Real; }
 inline bool gpsFitted() { return true; }
 inline bool takeGpsForget() { return false; }
 inline size_t gpsNmea(uint32_t, char*, size_t) { return 0; }
+inline bool baroAvail() { return true; }
+inline float baroPressureOverride() { return 0; }
+inline MicMode micMode() { return MicMode::Real; }
+inline int32_t micSample() { return 2048; }
 inline bool battOn() { return false; }
 inline float battV() { return 0; }
 inline bool noiseOn() { return false; }

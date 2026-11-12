@@ -31,6 +31,7 @@ div.page[hidden]{display:none}
 .tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .tile{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px 12px;min-width:0}
 .tile .k{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.arr{display:inline-block}
 .tile .v{font-size:22px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tile .s{font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tile.big{grid-column:span 2}.tile.big .v{font-size:40px}
@@ -95,6 +96,7 @@ details:not([open])>summary .help{display:none}
 summary .help a{margin-left:12px;color:var(--acc)}
 #helpBody a.doc{display:block;padding:10px 12px;border:1px solid var(--bd);border-radius:10px;margin:8px 0;color:var(--acc);text-decoration:none;font-weight:600}
 #helpBody a.doc small{display:block;color:var(--mut);font-size:12px;font-weight:400}
+#helpBody .hbtn{margin:0 0 10px;font-size:14px}
 #helpBody .jump{margin:6px 0 2px;color:var(--mut);font-size:13px}#helpBody .jump a{margin-right:12px;color:var(--acc);white-space:nowrap}
 .tile.wide{grid-column:span 2}
 .btns .wide{grid-column:span 2}
@@ -212,6 +214,9 @@ function fD(m){
 function fT(s){const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return(h?h+':'+String(m).padStart(2,'0'):m)+':'+String(x).padStart(2,'0')}
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),2200)}
 function txt(id,v){const e=document.getElementById(id);if(e.textContent!==v)e.textContent=v}
+// Tile value with a direction arrow: html() keeps what it last wrote, so an unchanged tile is not rebuilt.
+function html(id,h){const e=document.getElementById(id);if(e.dataset.h!==h){e.dataset.h=h;e.innerHTML=h}}
+const arrow=r=>'<span class="arr" style="transform:rotate('+Math.round(r)+'deg)">↑</span>';
 
 // Tile layout. Hidden tiles (hardware not fitted) do not count.
 //  - Main group: if its cells (tiles plus the height graph) come to an odd number, the Height
@@ -271,12 +276,17 @@ function addGroupHelp(){
 // does not talk about versions: it simply links to the right material.
 function buildHelp(){
   const adv=hwNow.gps,el=$('#helpBody');el.innerHTML='';
+  // What the one push button does, right at the top.
+  const bp=document.createElement('p');bp.className='hbtn';
+  bp.innerHTML=adv?'<b>Push button.</b> One press starts the landing approach (press again to cancel). Two quick presses start the emergency glide. Hold for about a second to mute or unmute the beeps.'
+    :'<b>Push button.</b> Any press switches the vario beeps off or on.';
+  el.appendChild(bp);
   const doc=(t,sub,file)=>{const a=mkLink(t,file,'','doc'),s=document.createElement('small');s.textContent=sub;a.appendChild(s);el.appendChild(a)};
   doc('User guide','How to use this vario, from switching on to landing',adv?DOCS.adv:DOCS.basic);
   doc('Feature reference','Every tile, button, sound and setting explained, with examples',DOCS.ref);
   const jump=(label,items)=>{const d=document.createElement('div');d.className='jump';d.append(label+' ');
     items.forEach(([t,a])=>{d.appendChild(mkLink(t,DOCS.ref,a));d.append(' ')});el.appendChild(d)};
-  const items=[['Tiles','basic-tiles'],['Buttons','basic-buttons'],['Sounds','basic-sounds'],['Settings','basic-settings-vario'],['Logs & system','basic-system']];
+  const items=[['Push button',adv?'adv-buttons':'basic-buttons'],['Tiles','basic-tiles'],['Buttons','basic-buttons'],['Sounds','basic-sounds'],['Settings','basic-settings-vario'],['Logs & system','basic-system']];
   if(hwNow.spectrum!==false)items.push(['Spectrum','basic-spectrum']);
   if(adv)items.push(['GPS tiles','adv-tiles'],['GPS buttons','adv-buttons'],['Landing guidance','adv-guidance'],['GPS sounds','adv-sounds']);
   jump('Jump to:',items);
@@ -408,9 +418,15 @@ async function poll(){
     txt('t-ftime',s.flying?'Flying'+(s.logging?' · logging':''):s.flightTime?'last flight '+fT(s.flightTime):'');
     $('#b-approach').classList.toggle('on',s.mode=='approach');$('#b-emergency').classList.toggle('on',s.mode=='emergency');
     $('#b-mute').textContent=s.muted?'Unmute vario':'Mute vario';
-    txt('t-lz',!s.lz.valid?'not set':s.lz.dist!=null?fD(s.lz.dist):'set');
-    txt('t-lzs',s.lz.valid?(s.lz.brg!=null?Math.round(s.lz.brg)+'° · ':'')+fH(s.lz.elev)+' MSL':'');
-    txt('t-wind',s.wind.valid?Math.round(s.wind.from)+'°':'unknown');txt('t-winds',s.wind.valid?fS(s.wind.speed)+' · '+s.wind.src:'');
+    // Directions are arrows relative to the way the pilot is travelling (up = straight ahead) once the GPS
+    // gives a direction of travel; the compass degrees move to the line under the value. Standing still
+    // there is no direction of travel: the degrees stay as the value.
+    const moving=!!G.fix&&G.speed>=1.5;
+    html('t-lz',!s.lz.valid?'not set':s.lz.dist!=null?fD(s.lz.dist)+(moving&&s.lz.brg!=null?' '+arrow(s.lz.brg-G.track):''):'set');
+    txt('t-lzs',s.lz.valid?(s.lz.brg!=null?'bearing '+Math.round(s.lz.brg)+'° · ':'')+fH(s.lz.elev)+' MSL':'');
+    if(!s.wind.valid){html('t-wind','unknown');txt('t-winds','')}
+    else if(moving){html('t-wind',arrow(s.wind.from+180-G.track));txt('t-winds','from '+Math.round(s.wind.from)+'° · '+fS(s.wind.speed)+' · '+s.wind.src)}
+    else{html('t-wind',Math.round(s.wind.from)+'°');txt('t-winds',fS(s.wind.speed)+' · '+s.wind.src)}
     txt('t-gps',!G.link?'no data':G.sats+' sats');
     const h=G.hdop,gq=!G.fix||!(h<=20)?'none':h<=2?'strong':h<=5?'good':h<=10?'ok':'poor';
     txt('t-gpss',(G.fix?'Fix':'Searching')+' · signal '+gq);

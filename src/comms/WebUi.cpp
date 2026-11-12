@@ -1,3 +1,5 @@
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include "WebUi.h"
 #include "Log.h"
 
@@ -24,6 +26,8 @@
 #include "nav/Geo.h"
 #include "sensors/Mic.h"
 #include "test/Sim.h"
+#include "test/ToneTest.h"
+#include "test/UnitTest.h"
 
 
 // Set from custom_ota_password in platformio.ini by tools/pio_ota.py; empty rejects every upload.
@@ -109,6 +113,13 @@ void handleStatus() {
     bj["hz"] = b.beepHz;
     bj["beepMs"] = b.beepMs;
     bj["readyGapMs"] = b.readyGapMs;
+  }
+  {  // lowest free stack (bytes) each task has ever had
+    JsonObject sj = doc["stack"].to<JsonObject>();
+    for (const char* name : {"loopTask", "audio", "mic"}) {
+      TaskHandle_t h = xTaskGetHandle(name);
+      if (h) sj[name] = (uint32_t)uxTaskGetStackHighWaterMark(h) * sizeof(StackType_t);
+    }
   }
 #endif
   doc["version"] = PV_VERSION;
@@ -218,8 +229,21 @@ void handleSim() {
     String k = server.argName(i), v = server.arg(i);
     if (k == "reset") {
       testResetFlight();
+    } else if (k == "windflush") {
+      testFlushWind();
     } else if (k == "learntest") {
       batteryLearnSelfTest();
+    } else if (k == "tonetest") {
+      varioToneSelfTest();
+    } else if (k == "unit") {
+      String js;
+      if (!runUnitSuite(v, &js)) {
+        sendError(400, "unknown unit suite");
+        return;
+      }
+      server.sendHeader("Cache-Control", "no-store");
+      server.send(200, "application/json", js);
+      return;
     } else if (!sim::set(k, v)) {
       sendError(400, "unknown sim key");
       return;

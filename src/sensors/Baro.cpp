@@ -70,8 +70,36 @@ void Baro::updateSim(uint32_t nowMs) {
   float dt = lastSampleUs_ ? (us - lastSampleUs_) * 1e-6f : 0.03f;
   lastSampleUs_ = us;
   if (dt <= 0.0f || dt > 1.0f) dt = 0.03f;
-  rawAltStdM_ = sim::baroAltStdM();
-  pressurePa_ = 101325.0f * powf(1.0f - rawAltStdM_ / 44330.8f, 1.0f / 0.190263f);
+  // The same rules as for the real sensor: no samples for 2 s means not ok, a pressure outside the
+  // possible range is dropped, and the filter starts afresh when samples return after a loss (what
+  // configure() does for the real sensor).
+  if (!sim::baroAvail()) {
+    if (ok_ && nowMs - lastGoodMs_ > 2000) {
+      ok_ = false;
+      simLost_ = true;
+      LOGW("BARO", "DPS310 stopped responding");
+    }
+    return;
+  }
+  float alt = sim::baroAltStdM();
+  float pa = sim::baroPressureOverride() > 0 ? sim::baroPressureOverride()
+                                             : 101325.0f * powf(1.0f - alt / 44330.8f, 1.0f / 0.190263f);
+  if (pa < 20000.0f || pa > 110000.0f) {
+    if (ok_ && nowMs - lastGoodMs_ > 2000) {
+      ok_ = false;
+      simLost_ = true;
+      LOGW("BARO", "DPS310 stopped responding");
+    }
+    return;
+  }
+  if (simLost_) {
+    simLost_ = false;
+    kf_ = AltKalman();
+    settled_ = false;
+    settleStartMs_ = 0;
+  }
+  rawAltStdM_ = alt;
+  pressurePa_ = pa;
   tempC_ = 20.0f;
   sampleDtS_ = dt;
   lastGoodMs_ = nowMs;

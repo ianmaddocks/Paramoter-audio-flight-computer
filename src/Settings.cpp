@@ -57,6 +57,7 @@ const Field kFields[] = {
     I(rpmMin, "Engine RPM", "Lowest RPM", "rpm", 300, 20000),
     I(rpmMax, "Engine RPM", "Highest RPM", "rpm", 1000, 30000),
     FL(rpmMinConfidence, "Engine RPM", "Minimum confidence (see Mic tile)", "", 1.0f, 20.0f),
+    B(spectrumEnabled, "Engine RPM", "Show the Spectrum tab"),
 
     B(varioEnabled, "Vario", "Vario beeps enabled"),
     B(varioOnlyInFlight, "Vario", "Only when flying"),
@@ -221,6 +222,10 @@ void normaliseList(char* buf, size_t size) {
 }
 
 }  // namespace
+
+namespace hw {
+bool hasSpectrum() { return PV_HAS_SPECTRUM && g_cfg.spectrumEnabled && hasMic(); }
+}  // namespace hw
 
 namespace settings {
 

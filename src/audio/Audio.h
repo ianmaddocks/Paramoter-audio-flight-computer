@@ -27,6 +27,13 @@ void begin();
 void say(const Utterance& u);
 bool speaking();
 
+#if PV_TEST
+// Unit tests: while capture is on, say() records the utterance as text instead of playing it.
+void testCapture(bool on);
+int testSaid();                  // utterances recorded since capture was switched on
+const char* testSaidText(int i);  // "[prio] clip clip ..."
+#endif
+
 // hz = 0 silences. offMs = 0 gives a continuous tone.
 void setTone(float hz, uint16_t onMs, uint16_t offMs);
 void setVolumes(uint8_t speechPct, uint8_t tonePct);

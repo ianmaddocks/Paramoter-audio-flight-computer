@@ -203,6 +203,10 @@ const char* appNotReadyReason() {
 }
 
 #if PV_TEST
+// The wind estimator keeps 60 s of ground-velocity samples; a test that wants a fresh collection starts with this
+// (onTakeoff without a valid course clears the samples and nothing else).
+void testFlushWind() { app.wind.onTakeoff(false, 0); }
+
 void testResetFlight() {
   app.approach.cancel(false);
   app.emergency.cancel(false);

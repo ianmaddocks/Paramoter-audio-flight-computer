@@ -39,6 +39,28 @@ struct State {
   bool hasMic = true;  // false: behave as a vario with no microphone
   bool gpsForget = false;
 
+  // A simulated aircraft: flies at airMs along hdg, drifting with the wind; speed and track (what the GPS
+  // reports) then follow from it. fly=1 switches the model on; it turns at turnDegS (signed, + right), or
+  // towards turnTo at turnRate until it is on that heading.
+  bool fly = false;
+  float hdg = 0;
+  float airMs = 10;
+  float windFromDeg = 0, windMs = 0;
+  float turnDegS = 0;
+  float turnRate = 15;
+  bool haveTurnTo = false;
+  float turnTo = 0;
+
+  BaroFault baroFault = BaroFault::None;
+  float baroNoiseM = 0;
+  float baroSpikeM = 0;      // added to the next sample, once
+  float baroHeldM = 0;       // the frozen value of a stuck sensor
+
+  MicMode mic = MicMode::Real;
+  float micHz = 0;       // engine firing frequency; 0 = no engine
+  float micAmp = 150;    // engine signal amplitude, ADC counts
+  float micNoise = 0;    // white noise amplitude, ADC counts
+
   uint32_t lastMs = 0;
 } s;
 
@@ -60,7 +82,21 @@ void coord(double deg, int degDigits, char pos, char neg, char* out, size_t size
 
 bool baroOn() { return s.baro; }
 uint32_t baroEpoch() { return s.baroEpoch; }
-float baroAltStdM() { return s.altM - s.baroOffsetM; }
+float baroAltStdM() {
+  static uint32_t rng = 777;
+  float v = s.altM - s.baroOffsetM;
+  if (s.baroFault == BaroFault::Stuck) return s.baroHeldM;
+  s.baroHeldM = v;
+  if (s.baroFault == BaroFault::Noise) {
+    rng = rng * 1664525u + 1013904223u;
+    v += ((rng >> 8) / 8388608.0f - 1.0f) * s.baroNoiseM;
+  }
+  v += s.baroSpikeM;
+  s.baroSpikeM = 0;
+  return v;
+}
+bool baroAvail() { return s.baroFault != BaroFault::Dead; }
+float baroPressureOverride() { return s.baroFault == BaroFault::Range ? 5000.0f : 0.0f; }
 GpsMode gpsMode() { return s.gps; }
 bool gpsFitted() { return s.hasGps; }
 bool takeGpsForget() {
@@ -68,6 +104,34 @@ bool takeGpsForget() {
   s.gpsForget = false;
   return f;
 }
+MicMode micMode() { return s.mic; }
+
+// One ADC sample of the synthetic microphone: the engine's firing pulses as a six-harmonic series at
+// micHz (sample rate 4 kHz, the ADC's rate for the microphone) plus white noise. The waveform comes
+// from a table so that this costs a few microseconds per sample.
+int32_t micSample() {
+  static int16_t wave[1024];
+  static bool built = false;
+  static uint32_t phase = 0, rng = 12345;
+  if (!built) {
+    for (int i = 0; i < 1024; ++i) {
+      float x = 0;
+      for (int h = 1; h <= 6; ++h) x += sinf(h * 2.0f * (float)M_PI * i / 1024.0f) / h;
+      wave[i] = (int16_t)lroundf(x * 1000.0f / 1.8f);  // peak about +-1000
+    }
+    built = true;
+  }
+  if (s.mic == MicMode::Dead) return 2048;
+  float x = 0;
+  if (s.micHz > 0.0f) {
+    phase += (uint32_t)(s.micHz / 4000.0f * 4294967296.0f);
+    x = wave[phase >> 22] * s.micAmp / 1000.0f;
+  }
+  rng = rng * 1664525u + 1013904223u;
+  x += ((rng >> 8) / 8388608.0f - 1.0f) * s.micNoise;
+  return constrain((int32_t)lroundf(2048.0f + x), 0, 4095);
+}
+
 bool battOn() { return s.batt; }
 float battV() { return s.battV; }
 bool noiseOn() { return s.noise; }
@@ -85,6 +149,26 @@ void update(uint32_t nowMs) {
       s.haveTarget = false;
       LOGI("SIM", "reached target altitude %.1f m", s.altM);
     }
+  }
+  if (s.fly) {
+    if (s.haveTurnTo) {
+      float diff = fmodf(s.turnTo - s.hdg + 540.0f, 360.0f) - 180.0f;  // -180..180, + is to the right
+      float step = s.turnRate * dt;
+      if (fabsf(diff) <= step) {
+        s.hdg = s.turnTo;
+        s.haveTurnTo = false;
+        s.turnDegS = 0;
+      } else {
+        s.hdg += diff > 0 ? step : -step;
+      }
+    } else {
+      s.hdg += s.turnDegS * dt;
+    }
+    s.hdg = fmodf(s.hdg + 720.0f, 360.0f);
+    const float h = s.hdg * geo::kDegToRadF, w = (s.windFromDeg + 180.0f) * geo::kDegToRadF;
+    const float ve = s.airMs * sinf(h) + s.windMs * sinf(w), vn = s.airMs * cosf(h) + s.windMs * cosf(w);
+    s.speedMs = hypotf(ve, vn);
+    s.trackDeg = geo::vecBearing(ve, vn);
   }
   if (s.speedMs > 0) {
     float d = s.speedMs * dt;
@@ -137,6 +221,25 @@ bool set(const String& key, const String& value) {
   } else if (key == "baroOffset") {
     s.baroOffsetM = f;
     ++s.baroEpoch;
+  } else if (key == "fly") {
+    s.fly = on;
+  } else if (key == "hdg") {
+    s.hdg = f;
+    s.haveTurnTo = false;
+  } else if (key == "air") {
+    s.airMs = f;
+  } else if (key == "windFrom") {
+    s.windFromDeg = f;
+  } else if (key == "windSpd") {
+    s.windMs = f;
+  } else if (key == "turn") {
+    s.turnDegS = f;
+    s.haveTurnTo = false;
+  } else if (key == "turnRate") {
+    s.turnRate = f;
+  } else if (key == "turnTo") {
+    s.turnTo = fmodf(f + 720.0f, 360.0f);
+    s.haveTurnTo = true;
   } else if (key == "gps") {
     s.gps = value == "fix" ? GpsMode::Fix : value == "nofix" ? GpsMode::NoFix
             : value == "silent" ? GpsMode::Silent : GpsMode::Real;
@@ -168,6 +271,21 @@ bool set(const String& key, const String& value) {
     s.hasGps = on;
   } else if (key == "gpsForget") {
     s.gpsForget = on;
+  } else if (key == "baroFault") {
+    s.baroFault = value == "dead" ? BaroFault::Dead : value == "range" ? BaroFault::Range
+                  : value == "stuck" ? BaroFault::Stuck : value == "noise" ? BaroFault::Noise : BaroFault::None;
+  } else if (key == "baroNoise") {
+    s.baroNoiseM = f;
+  } else if (key == "baroSpike") {
+    s.baroSpikeM = f;
+  } else if (key == "micMode") {
+    s.mic = value == "synth" ? MicMode::Synth : value == "dead" ? MicMode::Dead : MicMode::Real;
+  } else if (key == "micHz") {
+    s.micHz = f;
+  } else if (key == "micAmp") {
+    s.micAmp = f;
+  } else if (key == "micNoise") {
+    s.micNoise = f;
   } else if (key == "hasMic") {
     s.hasMic = on;
   } else if (key == "off") {
@@ -182,13 +300,13 @@ bool set(const String& key, const String& value) {
 }
 
 void describe(String& json) {
-  char buf[320];
+  char buf[400];
   static const char* kGps[] = {"real", "fix", "nofix", "silent"};
   snprintf(buf, sizeof(buf),
            "{\"baro\":%d,\"alt\":%.2f,\"vz\":%.2f,\"gps\":\"%s\",\"lat\":%.6f,\"lon\":%.6f,\"speed\":%.2f,"
-           "\"track\":%.1f,\"sats\":%d,\"hdop\":%.2f,\"batt\":%d,\"battV\":%.3f,\"noise\":%d,\"noiseDb\":%.1f}",
+           "\"track\":%.1f,\"sats\":%d,\"hdop\":%.2f,\"batt\":%d,\"battV\":%.3f,\"noise\":%d,\"noiseDb\":%.1f,\"hdg\":%.1f}",
            s.baro, s.altM, s.vzMs, kGps[(int)s.gps], s.lat, s.lon, s.speedMs, s.trackDeg, s.sats, s.hdop,
-           s.batt, s.battV, s.noise, s.noiseDb);
+           s.batt, s.battV, s.noise, s.noiseDb, s.hdg);
   json = buf;
 }
 
