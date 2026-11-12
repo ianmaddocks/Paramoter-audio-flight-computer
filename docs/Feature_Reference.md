@@ -160,7 +160,7 @@ It is spoken as "Flight time 1 hour 5 minutes", by default every 5 minutes.
 ### Battery low
 A warning when the battery is getting flat.
 
-You hear "Battery low" when the voltage falls below *Low battery warning*. It repeats every 5 minutes until you land and charge.
+You hear "Battery low" when the voltage falls below *Low battery warning*. It repeats every 5 minutes until you land and charge. Below *Critical battery warning* it is an urgent call every minute, and so is a battery reading that disappears in flight.
 
 <a id="basic-spectrum"></a>
 ## Spectrum tab
@@ -300,6 +300,13 @@ The barometer takes a few seconds to warm up, and during that time the reading w
 
 If it never gets steady (for example you restarted it in the air) it starts anyway after three times this period.
 
+### Barometer frozen after
+How long an identical barometer reading must last before the vario calls the barometer broken.
+
+A working barometer's reading always flickers in its last digit. If it stays exactly the same for this long the sensor has hung: the vario would show a calm "level flight" whatever you did, so instead it reports `Barometer not working`, silences the vario beeps, and recovers by itself when the reading moves again. Default: 5 s. 0 switches the check off (use that only if a perfectly steady reading on the bench gives false alarms).
+
+Whatever this is set to, the vario also ignores impossible readings (not a number, or a pressure no weather or altitude can give) and a single wild sample (more than an aircraft can move in the time, 40 m/s). If the next sample agrees with the wild one it was a real step and is accepted; if not, the lone sample is dropped and never reaches the beeps.
+
 <a id="basic-settings-height-calls"></a>
 ## Settings: Height calls
 
@@ -357,9 +364,16 @@ Without this, the zero would creep upwards with a slow climb and the takeoff wou
 ### Landed after
 How long you must be still before the vario decides you have landed.
 
-On a Basic vario "still" means the barometer reads a steady height, and it needs twice this time: with 30 s, 60 s of steady height is declared a landing and you hear "Landed, flight time ...". Default: 30 s.
+With a good GPS speed, "still" means your ground speed is below *Landed by ground speed* for this long. Without one (a Basic vario, no GPS fix, or a weak fix) the vario cannot tell from speed, so it needs the barometer to read a steady height **and** your height to be close to the ground (see *Landed without GPS speed: only below*), for twice this time: with 30 s, 60 s of steady height on the ground is declared a landing and you hear "Landed, flight time ...". Default: 30 s.
 
-Flying level at a constant height also reads as steady, but you will rarely stay perfectly steady that long. If you fly very level for a minute and get a false "Landed", increase this. After a false landing the vario needs another climb of the takeoff height gain before it notices you are flying again.
+Flying level in the air is never taken for a landing without a GPS speed, however long it lasts, and neither is a lost or weak GPS fix. After a landing the vario needs another climb of the takeoff height gain before it notices you are flying again.
+
+### Landed without GPS speed: only below
+How close to the ground you must be, for a landing to be declared when the GPS speed cannot be trusted.
+
+With no GPS, no fix or a weak fix the vario does not know your speed. A steady height alone could be level flight, so it also needs your height above the landing zone to be under this. Default: 50 ft (15 m).
+
+If you land on a hillside more than this above where you took off (or above the landing zone you set) and the GPS is not working, the landing will not be noticed until the GPS recovers: raise it for that. Setting it too high lets very level flight low over the ground be taken for a landing.
 
 <a id="basic-settings-bluetooth"></a>
 ## Settings: Bluetooth
@@ -418,6 +432,13 @@ If the vario shows 4.00 V but a meter on the battery says 4.10 V, set it to 1.02
 The voltage at which "Battery low" is spoken.
 
 For example, at 3.5 V you get the warning with some capacity still in reserve. Raise it for more notice. Default: 3.5 V.
+
+### Critical battery warning
+The voltage at which the battery warning becomes urgent and repeats every minute.
+
+Below this "Battery low" is spoken as an urgent call after 5 seconds and repeated every minute, instead of the ordinary call every 5 minutes. Default: 3.3 V. If it is set above *Low battery warning*, the low warning voltage is used.
+
+A reading under 2.5 V is not a battery measurement: with nothing seen before it just means USB power or no battery, and nothing is said. But if the vario has seen a real reading since it was switched on and the reading then vanishes **in flight**, you hear the same urgent call every minute: the vario cannot say how much battery is left.
 
 ### Voltage shown as 100%
 The voltage you treat as "full".
@@ -492,6 +513,8 @@ How fast you are moving over the ground, as measured by the GPS.
 
 For example, `43 km/h` with `track 90°` under it, which means you are travelling due east. Change the unit in Settings (km/h, mph or knots).
 
+While you are moving, an arrow at the right shows your direction of travel against **absolute north**: the small **N** above it is north, so an arrow pointing straight up under the N means you are heading north, pointing right means east. (The Wind and Landing zone arrows are different: they are relative to your direction of travel.) The arrow is smoothed so it does not jump about, and is hidden when you are standing still.
+
 With a weak GPS signal the speed is unreliable (it can show 40 km/h while standing still), so below 6 satellites or with poor accuracy the tile shows 0 rather than a false number.
 
 ### Glide ratio
@@ -506,9 +529,9 @@ The big number averages the last second and moves quickly; the small one average
 ### Landing zone
 *GPS Module*
 
-How far away the landing zone (LZ) is, and in which direction.
+How far away the landing zone (LZ) is, and which way to turn to it.
 
-For example, `620 m` with `85° · 330 ft MSL` under it: the LZ is 620 metres away on a bearing of 85° (nearly east). Until a landing zone is set it says `not set`.
+For example, `620 m` with `330 ft MSL` under it and a large arrow at the right: the LZ is 620 metres away and 330 feet above sea level. The arrow points to the LZ relative to the way you are travelling: straight up means it is dead ahead, pointing right means it is off to your right, pointing down means it is behind you. The arrow is smoothed so it does not jump about, and appears once you are moving (at walking pace or more). Until a landing zone is set it says `not set`.
 
 By default the LZ is the spot where you stood before taking off. You can pick a different one (see *Set LZ here*).
 
@@ -517,7 +540,7 @@ By default the LZ is the spot where you stood before taking off. You can pick a 
 
 Where the wind comes from and how strong it is.
 
-For example, `270°` with `18 km/h · takeoff` under it means a west wind. The word after the dot says how it was worked out: *takeoff*, *circling* or *manual*. Before any estimate it says `unknown`.
+While you are moving, a large arrow at the right shows where the wind is going, relative to the way you are travelling (up = a tailwind pushing you straight ahead, down = a headwind), smoothed so it does not jump about. Under it: `from 270° · 18 km/h · takeoff`, a west wind. Standing still there is no direction of travel, so the tile shows `270°` instead of an arrow. The word after the dot says how it was worked out: *takeoff*, *circling* or *manual*. Before any estimate it says `unknown`.
 
 The vario has no wind sensor. It first assumes you took off into the wind (your takeoff run direction), then improves the estimate whenever you turn through about 270° by watching how your ground speed changes around the circle. If you know better, set the wind by hand in the Wind settings.
 
@@ -683,7 +706,7 @@ The ground speed below which you count as stopped, so you have landed.
 
 For example, at 5 km/h, walking pace or slower. Default: 5 km/h.
 
-With a GPS, landing is declared when your ground speed stays below this for *Landed after* seconds (shown in Part 1; it is half the time needed without a GPS).
+With a good GPS fix, landing is declared when your ground speed stays below this for *Landed after* seconds (shown in Part 1; it is half the time needed without a GPS speed). A weak fix (few satellites or poor accuracy) is not used for the speed: the vario falls back on the barometer and your height, as with no GPS (see *Landed without GPS speed: only below*), so a weak fix in flight no longer ends the flight.
 
 <a id="adv-settings-glide"></a>
 ## Settings: Glide

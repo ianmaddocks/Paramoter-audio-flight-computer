@@ -49,6 +49,12 @@ class Approach {
   uint32_t phaseSinceMs_ = 0;
   uint32_t lastUpdateMs_ = 0;
   uint32_t offSinceMs_ = 0;
+  // Steering calls wait while a turn is being made (F6): graceUntilMs_ covers the pilot's reaction after a
+  // turn call; progressUntilMs_ is pushed on while the heading error is shrinking.
+  uint32_t graceUntilMs_ = 0;
+  uint32_t progressUntilMs_ = 0;
+  uint32_t prevDiffMs_ = 0;
+  float prevAbsDiff_ = 0;
   uint32_t lastSteerMs_ = 0;
   uint32_t lastGlideCallMs_ = 0;
   XY tracePos_{0, 0};

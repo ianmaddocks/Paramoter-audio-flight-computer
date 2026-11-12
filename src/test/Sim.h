@@ -10,15 +10,17 @@
 // gpsAltErr, gpsAlt, sats, hdop, batt, noise, hasGps, hasMic (0 = behave as a vario with no GPS /
 // microphone), gpsForget (forget that a GPS was ever seen and start detecting again), micMode
 // (real|synth|dead), micHz (engine firing frequency in Hz: rpm x pulses per rev / 60), micAmp (engine
-// signal amplitude, ADC counts), micNoise (white noise amplitude, ADC counts), baroFault (none|dead|range|stuck|noise: no samples /
-// impossible pressure / frozen value / random error of +-baroNoise m), baroNoise (metres), baroSpike (adds
-// that many metres to the next sample only), off (everything back
+// signal amplitude, ADC counts), micNoise (white noise amplitude, ADC counts), rpmGlitch (one analysis window reports this RPM with a high confidence), baroFault (none|dead|range|stuck|noise: no samples /
+// impossible pressure / frozen value / random error of +-baroNoise m). The simulated sensor always has its
+// own small noise (about 3 cm), as a real one does, baroNoise (metres), baroSpike (adds
+// that many metres to the next baroSpikeN samples, default 1), baroSpikeN, baroDropMs (no samples for that many ms, timed by the vario), baroStep (metres added to every
+// sample from now on: a persistent step), baroFault nan (pressure is not a number), off (everything back
 // to real).
 namespace sim {
 
 enum class GpsMode : uint8_t { Real, Fix, NoFix, Silent };
 // Real: the ADC; Synth: an engine at a given firing frequency plus noise; Dead: a flat input (no signal at all)
-enum class BaroFault : uint8_t { None, Dead, Range, Stuck, Noise };
+enum class BaroFault : uint8_t { None, Dead, Range, Stuck, Noise, Nan };
 enum class MicMode : uint8_t { Real, Synth, Dead };
 
 #if PV_TEST
@@ -36,6 +38,7 @@ bool baroAvail();        // false: the sensor gives no samples at all
 float baroPressureOverride();  // > 0: this pressure (Pa) is what the sensor reports, whatever the altitude
 MicMode micMode();
 int32_t micSample();  // one synthetic ADC sample (12-bit counts), called at the ADC rate by the mic task
+bool takeRpmGlitch(float* rpm);  // true once after rpmGlitch=<rpm>: the next analysis window reports that RPM, confidently
 
 bool battOn();
 float battV();
@@ -58,6 +61,7 @@ inline bool baroAvail() { return true; }
 inline float baroPressureOverride() { return 0; }
 inline MicMode micMode() { return MicMode::Real; }
 inline int32_t micSample() { return 2048; }
+inline bool takeRpmGlitch(float*) { return false; }
 inline bool battOn() { return false; }
 inline float battV() { return 0; }
 inline bool noiseOn() { return false; }

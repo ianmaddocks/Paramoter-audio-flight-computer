@@ -2,6 +2,8 @@
 #include <Adafruit_DPS310.h>
 #include <Wire.h>
 
+#include "sensors/BaroGuard.h"
+
 // Two-state (altitude, vertical speed) Kalman filter driven by baro altitude.
 struct AltKalman {
   float h = 0, v = 0;
@@ -25,11 +27,17 @@ class Baro {
   float varioMs() const { return kf_.v; }
   // False after power-on (or sensor reset) until the vario reading has settled; see update().
   bool settled() const { return settled_; }
+  // Samples screened out (impossible, or lone outliers), persistent steps accepted, and whether the value
+  // is frozen: for the status page and the tests.
+  uint32_t rejected() const { return rejected_; }
+  uint32_t jumps() const { return jumps_; }
+  bool frozen() const { return guard_.stuck(); }
 
  private:
   bool configure();
   void updateSettled(uint32_t nowMs);
   void updateSim(uint32_t nowMs);
+  bool screen(float pa, float altM, uint32_t nowMs, float dtS);
 
   Adafruit_DPS310 dps_;
   TwoWire* wire_ = nullptr;
@@ -48,5 +56,9 @@ class Baro {
   uint32_t settleStartMs_ = 0;
   uint32_t quietSinceMs_ = 0;
   uint32_t simEpoch_ = 0;
+  BaroGuard guard_;
+  uint32_t rejected_ = 0, jumps_ = 0;
+  uint32_t lastAcceptUs_ = 0;
+  uint32_t lastRejectLogMs_ = 0;
   bool simLost_ = false;  // test build: the simulated sensor stopped delivering
 };

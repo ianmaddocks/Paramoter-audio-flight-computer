@@ -92,6 +92,53 @@ void sendError(int code, const char* msg) {
   sendJson(doc, code);
 }
 
+// Who has been talking to the web server, whichever network they came in on (the vario's own access point or
+// the server network, where the access point's station count cannot see them): the last time each of up to
+// kMaxWeb addresses made a request, and whether that request was one of the test harness's own (it sends
+// X-HIL). The status reports how many addresses were heard in the last kWebWindowMs, and how many of those
+// were not the harness, so a test run can tell that someone else has a page open.
+constexpr int kMaxWeb = 8;
+constexpr uint32_t kWebWindowMs = 15000;
+struct WebClient {
+  uint32_t ip = 0;
+  uint32_t lastMs = 0;        // last request of any kind
+  uint32_t lastOtherMs = 0;   // last request that was not the harness's
+};
+WebClient webClients[kMaxWeb];
+
+void noteWebClient() {
+  const uint32_t ip = (uint32_t)server.client().remoteIP();
+  const uint32_t now = millis() | 1;  // never 0: 0 means 'never'
+  const bool harness = server.hasHeader("X-HIL");
+  WebClient* slot = nullptr;
+  for (WebClient& c : webClients) {
+    if (c.ip == ip) { slot = &c; break; }
+  }
+  if (!slot) {  // a free slot, or the one that has been quiet longest
+    slot = &webClients[0];
+    for (WebClient& c : webClients) {
+      if (c.ip == 0) { slot = &c; break; }
+      if (now - c.lastMs > now - slot->lastMs) slot = &c;
+    }
+    *slot = WebClient();
+    slot->ip = ip;
+  }
+  slot->lastMs = now;
+  if (!harness) slot->lastOtherMs = now;
+}
+
+// How many addresses were heard from lately; *others: how many of them made a request that was not the harness's.
+int webClientsHeard(int* others) {
+  const uint32_t now = millis() | 1;
+  int all = 0, other = 0;
+  for (const WebClient& c : webClients) {
+    if (c.ip && c.lastMs && now - c.lastMs <= kWebWindowMs) ++all;
+    if (c.ip && c.lastOtherMs && now - c.lastOtherMs <= kWebWindowMs) ++other;
+  }
+  *others = other;
+  return all;
+}
+
 void handleStatus() {
   const NavState& n = app.nav;
   JsonDocument doc;
@@ -164,6 +211,11 @@ void handleStatus() {
   baro["ok"] = n.baroOk;
   baro["pressure"] = n.pressurePa;
   baro["temp"] = n.tempC;
+#if PV_TEST
+  baro["rej"] = app.baro.rejected();
+  baro["jumps"] = app.baro.jumps();
+  baro["frozen"] = app.baro.frozen();
+#endif
 
   JsonObject batt = doc["batt"].to<JsonObject>();
   batt["v"] = app.battery.volts();
@@ -207,6 +259,11 @@ void handleStatus() {
   wifi["bleName"] = settings::bleName();
   wifi["apIp"] = WiFi.softAPIP().toString();
   wifi["apClients"] = WiFi.softAPgetStationNum();
+  {
+    int others = 0;
+    wifi["webClients"] = webClientsHeard(&others);  // addresses that made a request in the last 15 s
+    wifi["webOthers"] = others;                    // ... of which not the test harness (X-HIL)
+  }
   wifi["serverSsid"] = serverSsidUsed;
   wifi["server"] = serverWifi == ServerWifi::Connected ? "connected" : serverWifi == ServerWifi::Connecting ? "connecting" : serverWhyOff;
   if (serverWifi == ServerWifi::Connected) {
@@ -527,7 +584,7 @@ void handleLogDelete() {
 String otaError;
 bool otaFs = false;
 bool otaOk = false;
-const char* kOtaHeaders[] = {"X-OTA-Password"};
+const char* kOtaHeaders[] = {"X-OTA-Password", "X-HIL"};
 
 bool otaPasswordOk() {
   const String given = server.header("X-OTA-Password");
@@ -636,6 +693,7 @@ const char* gRoute = "";
 void route(const char* path, HTTPMethod method, void (*handler)()) {
   server.on(path, method, [path, handler]() {
     gRoute = path;
+    noteWebClient();
 #if PV_DEBUG
     // Names the routes that push the memory low-water mark down, in the debug log.
     const uint32_t before = ESP.getMinFreeHeap();
@@ -692,7 +750,7 @@ void begin() {
   route("/api/log", HTTP_DELETE, handleLogDelete);
   server.on("/api/ota", HTTP_POST, handleOtaDone, handleOtaUpload);
   server.addHandler(new RedirectToUi());
-  server.collectHeaders(kOtaHeaders, 1);
+  server.collectHeaders(kOtaHeaders, 2);
   server.begin();
   LOGI("WEB", "Wi-Fi AP '%s' at %s", settings::apSsid(), WiFi.softAPIP().toString().c_str());
 }

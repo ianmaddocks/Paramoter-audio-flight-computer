@@ -43,7 +43,16 @@ before flying.
 tests); 3 the tests passed but a cleanup step failed (each cleanup step runs on its own and is reported).
 Every test starts from a clean state (simulation off, flight reset, test settings). A test also fails if log
 lines were dropped during it (the log feed lost lines, so it may have judged an incomplete log) unless it is
-listed in `DROPS_ALLOWED` (`boot`, which restarts the vario, and `memory_events`, which floods it on purpose).
+listed in `DROPS_ALLOWED` (`boot`, which restarts the vario, and `memory_events`, which floods it on purpose) or
+is a `*_logic` unit test (which runs production code over thousands of simulated seconds in one request and judges the
+suite's own report, never the log). Drops are counted against the test that caused them.
+
+**Outside activity.** A phone or PC page left open, or a BLE client (FlyGaggle), changes timing and memory and can drop
+log lines. The harness marks every request it makes with an `X-HIL` header (its headless browser too); the vario counts
+the web clients that made a request in the last 15 s without it (`wifi.webOthers` in `/api/status`, whichever network
+they came in on), the stations on its own access point (`wifi.apClients`) and the BLE connections (`ble`). Before and
+after each test the script reads them and prints a WARNING under any test that ran with somebody else connected; the
+summary lists those tests, and `--memory` prints the counts on each memory line. Close other pages before a run.
 A failure prints the vario's state, the simulator state and the last log lines.
 
 ## How it works
@@ -57,10 +66,13 @@ A failure prints the vario's state, the simulator state and the last log lines.
   `micNoise`: an engine of known firing frequency, noise, or a dead input in place of the ADC samples), a
   **simulated aircraft** (`fly=1`, `hdg`, `air`, `windFrom`, `windSpd`, `turn`, `turnTo`, `turnRate`: ground speed and track
   follow from heading, airspeed and wind, so the true wind and the flown path are known), **barometer faults**
-  (`baroFault=dead|range|stuck|noise`, `baroNoise`, `baroSpike`) and `windflush=1` (forget the wind samples so far).
+  (`baroFault=dead|range|stuck|noise|nan`, `baroNoise`, `baroSpike` with `baroSpikeN` samples, `baroStep` a persistent
+  offset, `baroDropMs` a dropout timed by the vario itself), `rpmGlitch=<rpm>` (one analysis window reports that RPM) and
+  `windflush=1` (forget the wind samples so far). The simulated barometer always carries about 3 cm of noise, as a real sensor does
+  (without it a still simulated sensor would repeat one value for ever and look frozen).
   The test build is compiled at the release optimisation level (the debug level made the image too big for the OTA slot).
 - **Unit suites on the vario.** There is no host compiler for this project, so software-level tests of production
-  functions run on the vario: `GET /api/sim?unit=<rpm|geo|wind|circuit|battery>` runs a suite (src/test/UnitSuites.cpp,
+  functions run on the vario: `GET /api/sim?unit=<rpm|geo|wind|circuit|battery|flight|baro|rpmtrack>` runs a suite (src/test/UnitSuites.cpp,
   RpmTest.cpp) on inputs of its own and returns `{"pass":n,"fail":m,"failures":[...]}`; `tonetest=1` is the vario tone
   decision. The HIL tests `*_logic` call them. The unit tests prove the maths; the HIL tests prove the whole system
   behaves: the two are meant to complement each other, e.g. `circuit_logic` drives the circuit state machine with
@@ -83,11 +95,15 @@ A failure prints the vario's state, the simulator state and the last log lines.
 | `settings` | settings API round trip and limits |
 | `vario_climb`, `vario_sink` | tone pitch in the log, and heard by the microphone |
 | `vario_thresholds` | climb and sink tones off just under their thresholds, on just over them at the calculated pitch, and off again (log, and the microphone unless `--no-audio`); speeds are well either side of each threshold |
-| `rpm_logic`, `geo_logic`, `wind_logic`, `circuit_logic`, `battery_logic` | the unit suites above: RPM from synthetic spectra (speeds, pulses per rev, noise, silence, range limits); angles, distance, bearings, clock positions; the wind fit (accuracy, either turn, 0/360, noise, refusals, averaging) and glide over the ground; circuit leg order and turn points, base turn from height, overshoot, wrong way; battery conversion, curve and low-battery call |
+| `rpm_logic`, `geo_logic`, `wind_logic`, `circuit_logic`, `battery_logic`, `flight_logic`, `baro_logic`, `rpmtrack_logic` | the unit suites above: RPM from synthetic spectra (speeds, pulses per rev, noise, silence, range limits); angles, distance, bearings, clock positions; the wind fit (accuracy, either turn, 0/360, noise, refusals, averaging, stale samples before a wind change, convergence after one) and glide over the ground; circuit leg order and turn points, base turn from height, overshoot, wrong way, and when "steer" may be called (not during a called turn; called for a missed, stalled or wrong-way turn); battery conversion, curve, low, critical and lost-reading calls; the landing decision (trusted speed, weak or lost GPS, height and vertical-speed limits) and GPS coordinate validity; the barometer plausibility checks (impossible and NaN pressure, lone outliers, steps, rate limit, frozen reading, recovery); the RPM reading logic (jump confirmation, hold through speech and dropouts) |
 | `rpm` | synthetic engine through the real microphone path: stopped, idle, up, down, rapid alternation, noise, dead input, recovery |
+| `rpm_speech`, `rpm_glitch` | RPM held through three 6 s announcements and a real change straight after; single bad windows (4000, 1000, 6000, 3000, 4000 rpm) never reach the reading while a real change is followed |
+| `wind_change` | wind changes in flight: old samples must not bias the first fit, the second fit in the new wind gives it, the third stays |
 | `wind`, `wind_faults` | simulated aircraft in a known wind: head/tail/cross ground speed and drift, takeoff estimate, circling fits (both turns, 0/360, zero wind, changes, convergence); no fit from straight/half/slow turns, refusals, GPS loss, manual wind |
 | `circuit_right`, `circuit_left_wind`, `circuit_events` | **the whole landing circuit flown by a scripted pilot** from the first press of the button to the ground: leg order, turn directions, turn points against independent geometry, base turn from height, wind change, wrong way, GPS loss, ignored turn call |
-| `fault_baro`, `fault_gps`, `fault_battery` | sensor faults: detected ones (no data, impossible pressure, GPS loss, few satellites) and recovery without reboot; undetected ones recorded (frozen/spiking barometer, weak GPS fix, impossible latitude) as in docs/TEST_FINDINGS.md |
+| `fault_baro`, `fault_gps`, `fault_battery` | sensor faults and recovery without reboot: barometer no data, impossible and NaN pressure, frozen reading, lone wild samples (held back), persistent steps (accepted once), intermittent dropouts, noise; GPS loss, too few satellites, a weak fix (flight kept), impossible coordinates and 0,0 (no fix); battery flicker and impossible readings |
+| `landing_gps_quality` | **a missing, weak or stale GPS must not end a flight**: no GPS, weak fix, too few satellites, no fix, level and at plus or minus 0.2 m/s, at 60 and 200 m for several times the landing time, a 70 s loss, recovery; real landings still found on the barometer alone and with a weak fix |
+| `battery_flight` | low (ordinary) and critical (urgent) battery calls in flight, a reading lost in flight (urgent), recovery, and 0 V on the ground (silent: USB) |
 | `memory_events`, `soak` | repeated events (settings, log reads, unit suites, resets, tones, mic swaps) with free memory, lowest memory and task stacks judged from the idle baseline; a long simulated flight with memory trend, GPS dropouts and IGC logging |
 | `spectrum_setting` | the Advanced setting *Show the Spectrum tab* (default off) removes and restores the tab |
 | `vario_logic` | software-level unit test of the tone decision, run on the vario: exact `>=` / `<=` at the thresholds, pitch and beep-rate formulas and limits, every silencing condition (no sensors or sound involved) |
@@ -114,6 +130,10 @@ A failure prints the vario's state, the simulator state and the last log lines.
 | `ui_system` | tabs, logging viewer, firmware box, version line |
 | `ota_guard` | firmware upload refused without the right password |
 | `memory` | free memory not run down, and never dangerously low |
+
+**Simulator limits.** None of this verifies hardware behaviour. In particular the barometer checks are exercised on a
+simulated sensor; whether a real DPS310 can ever repeat an identical reading for the 5 s of *Barometer frozen after* is not
+tested here (the setting can switch the check off), and GPS quality, speech and the engine microphone are likewise simulated.
 
 Not covered: Bluetooth (needs a phone), the Wi-Fi give-up timer, a complete firmware upload (every flash of a
 new build exercises it), the push button, and the Restart / Factory defaults buttons. Also not exercised:

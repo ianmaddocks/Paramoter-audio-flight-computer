@@ -1,57 +1,168 @@
-# Test findings: suspected defects and design limits
+# Test findings: defects found by the tests, and what was done about them
 
-Found while extending the test suite. **None of these has been fixed**: the tests describe today's behaviour
-(or avoid the case) and each item has a proposed fix for you to accept or reject. "Observed" means a test
-ran and saw it; "read" means it follows from the code and is not yet exercised.
+Phase 1 found eight suspected defects (F1 to F8) while the test suite was being extended. Phase 2 (this document's
+current state) fixed them in priority order, each one test-first: an automated test that reproduces the problem was
+written and **run against the unchanged firmware to confirm that it fails**, then the firmware was corrected, then the
+test and all the related existing tests were run again.
 
-## F1 - Level flight with no GPS is taken for a landing (observed)
-`Flight.cpp`, landing detection. With no fix the vario treats `|vertical speed| < 0.3 m/s` as "stationary"
-and declares **Landing** after twice the landing time (default 2 x 30 s = 60 s), whatever the height.
-Observed in the test build (2 x 5 s): a GPS dropout of 14 s in level flight at 60 m above the ground ended
-the flight ("landing candidate: gs 0.0 m/s, agl 60.0 m", then not flying). Consequences: tones set to "only
-when flying" fall silent, the IGC log closes, and the approach and emergency functions refuse.
-*Proposed fix:* with no fix, also require the height above the ground level to be small (for example under
-10 m, or under the takeoff gain) before a landing can be declared.
+**Nothing here has been verified on hardware in flight.** Every result below is from the vario in the test build,
+driven by the simulator (simulated barometer, GPS, battery and microphone). The simulator reproduces what the
+firmware sees, not what the real sensors do. Where that matters it is said under *Limits*.
 
-## F2 - Wind samples from before a wind change bias the next fit (observed, by design)
-`Wind.cpp` keeps 60 s of ground-velocity samples and fits all of them. Flying straight in one wind and then
-circling in another, a fit made inside the 60 s mixes both: in the test two stray samples moved the
-estimate by 1.1 to 1.8 m/s. Each accepted fit is then averaged 50/50 with the previous estimate, so a real
-change of wind takes three fits (about a minute of circling) to be 87 % followed. *Proposed fix (optional):*
-reject fits whose samples show a step (compare the fit on the older and newer halves), or weight newer
-samples more. Not urgent.
+| | Defect | Status |
+|---|---|---|
+| F1 | Level flight with no GPS taken for a landing | fixed |
+| F8 | A weak GPS fix in flight ended the flight | fixed |
+| F7 | Barometer faults other than "no data" undetected | fixed |
+| F6 | "Steer" called during the turn that was just called | fixed |
+| F2 | Old wind samples and the old estimate biased the wind after a change | fixed |
+| F3 | RPM dropped to zero during speech | fixed |
+| F4 | One bad RPM window reached the display | fixed |
+| F5 | Impossible GPS coordinates; battery 0 V treated as USB; no critical threshold | fixed |
+| F9 | Free memory falls to about 5 kB while a browser loads the page | **open** (see below) |
+| F10 | Good GPS but a ground speed under the landing speed at height (strong headwind) ends the flight | **open**, found while fixing F1 |
 
-## F3 - RPM drops to zero during long speech (read)
-`Mic.cpp` pauses RPM updates while the speaker talks (the speaker would pollute the spectrum) and clears
-the reading after 1.5 s without an update, so any announcement longer than about 1.5 s shows `off`.
-*Proposed fix:* hold the last good RPM for the length of the speech plus 1.5 s.
+## Results
 
-## F4 - Rapid RPM changes are followed without a spike filter (observed)
-A jump of more than 20 % is accepted at once (only a confidence gate protects against nonsense). With a
-clean synthetic signal this is correct (the test alternates 2000 and 4000 rpm and never sees a value outside
-that range); with real noise a single bad window could show a wrong value for one 0.25 s step. Low risk.
+| Run (test build of this change) | Result |
+|---|---|
+| Baseline, old firmware (`ae9b1a0`), 46 tests | 40 passed, 6 failed: `wind_faults` (the 3 deg/s test was marginal, see below), `memory_events`, `soak`, `memory` (lowest free memory 4.8 kB by then), `glide`, `ui_spectrum`. Browser pages were open on three devices at the time (see F9). |
+| The nine new HIL tests against the old firmware | **9 of 9 failed**, each for the intended reason (`rpm_glitch` only because the old firmware has no such simulator key). |
+| Unit suites on the new firmware | 8 of 8 pass: 22 + 39 + 82 + 57 + 49 + 31 + 29 + 35 cases |
+| Unit tests with each fix deliberately removed again | the matching suite fails every time (wind, circuit, flight, baro, rpmtrack; the battery cases were not mutation-tested) |
+| Full run, normal order, new firmware, pages closed, 54 tests | 52 passed, 2 failed (`fault_baro`, `volume_ramp`: both were test-timing mistakes, fixed afterwards and re-run green) |
+| Full run, shuffled (`--shuffle 7`), same firmware, 54 tests | 49 passed, 5 failed: `memory`, `soak` and `memory_events` (the lowest-free-memory mark is cumulative since power-on and a page-load test that ran earlier had taken it to 3 kB: F9; the soak itself lowered nothing), `glide` (passed alone three times, in the normal order and in the baseline re-run; one failure each in the baseline and this shuffled order, cause not found: the tile showed no ratio), `vario_thresholds` (room noise, below) |
+| `memory_events` and `soak` re-run after judging them on their own effects | both passed: soak 10 min, free memory 42820 to 42832 B (trend +0 B/min), no drops, stacks fine (loopTask 436 B, audio 2232 B, mic 2000 B free at the end of `memory_events`); lowest 2724 B was set by earlier page loads |
+| Page tests after the Speed tile arrow change (`ui_*`, `glide`, `gps_detect`, `variant_*`) | 11 of 11 passed. The outside-activity check flagged one web page opened during `glide` and `variant_no_gps` |
+| `vario_thresholds` with the microphone | **fails while the room is noisy**: a hum of 16-27 dB over the floor near 330 Hz is heard while the vario is silent (the log shows no tone). It passes with `--no-audio`. The other tests that listen (`vario_climb`, `vario_sink`, `speech`, `mute`, `auto_volume`) passed in the runs above but are equally exposed to room noise. |
 
-## F5 - Sensor faults that are not detected (read; Phase 4 will exercise them)
-* Barometer: no jump or stuck-value detection (only the 20000-110000 Pa range check and a 2 s timeout).
-* GPS: no latitude/longitude range validation.
-* Battery: an ADC reading of 0 V is shown as "USB / no battery" and suppresses the low-battery warning;
-  there is no critical-battery threshold.
+The full logs are in `results/` (baseline: `baseline_full_ae9b1a0.log`; old firmware against the new tests:
+`old_firmware_new_tests.log`; new firmware: `full_run1.log`, `full_run2_shuffled.log`).
 
-## F6 - "Steer right/left" is spoken during every turn the vario has just called (observed)
-`Approach.cpp`, `steerTo`: the steering call comes when the track has been more than 30 degrees off the leg
-heading for 4 s. After "turn right now" a pilot needs a moment to react and then 4 to 8 s to turn 90
-degrees, so the track is still more than 30 degrees off 4 s after the turn call and "steer right" is spoken
-in the middle of the turn it asked for. In the full circuit test (reaction and turn about 5 s) it happened
-after four of the five turn calls. *Proposed fix:* start the 4 s timer only after a grace period following a
-turn call (about 8 s), or do not call while the heading error is shrinking.
+---
 
-## F7 - Barometer faults other than "no data" are not detected (observed by `fault_baro`)
-A frozen value (stuck sensor) reads as level flight: vario 0, no banner, silent. One wild sample (30 m) moves
-the filter and can sound a brief false tone before it calms down; noise raises the vario reading's wobble.
-*Proposed fix:* a stuck-value check (identical raw pressure for several seconds while the GPS shows
-climb/descent) and a spike limit (reject a sample more than about 20 m from the prediction unless the next
-one agrees).
+## F1 - Level flight with no GPS was taken for a landing (fixed)
+*Before:* `Flight.cpp` with no fix declared **Landing** after twice the landing time whenever the vertical speed was
+under 0.3 m/s, at any height. Seen: a 14 s GPS dropout in level flight at 60 m ended the flight (tones set to "only when
+flying" fell silent, the IGC log closed, approach and emergency refused).
+*After:* `Flight::looksStill()`. Without a trusted GPS ground speed (no fix, weak fix, stale data) a landing needs a
+steady barometer **and** a height above the landing zone under the new setting *Landed without GPS speed: only below*
+(default 15 m / 50 ft), for twice the landing time. With no barometer either there is no evidence and the answer is no.
+Level flight at height is never a landing, however long the GPS is gone. The rule with a trusted speed is unchanged.
+*Tests:* `flight_logic` (31 cases incl. the exact limits), `landing_gps_quality` (no GPS, weak fix, 3 satellites, no
+fix, each level and at +-0.2 m/s at 60 and 200 m for 29 s, a 70 s loss, recovery; then a real landing on the barometer
+alone and with a weak fix, which are still found), `baro_only`, `variant_no_gps` (changed: they used to expect a
+"landing" in level flight at 60 m / 40 m; they now check that it is not one and then descend to the ground).
+*Limits:* landing on high ground more than 15 m above the takeoff (or the landing zone you set) while the GPS is not
+working is not noticed until the GPS recovers: raise the setting. After a missed landing the flight stays "flying"
+(IGC log keeps running), which is the safer error.
 
-## F8 - A weak GPS fix in flight (see `fault_gps`)
-Result recorded by the test run (flight kept or ended). If the flight is ended, a weak fix (4 satellites or a
-high HDOP) zeroes the ground speed and the landing logic then declares a landing after the landing time.
+## F8 - A weak GPS fix in flight ended the flight (fixed)
+*Before:* a fix with 4 satellites or a high HDOP zeroed the ground speed, and the zero was read as "stationary":
+landing after the landing time (`fault_gps` reproduced it: flight ended after 14 s).
+*After:* the same `looksStill()` decision, keyed on whether the speed is *trusted* (`NavState.speedOk`) and not on
+whether a fix exists. A weak fix falls back on the barometer and height rule of F1.
+*Tests:* `flight_logic`, `fault_gps` (weak fix for 14 s keeps the flight; was a recorded note, now an assertion),
+`landing_gps_quality` (weak fix at 60 / 200 m and a real landing with a weak fix).
+*Also:* `Gps::read()` already reports `fix = false` for stale data (a position older than 2.5 s) and for fewer than 4
+satellites, so no fix, weak fix, valid fix, stale data and recovery are all distinguished and none of them ends a flight.
+
+## F7 - Barometer faults other than "no data" (fixed)
+*Before:* only the 20000-110000 Pa range and a 2 s timeout were checked. A frozen reading read as level flight (no
+banner, vario 0). One wild sample moved the filter and sounded 5 tone changes. NaN passed the range check.
+*After:* `BaroGuard` (src/sensors/BaroGuard.h), used by the real sensor path and the simulator alike:
+NaN and impossible pressure rejected; a sample further from the last good one than an aircraft can move (40 m/s plus 3 m)
+is **held back** and only accepted if the next sample agrees with it (then the filter restarts there: a persistent step
+is accepted once, silently); a lone sample is dropped without trace; the same reading for *Barometer frozen after*
+(new setting, default 5 s, 0 = off) is a frozen sensor: "Barometer not working", tones off, recovered by itself (filter
+restarts) when the reading moves again.
+*Tests:* `baro_logic` (29 cases), `fault_baro` (dead, range, NaN, frozen, lone samples of +30 / -30 / +12 m, two wild
+samples in a row, a 25 m step that stays, intermittent 1.2 s dropouts ignored and 3 s dropouts detected and recovered three
+times, noise).
+*Limits:* a real DPS310's last digit always moves in my understanding, but that is not tested on hardware: if a real
+sensor can repeat a value for 5 s on the bench, *Barometer frozen after* can be raised or set to 0. A step of 30 m that
+persists is accepted (the sensor says so and nothing else can overrule it); the altitude then shifts by that much.
+
+## F6 - "Steer" called during the turn that was just called (fixed)
+*Before:* the steering call came when the track had been more than 30 degrees off the leg for 4 s. After "turn right
+now" the pilot reacts and then turns for 4 to 8 s, so "steer right" was spoken in the middle of the turn that was asked
+for: three of the five turn calls in each full circuit test.
+*After:* `Approach::steerTo` waits 5 s after a turn call (the pilot's reaction), and while the heading error is shrinking
+by 3 degrees or more a second, plus 3 s after the last such sample. A turn that stalls, goes the wrong way or is ignored
+is still called (after about 9 s of nothing happening); a heading that drifts off a leg with no turn call involved is
+called after 4 s as before. Turn progress is judged from the GPS track.
+*Tests:* `circuit_logic` (slow reaction then a normal turn, ignored turn, wrong way, stalled at 40 degrees, fast turn
+with overshoot, wobble inside 30 degrees, a drift on a straight leg), `circuit_right`, `circuit_left_wind`,
+`circuit_events` (changed: they used to count steering calls during turns as expected; they now fail on any, apart from
+the turn the events test ignores on purpose). Independent geometry in the circuit tests is untouched.
+
+## F2 - Old wind samples and the old estimate biased the wind after a change (fixed)
+*Before:* the fit used all 60 s of samples, so straight flight before a circle in a new wind biased the first fit (two
+stray samples: 1.1 to 1.8 m/s), and each fit was averaged 50/50 with the old estimate, so a real change took three fits
+(about a minute of circling) to be 87 % followed.
+*After:* the fit is tried without the oldest seconds and the clearly better one (rms under 70 % of the full fit) is
+used; samples further from the circle than max(1.2 m/s, 2 x rms) are dropped and the circle fitted again (no fit if more
+than a quarter are off: the wind changed during the circle). When the new fit agrees (within 1.5 m/s) with the previous
+fit, the estimate is the mean of the two fits and not an average with the older estimate.
+*Tests:* `wind_logic` (82 cases: 1, 3, 6 s and 40 % of old wind, with noise, a flip seven seconds before a fit gives no
+new estimate, convergence A then B in two fits, A-B-A still averaged), `wind_change` (first fit after the change is the
+mean of the old estimate and the new wind, the second is the new wind, the third stays), `wind`, `wind_faults`.
+*Limits:* the first fit after a change is still averaged with the old estimate (one odd fit cannot swing it); only
+the second one follows the change fully.
+
+## F3 - RPM dropped to zero during long speech (fixed)
+*Before:* RPM updates pause while the speaker talks and the reading was cleared 1.5 s later: a 6 s announcement showed
+"off" for about 4.5 s (`rpm_speech` reproduced it: readings of 0 during the announcement).
+*After:* `RpmTracker` (src/sensors/RpmTrack.h) holds the reading for the whole speech (at most 15 s, so a stuck
+"speaking" flag cannot hold it for ever) and the usual 1.5 s after it.
+*Tests:* `rpmtrack_logic` (35 cases), `rpm_speech` (three 6 s announcements and a change to 3500 rpm during speech).
+*Limits:* an engine that really stops during an announcement is shown as running until the announcement ends plus 1.5 s.
+
+## F4 - One bad RPM window reached the display (fixed)
+*Before:* a jump of more than 20 % was accepted at once.
+*After:* a jump (or any estimate when there is no reading) is held until the next window agrees within 10 %;
+smoothing inside 20 % is unchanged. A lone bad window never shows.
+*Tests:* `rpmtrack_logic`, `rpm_glitch` (one window each of 4000, 1000, 6000, 3000, 4000 rpm against a 2000 rpm engine:
+the reading moved by at most 30 rpm; a real change to 3600 rpm followed in about a second), `rpm`.
+
+## F5 - Coordinates, battery (fixed)
+*GPS coordinates:* latitude outside +-90, longitude outside +-180, NaN and exactly 0,0 are no fix
+(`gpsCoordsValid`). `flight_logic`, `fault_gps` (latitude 95 and -91, longitude 200 in flight: no fix each time, flight
+kept, fix back; 0,0 on the ground).
+*Battery:* a reading under 2.5 V is not a measurement. With no real reading seen since power-on it is USB power or no
+battery and stays silent, as before. If a real reading has been seen and it **vanishes in flight** you now hear the urgent
+"Battery low" every minute (before: silent, exactly when it matters). A new setting *Critical battery warning* (default
+3.3 V) makes the call urgent and repeated every minute below it; the ordinary low call is unchanged. `battery_logic`
+(49 cases), `battery_flight`, `fault_battery`.
+*Limits:* the same clip "Battery low" is used for all three (there is no separate recording). A battery that is
+unplugged on the bench after a real reading while flying is not distinguishable from one that failed in the air.
+
+## F9 - Free memory falls to about 5 kB while a browser loads the page (open)
+Observed in the baseline: the lowest free memory since power-on fell from 43 kB idle to 4.8 kB in the landing-circuit
+tests and to 2 kB during the page tests, which made `memory_events`, `soak` and `memory` fail on their absolute floor
+(8 kB) and slowed the web server (it deliberately holds requests while under 20 kB). With the browser pages on three
+other devices closed, and the test build otherwise identical, the full run showed a lowest of 12.9 kB through the circuit
+tests and soak (the page tests then took it to 5.4 kB, during `/api/schema` and page loads from the headless browser).
+So **opening the web page, especially with several browsers, can take the heap down to about 5 kB**. The memory tests
+pass, nothing reset and no allocation failed, but 5 kB is a thin margin in flight. Not changed in this phase. Likely
+levers: fewer simultaneous connections, smaller Wi-Fi buffers, a page that fetches its pieces one at a time.
+
+## F10 - Good GPS, but a ground speed under the landing speed at height (open)
+Found while fixing F1. With a trusted GPS speed the landing rule is unchanged: ground speed under *Landed by ground
+speed* (default 5 km/h) for *Landed after* (30 s) is a landing at any height. A paramotor holding station in a strong
+headwind (ground speed near zero, level, at height) meets that. Not changed: it is the speed rule the flight relies on.
+*Proposed fix:* require the same height limit (or a vertical-speed condition) with a trusted speed too, accepting that a
+landing on high ground is then late.
+
+## Test changes made along the way (so nothing is hidden)
+- `wind_faults`: the slow-turn case was 3 deg/s; in a headwind the ground track turns up to twice as fast as the
+  heading, so 180 degrees of heading can fill 9 of 12 bins and give a legitimate fit. The baseline run failed on exactly
+  that. It is now 2.5 deg/s (150 degrees).
+- `baro_only`, `variant_no_gps`, `fault_baro`, `fault_gps`, `circuit_*`: expectations that encoded F1, F6, F7 or F8 as
+  correct were reversed, as described above.
+- `fault_baro` intermittent dropouts use `baroDropMs`, a dropout timed by the vario itself: HTTP round trips on this link
+  vary by seconds, which made "1 s" dropouts last 3.8 s.
+- `volume_ramp` judged volume against the time it was *asked*, and failed one run in three when a reply was slow; it now
+  judges against the earliest and latest moments the reading can have been taken.
+- The runner counts dropped log lines against the test that caused them and exempts the `*_logic` tests, whose suites
+  log thousands of lines at once; it also reports any other client using the vario during a test (see TESTING.md).

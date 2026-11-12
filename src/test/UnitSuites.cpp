@@ -4,6 +4,9 @@
 //              ratio over the ground for head, tail and cross winds
 //   circuit  - the landing circuit state machine driven by scripted positions (leg order, turn points,
 //              no early or skipped legs, overshoot, wrong way)
+//   baro     - the barometer plausibility checks (impossible pressure, lone outliers, steps, frozen value)
+//   rpmtrack - the RPM reading logic: jump confirmation, hold through speech and dropouts
+//   flight   - the landing decision (what counts as standing still on the ground)
 //   battery  - ADC millivolts to volts, smoothing, the percentage curve, the low-battery call
 // They use their own inputs. Settings that the code under test reads from g_cfg are changed for the
 // duration of a suite and put back afterwards.
@@ -17,10 +20,14 @@
 #include "app/Alerts.h"
 #include "audio/Audio.h"
 #include "flight/Approach.h"
+#include "flight/Flight.h"
 #include "flight/Wind.h"
 #include "nav/Geo.h"
 #include "nav/Nav.h"
 #include "sensors/Battery.h"
+#include "sensors/BaroGuard.h"
+#include "sensors/GpsData.h"
+#include "sensors/RpmTrack.h"
 
 namespace {
 
@@ -197,6 +204,73 @@ void windUnitSuite(UnitReport& r) {
     }
     r.check(rig.w.speedMs() < 0.3f, "first fit in the opposite wind: %.2f m/s from %.0f, expected the mean of the two (about 0)",
             rig.w.speedMs(), rig.w.fromDeg());
+  }
+
+  // F2: samples from before a wind change must not bias the fit, and a real change of wind is followed from
+  // the second fit on. Straight flight in the old wind, then circling in the new one: the straight samples lie
+  // off the circle and are dropped.
+  for (float straightS : {1.0f, 3.0f, 6.0f}) {
+    WindRig rig;
+    rig.fly(straightS, 10, 270, 5, 0);  // straight (heading 0) in a wind from 270
+    rig.fly(60, 10, 90, 5, 18);          // then circling in a wind from 90
+    snprintf(what, sizeof what, "%.0f s of old wind, then circling", straightS);
+    r.check(rig.w.source() == WindSource::Circling, "%s: no fit", what);
+    r.near(rig.w.speedMs(), 5, 0.3f, what);
+    r.check(wrapDiff(rig.w.fromDeg(), 90) < 4.0f, "%s: from %.1f, wind from 90", what, rig.w.fromDeg());
+  }
+  {  // a long stretch of old wind (almost half the window): still a clean circle after it, so the old head is dropped
+    WindRig rig;
+    rig.fly(14, 10, 270, 5, 0);  // 28 straight samples
+    rig.fly(24, 10, 90, 5, 18);  // then 48 circling
+    r.check(rig.w.source() == WindSource::Circling, "40 %% old head: no fit");
+    r.near(rig.w.speedMs(), 5, 0.3f, "40 % old head: speed");
+    r.check(wrapDiff(rig.w.fromDeg(), 90) < 4.0f, "40 %% old head: from %.1f, wind from 90", rig.w.fromDeg());
+  }
+  {  // old wind at the START of a circle that is itself in the new wind, noise on the velocity: the same
+    WindRig rig;
+    rig.fly(5, 10, 270, 5, 0, 0.3f);
+    rig.fly(50, 10, 90, 5, 18, 0.3f);
+    r.check(rig.w.source() == WindSource::Circling, "noisy old head: no fit");
+    r.near(rig.w.speedMs(), 5, 0.5f, "noisy old head: speed");
+    r.check(wrapDiff(rig.w.fromDeg(), 90) < 6.0f, "noisy old head: from %.1f", rig.w.fromDeg());
+  }
+  {  // a change of wind in the middle of a circle: nothing believable, so no new estimate
+    WindRig rig;
+    rig.fly(30, 10, 270, 5, 18);
+    r.near(rig.w.speedMs(), 5, 0.1f, "before the change");
+    const uint32_t f = rig.w.fitCount();
+    rig.fly(7, 10, 90, 5, 18);  // wind flips, 7 s later (a third of a circle)
+    r.check(rig.w.fitCount() == f && wrapDiff(rig.w.fromDeg(), 270) < 1.0f && fabsf(rig.w.speedMs() - 5) < 0.1f,
+            "a fit within 7 s of a wind flip: now %.1f m/s from %.0f (%u fits, was %u)", rig.w.speedMs(), rig.w.fromDeg(),
+            (unsigned)rig.w.fitCount(), (unsigned)f);
+  }
+  {  // convergence: A, then B. The first fit in B is averaged with A, the second (agreeing with the first) is B.
+    auto flyUntilFits = [](WindRig& rig, uint32_t want, float from, float spd, float turn) {
+      for (int i = 0; i < 400 && rig.w.fitCount() < want; ++i) rig.fly(0.5f, 10, from, spd, turn);
+    };
+    WindRig rig;
+    flyUntilFits(rig, 1, 270, 5, 18);
+    r.check(rig.w.fitCount() == 1, "first fit not made");
+    r.near(rig.w.speedMs(), 5, 0.1f, "estimate A");
+    flyUntilFits(rig, 2, 90, 5, 18);
+    r.check(rig.w.fitCount() == 2, "second fit not made");
+    r.check(rig.w.speedMs() < 0.4f, "first fit after the change is averaged with the old estimate: %.2f m/s from %.0f (want about 0)", rig.w.speedMs(), rig.w.fromDeg());
+    flyUntilFits(rig, 3, 90, 5, 18);
+    r.near(rig.w.speedMs(), 5, 0.3f, "estimate B after the second fit in the new wind");
+    r.check(wrapDiff(rig.w.fromDeg(), 90) < 4.0f, "estimate B from %.1f, wind from 90", rig.w.fromDeg());
+    flyUntilFits(rig, 4, 90, 5, 18);
+    r.near(rig.w.speedMs(), 5, 0.3f, "estimate B stays after a third fit");
+  }
+  {  // fits that keep disagreeing (A, B, A) are averaged as before: (A + B) / 2, then with A again
+    auto flyUntilFits = [](WindRig& rig, uint32_t want, float from, float spd, float turn) {
+      for (int i = 0; i < 400 && rig.w.fitCount() < want; ++i) rig.fly(0.5f, 10, from, spd, turn);
+    };
+    WindRig rig;
+    flyUntilFits(rig, 1, 270, 5, 18);
+    flyUntilFits(rig, 2, 90, 5, 18);
+    flyUntilFits(rig, 3, 270, 5, 18);
+    r.near(rig.w.speedMs(), 2.5f, 0.4f, "A, B, A: wind speed");
+    r.check(wrapDiff(rig.w.fromDeg(), 270) < 6.0f, "A, B, A: from %.1f, expected 270", rig.w.fromDeg());
   }
 
   // takeoff run: the course is the direction the wind comes from, with no speed
@@ -414,6 +488,84 @@ void circuitUnitSuite(UnitReport& r) {
     n = c.nav(0, 0, 0, 100);
     r.check(!c.ap.start(n, c.wind), "approach started without a wind");
   }
+
+  // ---- steering calls: only when the pilot is NOT already making the turn that was just called (F6).
+  // One sample a second; after the crosswind turn call the track is scripted (relative to upwind) at the
+  // crosswind point, where the leg heading is 90 degrees.
+  {
+    g_cfg.windManual = true;
+    g_cfg.windSpeedMs = 0;
+    g_cfg.windFromDeg = 0;
+    g_cfg.circuitSide = CS_RIGHT;
+    // returns the 1-based number of the first sample that was followed by a steering call, or 0
+    auto steerAfterTurnCall = [&](const float* rel, int n, int* calls) {
+      CircuitRig c(0);
+      c.ap.start(c.nav(xStart - 50, 0, 0, 150), c.wind);
+      c.step(xStart, 0, 0, 150);
+      for (float x = xStart; x < xCross + 20 && c.ap.phase() != ApPhase::Crosswind; x += 10) c.step(x, 0, 0, 150);
+      audio::testCapture(true);  // from here: what is said after the turn call
+      int first = 0;
+      for (int i = 0; i < n; ++i) {
+        c.step(xCross, 0, rel[i], 150);
+        if (!first && audio::testSaid() > 0) first = i + 1;
+      }
+      *calls = 0;
+      for (int i = 0; i < audio::testSaid(); ++i) *calls += strstr(audio::testSaidText(i), "steer_") != nullptr;
+      return first;
+    };
+    int calls = 0, first = 0;
+    {
+      const float turn[] = {0, 0, 0, 0, 22, 45, 67, 90, 90, 90, 90, 90, 90};
+      first = steerAfterTurnCall(turn, 13, &calls);
+      r.check(calls == 0, "slow reaction then a normal turn: %d steering calls, first after sample %d (want none)", calls, first);
+    }
+    {
+      const float turn[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+      first = steerAfterTurnCall(turn, 16, &calls);
+      r.check(calls >= 1 && calls <= 2, "turn call ignored for 16 s: %d steering calls (want 1 or 2)", calls);
+      r.check(first >= 6 && first <= 12, "turn call ignored: first steering call after sample %d (want 6..12)", first);
+    }
+    {
+      const float turn[] = {0, -15, -30, -45, -60, -75, -90, -90, -90, -90, -90, -90, -90};
+      first = steerAfterTurnCall(turn, 13, &calls);
+      r.check(first >= 6 && first <= 12, "turned the wrong way: first steering call after sample %d (want 6..12)", first);
+    }
+    {
+      const float turn[] = {0, 0, 10, 25, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40};
+      first = steerAfterTurnCall(turn, 15, &calls);
+      r.check(first >= 8 && first <= 14, "turn stalled at 40 degrees: first steering call after sample %d (want 8..14)", first);
+    }
+    {
+      const float turn[] = {0, 15, -15, 20, -20, 25, -25, 15, -15, 10, -10, 5, 0};  // hand-flown wobble round the heading... of 90?
+      // (the desired heading here is 90 degrees: a track near 0 is 90 off and never converges: this is the
+      //  "ignored turn", so only check the opposite: a track within the tolerance of 90 never calls)
+      float near90[13];
+      for (int i = 0; i < 13; ++i) near90[i] = 90.0f + turn[i];
+      first = steerAfterTurnCall(near90, 13, &calls);
+      r.check(calls == 0, "track within 30 degrees of the leg heading: %d steering calls", calls);
+    }
+    {  // a turn that is fast (4 s) is not called either, and one that has gone past 90 and is coming back is a turn the right way
+      const float turn[] = {0, 40, 80, 120, 100, 92, 90, 90, 90, 90};
+      first = steerAfterTurnCall(turn, 10, &calls);
+      r.check(calls == 0, "fast turn with an overshoot: %d steering calls", calls);
+    }
+    {  // unexpected heading change on a leg, no turn call involved: 60 degrees off for 12 s is called
+      CircuitRig c(0);
+      c.ap.start(c.nav(xStart - 50, 0, 0, 150), c.wind);
+      c.step(xStart, 0, 0, 150);
+      audio::testCapture(true);
+      for (int i = 0; i < 8; ++i) c.step(xStart + 5, 0, 0, 150);
+      r.check(audio::testSaid() == 0, "steered on a straight leg (%s)", audio::testSaidText(0));
+      int at = 0;
+      for (int i = 0; i < 12; ++i) {
+        c.step(xStart + 5, 0, -60, 150);
+        if (!at && audio::testSaid() > 0) at = i + 1;
+      }
+      r.check(at >= 1 && at <= 8 && strstr(audio::testSaidText(0), "steer_") != nullptr,
+              "track 60 degrees off for 12 s: first call after sample %d (want 1..8)", at);
+    }
+    audio::testCapture(false);
+  }
   audio::testCapture(false);
 }
 
@@ -496,8 +648,371 @@ void batteryUnitSuite(UnitReport& r) {
   run(3.60f, 1);  // a recovery restarts the 10 s hold
   run(3.40f, 8);
   r.check(audio::testSaid() == base, "hold not restarted by a reading back over the threshold");
+
+  // ---- critical battery and a reading lost in flight (F5)
+  {
+    audio::testCapture(true);  // counts from zero again: only the first 16 utterances keep their text
+    g_cfg.battLowV = 3.5f;
+    g_cfg.battCriticalV = 3.3f;
+    NavState fly, ground;
+    fly.flying = true;
+    uint32_t tt = 5000000;
+    auto runf = [&](float volts, uint32_t seconds, const NavState& nv) {
+      for (uint32_t s = 0; s < seconds; ++s) alerts::update(tt += 1000, nv, volts);
+    };
+    auto said = [&](int from, int i, const char* what) { return strstr(audio::testSaidText(from + i), what) != nullptr; };
+
+    alerts::reset();
+    int b = audio::testSaid();
+    runf(3.20f, 5, ground);
+    r.check(audio::testSaid() == b, "critical battery called before the 5 s hold");
+    runf(3.20f, 1, ground);
+    r.check(audio::testSaid() == b + 1 && said(b, 0, "[urgent] battery_low"), "critical battery: %d calls, first '%s'", audio::testSaid() - b, audio::testSaidText(b));
+    runf(3.20f, 58, ground);
+    r.check(audio::testSaid() == b + 1, "critical battery repeated within a minute (%d)", audio::testSaid() - b);
+    runf(3.20f, 2, ground);
+    r.check(audio::testSaid() == b + 2 && said(b, 1, "[urgent]"), "critical battery not repeated after a minute (%d)", audio::testSaid() - b);
+    runf(3.20f, 130, ground);
+    r.check(audio::testSaid() == b + 4, "critical battery: %d calls in 3.5 minutes, expected 4", audio::testSaid() - b);
+
+    alerts::reset();  // exactly at the critical voltage is low, not critical: the ordinary call
+    b = audio::testSaid();
+    runf(3.30f, 30, ground);
+    r.check(audio::testSaid() == b + 1 && said(b, 0, "[normal] battery_low"), "3.30 V (at the critical voltage): %d calls, '%s'", audio::testSaid() - b, audio::testSaidText(b));
+
+    alerts::reset();  // a critical voltage set above the warning voltage cannot silence the warning
+    g_cfg.battCriticalV = 3.8f;
+    b = audio::testSaid();
+    runf(3.40f, 7, ground);
+    r.check(audio::testSaid() == b + 1 && said(b, 0, "[urgent]"), "critical set above the low voltage: %d calls", audio::testSaid() - b);
+    g_cfg.battCriticalV = 3.3f;
+
+    alerts::reset();  // 2.6 V is a measurement (a very flat battery), not USB
+    b = audio::testSaid();
+    runf(2.6f, 7, ground);
+    r.check(audio::testSaid() == b + 1 && said(b, 0, "[urgent]"), "2.6 V on the ground: %d calls, expected 1 urgent", audio::testSaid() - b);
+
+    alerts::reset();  // a real reading, then 0 V on the ground: USB / unplugged, silent
+    b = audio::testSaid();
+    runf(3.9f, 5, ground);
+    runf(0.0f, 120, ground);
+    r.check(audio::testSaid() == b, "reading lost on the ground called (%d)", audio::testSaid() - b);
+
+    alerts::reset();  // never a real reading, in the air: no battery fitted, silent
+    b = audio::testSaid();
+    runf(0.0f, 120, fly);
+    r.check(audio::testSaid() == b, "no battery reading ever, in flight, called (%d)", audio::testSaid() - b);
+
+    alerts::reset();  // a real reading, then lost in flight: urgent after 5 s and every minute
+    b = audio::testSaid();
+    runf(3.9f, 10, fly);
+    r.check(audio::testSaid() == b, "a good battery in flight called");
+    runf(0.0f, 5, fly);
+    r.check(audio::testSaid() == b, "reading lost in flight called before the 5 s hold");
+    runf(0.0f, 1, fly);
+    r.check(audio::testSaid() == b + 1 && said(b, 0, "[urgent] battery_low"), "reading lost in flight: %d calls, '%s'", audio::testSaid() - b, audio::testSaidText(b));
+    runf(0.0f, 60, fly);
+    r.check(audio::testSaid() == b + 2, "reading lost in flight not repeated after a minute (%d)", audio::testSaid() - b);
+    runf(3.9f, 20, fly);  // back: quiet, and the clocks start again
+    r.check(audio::testSaid() == b + 2, "called after the reading returned");
+    runf(0.0f, 6, fly);
+    r.check(audio::testSaid() == b + 3, "lost again: %d calls, expected 3", audio::testSaid() - b);
+  }
   alerts::reset();
   audio::testCapture(false);
+}
+
+// ---------------------------------------------------------------------------------------------- flight
+// Flight::looksStill(speedOk, speedMs, landingSpeedMs, baroOk, varioMs, aglM, maxAglM)
+void flightUnitSuite(UnitReport& r) {
+  const float kLand = 1.4f, kMaxAgl = 15.0f;
+  auto still = [&](bool speedOk, float gs, bool baroOk, float vz, float agl) {
+    return Flight::looksStill(speedOk, gs, kLand, baroOk, vz, agl, kMaxAgl);
+  };
+  // trusted ground speed decides alone
+  r.check(still(true, 0.5f, true, 0, 3), "trusted speed 0.5 m/s on the ground is not still");
+  r.check(still(true, 0.5f, true, 0, 300), "trusted speed 0.5 m/s at 300 m (hanging in a headwind) is not still: the speed rule is unchanged");
+  r.check(still(true, 0.5f, false, 0, 300), "trusted speed with the barometer lost is not still");
+  r.check(!still(true, 3.0f, true, 0, 0), "trusted speed 3 m/s on the ground is still");
+  r.check(still(true, 1.39f, true, 5, 0), "speed just under the landing speed is not still");
+  r.check(!still(true, 1.4f, true, 0, 0), "speed equal to the landing speed counts as still");
+  // F8: a weak fix reads zero speed; it must not mean 'standing still'
+  r.check(!still(false, 0.0f, true, 0.0f, 100), "weak fix (speed 0, untrusted) at 100 m level is taken for a landing");
+  r.check(!still(false, 0.0f, true, 0.0f, 60), "no GPS at 60 m, steady barometer, is taken for a landing (F1)");
+  r.check(!still(false, 0.0f, true, 0.0f, 15.0f), "height exactly at the limit is under it");
+  r.check(still(false, 0.0f, true, 0.0f, 14.9f), "no GPS, steady, 14.9 m not still");
+  r.check(still(false, 0.0f, true, 0.0f, 0.0f), "no GPS, steady, on the ground not still");
+  r.check(still(false, 0.0f, true, 0.0f, -30.0f), "landing lower than the reference (-30 m) not still");
+  // vertical speed limit without a speed
+  r.check(still(false, 0, true, 0.29f, 2), "0.29 m/s climb on the ground without GPS not still");
+  r.check(!still(false, 0, true, 0.3f, 2), "0.3 m/s climb counts as still");
+  r.check(!still(false, 0, true, -0.31f, 2), "0.31 m/s sink counts as still");
+  // no evidence at all
+  r.check(!still(false, 0, false, 0.0f, 0), "no GPS speed and no barometer is taken for a landing");
+  r.check(!still(false, 0, false, 0.0f, 300), "no GPS speed and no barometer at height is taken for a landing");
+  // the limit follows the setting
+  r.check(Flight::looksStill(false, 0, kLand, true, 0, 40.0f, 50.0f), "limit 50 m: 40 m not still");
+  r.check(!Flight::looksStill(false, 0, kLand, true, 0, 60.0f, 50.0f), "limit 50 m: 60 m is still");
+
+  // GPS coordinates that cannot be a position are no fix (F5)
+  r.check(gpsCoordsValid(51.5, 0.5), "51.5, 0.5 rejected");
+  r.check(gpsCoordsValid(-33.9, 151.2) && gpsCoordsValid(40.7, -74.0), "southern / western positions rejected");
+  r.check(gpsCoordsValid(90.0, 180.0) && gpsCoordsValid(-90.0, -180.0), "the limits themselves rejected");
+  r.check(!gpsCoordsValid(90.0001, 0.5), "latitude 90.0001 accepted");
+  r.check(!gpsCoordsValid(-90.0001, 0.5), "latitude -90.0001 accepted");
+  r.check(!gpsCoordsValid(95.0, 0.5), "latitude 95 accepted");
+  r.check(!gpsCoordsValid(51.5, 180.0001), "longitude 180.0001 accepted");
+  r.check(!gpsCoordsValid(51.5, -200.0), "longitude -200 accepted");
+  r.check(!gpsCoordsValid(NAN, 0.5) && !gpsCoordsValid(51.5, NAN), "NaN coordinate accepted");
+  r.check(!gpsCoordsValid(INFINITY, 0.5) && !gpsCoordsValid(51.5, -INFINITY), "infinite coordinate accepted");
+  r.check(!gpsCoordsValid(0.0, 0.0), "0, 0 accepted");
+  r.check(gpsCoordsValid(0.0, 0.000001) && gpsCoordsValid(0.000001, 0.0), "a point on the equator or the meridian rejected");
+}
+
+// ---------------------------------------------------------------------------------------------- baro
+void baroUnitSuite(UnitReport& r) {
+  using V = BaroGuard::Verdict;
+  r.check(BaroGuard::pressureValid(101325.0f), "sea level pressure invalid");
+  r.check(BaroGuard::pressureValid(20000.0f) && BaroGuard::pressureValid(110000.0f), "limits themselves invalid");
+  r.check(!BaroGuard::pressureValid(19999.0f), "19999 Pa valid");
+  r.check(!BaroGuard::pressureValid(110001.0f), "110001 Pa valid");
+  r.check(!BaroGuard::pressureValid(0.0f), "0 Pa valid");
+  r.check(!BaroGuard::pressureValid(NAN), "NaN pressure valid");
+  r.check(!BaroGuard::pressureValid(INFINITY), "infinite pressure valid");
+
+  const uint32_t kStuck = 5000;
+  const float kPa = 101000.0f;
+  // wobble: a real sensor's last digits (about +-2 cm), never the same twice running
+  auto wob = [](int i) { return 0.02f * sinf(i * 1.7f) + 0.01f * cosf(i * 0.9f); };
+
+  {  // an ordinary stream is all accepted
+    BaroGuard g;
+    uint32_t now = 1000;
+    int acc = 0;
+    for (int i = 0; i < 300; ++i) {
+      now += 31;
+      acc += g.check(kPa, 120.0f + wob(i), 0.031f, now, kStuck) == V::Accept;
+    }
+    r.check(acc == 300, "ordinary samples: %d of 300 accepted", acc);
+  }
+  {  // a climb at 10 m/s is accepted throughout
+    BaroGuard g;
+    uint32_t now = 1000;
+    int acc = 0;
+    for (int i = 0; i < 300; ++i) {
+      now += 31;
+      acc += g.check(kPa, 100.0f + i * 0.31f + wob(i), 0.031f, now, kStuck) == V::Accept;
+    }
+    r.check(acc == 300, "10 m/s climb: %d of 300 accepted", acc);
+  }
+  {  // a single 30 m sample is held back and leaves no trace; the next normal sample is accepted
+    BaroGuard g;
+    uint32_t now = 1000;
+    for (int i = 0; i < 50; ++i) g.check(kPa, 120.0f + wob(i), 0.031f, now += 31, kStuck);
+    V a = g.check(kPa, 150.0f, 0.031f, now += 31, kStuck);
+    V b = g.check(kPa, 120.0f + wob(51), 0.031f, now += 31, kStuck);
+    r.check(a == V::Reject, "lone +30 m sample not held back (%d)", (int)a);
+    r.check(b == V::Accept, "sample after a lone spike not accepted as normal (%d)", (int)b);
+    V c = g.check(kPa, 90.0f, 0.031f, now += 31, kStuck);
+    V d = g.check(kPa, 120.0f + wob(52), 0.031f, now += 31, kStuck);
+    r.check(c == V::Reject && d == V::Accept, "lone -30 m sample: %d then %d", (int)c, (int)d);
+  }
+  {  // two samples that agree are a step: accepted as a Jump on the second
+    BaroGuard g;
+    uint32_t now = 1000;
+    for (int i = 0; i < 50; ++i) g.check(kPa, 120.0f + wob(i), 0.031f, now += 31, kStuck);
+    V a = g.check(kPa, 150.0f, 0.031f, now += 31, kStuck);
+    V b = g.check(kPa, 150.5f, 0.031f, now += 31, kStuck);
+    V c = g.check(kPa, 150.4f, 0.031f, now += 31, kStuck);
+    r.check(a == V::Reject && b == V::Jump && c == V::Accept, "30 m step: %d %d %d (want Reject Jump Accept)", (int)a,
+            (int)b, (int)c);
+  }
+  {  // two outliers that do not agree with each other are both held back
+    BaroGuard g;
+    uint32_t now = 1000;
+    g.check(kPa, 120.0f, 0.031f, now += 31, kStuck);
+    V a = g.check(kPa, 150.0f, 0.031f, now += 31, kStuck);
+    V b = g.check(kPa, 90.0f, 0.031f, now += 31, kStuck);
+    r.check(a == V::Reject && b == V::Reject, "disagreeing outliers: %d %d", (int)a, (int)b);
+  }
+  {  // the rate limit: 40 m/s plus 3 m between samples
+    BaroGuard g;
+    uint32_t now = 1000;
+    g.check(kPa, 120.0f, 0.03f, now, kStuck);
+    V a = g.check(kPa, 124.0f, 0.03f, now += 30, kStuck);  // 4.0 m in 30 ms (limit 4.2)
+    r.check(a == V::Accept, "4 m in 30 ms rejected (%d)", (int)a);
+    V b = g.check(kPa, 128.6f, 0.03f, now += 30, kStuck);  // 4.6 m
+    r.check(b == V::Reject, "4.6 m in 30 ms accepted (%d)", (int)b);
+  }
+  {  // after a gap the allowed change grows with the time (2 s: 83 m)
+    BaroGuard g;
+    uint32_t now = 1000;
+    g.check(kPa, 120.0f, 0.03f, now, kStuck);
+    V a = g.check(kPa, 180.0f, 2.0f, now += 2000, kStuck);
+    r.check(a == V::Accept, "60 m after a 2 s gap rejected (%d)", (int)a);
+  }
+  {  // impossible pressures and NaN are rejected and change nothing
+    BaroGuard g;
+    uint32_t now = 1000;
+    g.check(kPa, 120.0f, 0.03f, now, kStuck);
+    r.check(g.check(5000.0f, 120.0f, 0.03f, now += 30, kStuck) == V::Reject, "5000 Pa accepted");
+    r.check(g.check(NAN, 120.0f, 0.03f, now += 30, kStuck) == V::Reject, "NaN pressure accepted");
+    r.check(g.check(kPa, NAN, 0.03f, now += 30, kStuck) == V::Reject, "NaN altitude accepted");
+    r.check(g.check(kPa, 120.01f, 0.03f, now += 30, kStuck) == V::Accept, "good sample after bad ones not accepted");
+  }
+  {  // frozen value: reported at the limit, not before; recovered on the first different value
+    BaroGuard g;
+    uint32_t now = 1000;
+    g.check(kPa, 120.0f, 0.03f, now, kStuck);
+    V last = V::Accept;
+    int firstStuck = -1;
+    for (int i = 1; i <= 200; ++i) {  // 31 ms steps, 6.2 s
+      last = g.check(kPa, 120.0f, 0.031f, now += 31, kStuck);
+      if (last == V::Stuck && firstStuck < 0) firstStuck = i;
+    }
+    r.check(firstStuck > 0, "5 s of identical readings never reported");
+    r.near(firstStuck * 0.031f, 5.0f, 0.1f, "frozen reading detected after (s)");
+    r.check(last == V::Stuck && g.stuck(), "still frozen but not reported at 6.2 s");
+    V rec = g.check(kPa, 120.02f, 0.031f, now += 31, kStuck);
+    V next = g.check(kPa, 120.01f, 0.031f, now += 31, kStuck);
+    r.check(rec == V::Recovered && !g.stuck(), "first changed reading after a freeze: %d", (int)rec);
+    r.check(next == V::Accept, "reading after the recovery: %d", (int)next);
+  }
+  {  // a freeze shorter than the limit is not reported; two alternating values are not frozen
+    BaroGuard g;
+    uint32_t now = 1000;
+    int bad = 0;
+    for (int i = 0; i < 150; ++i) bad += g.check(kPa, 120.0f, 0.031f, now += 31, kStuck) == V::Stuck;  // 4.65 s
+    r.check(bad == 0, "4.65 s of identical readings reported as frozen");
+    bad = 0;
+    for (int i = 0; i < 400; ++i) bad += g.check(kPa, (i & 1) ? 120.0f : 120.01f, 0.031f, now += 31, kStuck) == V::Stuck;
+    r.check(bad == 0, "alternating readings reported as frozen");
+  }
+  {  // limit 0: not checked
+    BaroGuard g;
+    uint32_t now = 1000;
+    int bad = 0;
+    for (int i = 0; i < 400; ++i) bad += g.check(kPa, 120.0f, 0.031f, now += 31, 0) == V::Stuck;
+    r.check(bad == 0, "frozen reading reported with the check switched off");
+  }
+}
+
+// ---------------------------------------------------------------------------------------------- rpmtrack
+void rpmTrackUnitSuite(UnitReport& r) {
+  struct Rig {
+    RpmTracker t;
+    uint32_t now = 100000;
+    float feed(float raw, float conf = 9.0f, bool clear = true) { return t.update(raw, conf, 3.0f, clear, now += 250, 1500); }
+    void settle(float rpm) { feed(rpm); feed(rpm); feed(rpm); }
+  };
+
+  {  // acquisition needs two agreeing windows
+    Rig g;
+    g.feed(2000);
+    r.near(g.t.rpm(), 0, 0.01f, "one window is not a reading");
+    g.feed(2010);
+    r.near(g.t.rpm(), 2010, 0.01f, "two agreeing windows are");
+  }
+  {  // two windows that disagree: not yet; a third that agrees with the second is
+    Rig g;
+    g.feed(2000);
+    g.feed(3000);
+    r.near(g.t.rpm(), 0, 0.01f, "disagreeing windows gave a reading");
+    g.feed(3050);
+    r.near(g.t.rpm(), 3050, 0.01f, "third window agreeing with the second");
+  }
+  {  // smoothing: a change inside 20 % moves half way
+    Rig g;
+    g.settle(2000);
+    r.near(g.t.rpm(), 2000, 0.5f, "settled at 2000");
+    g.feed(2100);
+    r.near(g.t.rpm(), 2050, 0.5f, "5 %% step moves half way");
+    g.feed(2300);  // 12 % above 2050
+    r.near(g.t.rpm(), 2175, 0.5f, "12 %% step moves half way");
+  }
+  {  // a lone bad window never shows (F4): up, down, octave
+    for (float bad : {4000.0f, 1000.0f, 500.0f, 2600.0f}) {
+      Rig g;
+      g.settle(2000);
+      g.feed(bad);
+      r.near(g.t.rpm(), 2000, 0.5f, "reading while one bad window is pending");
+      g.feed(2000);
+      r.near(g.t.rpm(), 2000, 0.5f, "reading after the next window is normal");
+      g.feed(bad);
+      g.feed(2000);
+      g.feed(bad);
+      g.feed(2000);
+      r.near(g.t.rpm(), 2000, 0.5f, "reading after bad windows between good ones");
+    }
+  }
+  {  // two agreeing windows far away are a real change
+    Rig g;
+    g.settle(2000);
+    g.feed(4000);
+    g.feed(4100);
+    r.near(g.t.rpm(), 4100, 0.5f, "real change to 4000");
+  }
+  {  // two bad windows that disagree with each other: nothing moves; a third that agrees with the second does
+    Rig g;
+    g.settle(2000);
+    g.feed(4000);
+    g.feed(3000);
+    r.near(g.t.rpm(), 2000, 0.5f, "disagreeing bad windows");
+    g.feed(3050);
+    r.near(g.t.rpm(), 3050, 0.5f, "pending 3000 confirmed by 3050");
+  }
+  {  // a window of low confidence cancels a pending jump
+    Rig g;
+    g.settle(2000);
+    g.feed(4000);
+    g.feed(4000, 1.0f);
+    g.feed(4000);
+    r.near(g.t.rpm(), 2000, 0.5f, "jump confirmed across a low-confidence window");
+  }
+  {  // no usable window: the reading goes after the hold time, not before
+    Rig g;
+    g.settle(2000);
+    for (int i = 0; i < 6; ++i) g.feed(2000, 1.0f);  // 1.5 s
+    r.near(g.t.rpm(), 2000, 0.5f, "reading at exactly the hold time");
+    g.feed(2000, 1.0f);
+    r.near(g.t.rpm(), 0, 0.01f, "reading just after the hold time");
+    g.feed(2000);
+    r.near(g.t.rpm(), 0, 0.01f, "one window after a dropout is not a reading again");
+    g.feed(2010);
+    r.near(g.t.rpm(), 2010, 0.01f, "two windows are");
+  }
+  {  // speech (F3): the reading is held for the speech and for the hold time after it
+    Rig g;
+    g.settle(2000);
+    for (int i = 0; i < 40; ++i) g.feed(0, 0, false);  // 10 s of speech
+    r.near(g.t.rpm(), 2000, 0.5f, "reading after 10 s of speech");
+    for (int i = 0; i < 6; ++i) g.feed(0, 0.5f);  // 1.5 s after it, nothing usable
+    r.near(g.t.rpm(), 2000, 0.5f, "reading 1.5 s after the speech");
+    g.feed(0, 0.5f);
+    r.near(g.t.rpm(), 0, 0.01f, "reading 1.75 s after the speech with no usable window");
+  }
+  {  // speech, then the engine has changed
+    Rig g;
+    g.settle(2000);
+    for (int i = 0; i < 12; ++i) g.feed(0, 0, false);
+    g.feed(3000);
+    r.near(g.t.rpm(), 2000, 0.5f, "first window after speech at a new speed");
+    g.feed(3010);
+    r.near(g.t.rpm(), 3010, 0.5f, "second window");
+  }
+  {  // speech with the engine already at 0: nothing to hold
+    Rig g;
+    for (int i = 0; i < 20; ++i) g.feed(0, 0, false);
+    r.near(g.t.rpm(), 0, 0.01f, "speech with no engine gave a reading");
+  }
+  {  // a speech flag that never clears cannot hold the reading for ever: 15 s at most
+    Rig g;
+    g.settle(2000);
+    for (int i = 0; i < 56; ++i) g.feed(0, 0, false);  // 14 s
+    r.near(g.t.rpm(), 2000, 0.5f, "reading after 14 s of speech");
+    for (int i = 0; i < 12; ++i) g.feed(0, 0, false);  // to 17 s
+    r.near(g.t.rpm(), 0, 0.01f, "reading after 17 s of 'speech'");
+  }
 }
 
 #endif

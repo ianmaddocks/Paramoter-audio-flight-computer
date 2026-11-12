@@ -12,6 +12,14 @@ class Flight {
  public:
   FlightEvent update(uint32_t nowMs, const Baro& baro, const GpsData& gps, NavState& out);
 
+  // Does the data say the aircraft is standing still on the ground? With a trusted GPS ground speed it
+  // is the speed. Without one (no fix, a weak fix, a stale fix) the speed says nothing, so the evidence
+  // is a steady barometer (no climb or sink) AND a height above the landing zone under maxAglM; with
+  // no barometer either there is no evidence and the answer is no. Level flight with the GPS lost is
+  // therefore never taken for a landing.
+  static bool looksStill(bool speedOk, float speedMs, float landingSpeedMs, bool baroOk, float varioMs, float aglM,
+                         float maxAglM);
+
   bool takeoffCourseValid() const { return takeoffCourseValid_; }
   float takeoffCourseDeg() const { return takeoffCourseDeg_; }
 

@@ -16,6 +16,7 @@
 #include "Pins.h"
 #include "Settings.h"
 #include "audio/Audio.h"
+#include "sensors/RpmTrack.h"
 #include "test/Sim.h"
 
 namespace mic {
@@ -76,9 +77,8 @@ float lastToneHz = 0;
 float fsDec = kNominalFs;
 uint32_t rateCount = 0;
 int64_t rateStartUs = 0;
-uint32_t lastRpmOkMs = 0;
 float noiseSmooth = NAN;
-float rpmSmooth = 0;
+RpmTracker rpmTracker;  // what is shown; see RpmTrack.h
 uint32_t overflows = 0;
 
 void fft() {
@@ -262,19 +262,17 @@ void process(uint32_t nowMs) {
 
   float raw = 0, conf = 0;
   rpmFromSpectrum(mag, binHz, g_cfg.rpmPulsesPerRev, (float)g_cfg.rpmMin, (float)g_cfg.rpmMax, &raw, &conf);
+#if PV_TEST
+  if (sim::takeRpmGlitch(&raw)) conf = 99.0f;  // one bad window, as far as everything after this can tell
+#endif
 
   const float dt = kHop / fsDec;
   if (speechClear) {
     if (isnan(noiseSmooth)) noiseSmooth = db;
     float tau = db > noiseSmooth ? kAttackS : (float)g_cfg.noiseReleaseS;
     noiseSmooth += (db - noiseSmooth) * dt / (tau + dt);
-    if (conf >= g_cfg.rpmMinConfidence) {
-      rpmSmooth = rpmSmooth > 0 && fabsf(raw - rpmSmooth) < 0.2f * rpmSmooth ? rpmSmooth + (raw - rpmSmooth) * 0.5f
-                                                                               : raw;
-      lastRpmOkMs = nowMs;
-    }
   }
-  if (rpmSmooth > 0 && nowMs - lastRpmOkMs > kRpmHoldMs) rpmSmooth = 0;
+  const float rpmSmooth = rpmTracker.update(raw, conf, g_cfg.rpmMinConfidence, speechClear, nowMs, kRpmHoldMs);
 
   portENTER_CRITICAL(&gMux);
   gNoiseDb = noiseSmooth;

@@ -31,7 +31,14 @@ div.page[hidden]{display:none}
 .tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .tile{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px 12px;min-width:0}
 .tile .k{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
-.arr{display:inline-block}
+.vrow{display:flex;align-items:center;justify-content:space-between;height:46px}
+.vrow span{overflow:hidden;text-overflow:ellipsis}
+.arr{width:46px;height:46px;flex:none;color:var(--acc);transition:transform .9s linear}
+.arr[hidden]{display:none}
+.cmp{position:relative;width:46px;height:46px;flex:none}
+.cmp[hidden]{display:none}
+.cmp::before{content:'N';position:absolute;top:0;left:50%;transform:translateX(-50%);font-size:11px;line-height:11px;font-weight:700;color:var(--mut)}
+.cmp .arr{position:absolute;left:4px;bottom:0;width:38px;height:38px}
 .tile .v{font-size:22px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tile .s{font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tile.big{grid-column:span 2}.tile.big .v{font-size:40px}
@@ -124,11 +131,11 @@ R"HTML(
 <div class="tile" id="tile-height"><div class="k">Height AGL</div><div class="v" id="t-agl">–</div><div class="s" id="t-msl"></div></div>
 <div class="tile graph" id="tile-hgraph"><div class="k">Height · last 10 min</div><canvas id="hgCv"></canvas></div>
 <div class="tile" id="tile-vario"><div class="k">Vario</div><div class="v" id="t-vario">–</div><div class="s" id="t-mute"></div></div>
-<div class="tile needgps"><div class="k">Ground speed</div><div class="v" id="t-speed">–</div><div class="s" id="t-track"></div></div>
+<div class="tile needgps"><div class="k">Ground speed</div><div class="v vrow" id="t-speed"><span id="t-speedv">–</span><span class="cmp" hidden><svg id="a-track" class="arr" viewBox="-20 -20 40 40" aria-hidden="true"><path d="M0 -19 L12 -4 L4.5 -4 L4.5 19 L-4.5 19 L-4.5 -4 L-12 -4 Z" fill="currentColor"/></svg></span></div><div class="s" id="t-track"></div></div>
 <div class="tile needgps"><div class="k">Glide ratio</div><div class="v" id="t-glide">–</div><div class="s" id="t-glides"></div></div>
 <div class="tile"><div class="k">Flight time</div><div class="v" id="t-flight">–</div><div class="s" id="t-ftime"></div></div>
-<div class="tile needgps"><div class="k">Landing zone</div><div class="v" id="t-lz">–</div><div class="s" id="t-lzs"></div></div>
-<div class="tile needgps"><div class="k">Wind</div><div class="v" id="t-wind">–</div><div class="s" id="t-winds"></div></div>
+<div class="tile needgps"><div class="k">Landing zone</div><div class="v vrow" id="t-lz"><span id="t-lzv">–</span><svg id="a-lz" class="arr" viewBox="-20 -20 40 40" aria-hidden="true" hidden><path d="M0 -19 L12 -4 L4.5 -4 L4.5 19 L-4.5 19 L-4.5 -4 L-12 -4 Z" fill="currentColor"/></svg></div><div class="s" id="t-lzs"></div></div>
+<div class="tile needgps"><div class="k">Wind</div><div class="v vrow" id="t-wind"><span id="t-windv">–</span><svg id="a-wind" class="arr" viewBox="-20 -20 40 40" aria-hidden="true" hidden><path d="M0 -19 L12 -4 L4.5 -4 L4.5 19 L-4.5 19 L-4.5 -4 L-12 -4 Z" fill="currentColor"/></svg></div><div class="s" id="t-winds"></div></div>
 </section>
 <section class="card"><h2>Actions</h2><div class="btns">
 <button data-a="approach" id="b-approach" class="needgps">Landing approach</button>
@@ -214,9 +221,17 @@ function fD(m){
 function fT(s){const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return(h?h+':'+String(m).padStart(2,'0'):m)+':'+String(x).padStart(2,'0')}
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),2200)}
 function txt(id,v){const e=document.getElementById(id);if(e.textContent!==v)e.textContent=v}
-// Tile value with a direction arrow: html() keeps what it last wrote, so an unchanged tile is not rebuilt.
-function html(id,h){const e=document.getElementById(id);if(e.dataset.h!==h){e.dataset.h=h;e.innerHTML=h}}
-const arrow=r=>'<span class="arr" style="transform:rotate('+Math.round(r)+'deg)">↑</span>';
+// Direction arrow (up = straight ahead). The angle is smoothed (a third of the way to each new reading) so GPS
+// course noise does not make it jump, kept unwrapped so it never spins the long way round at 0/360, and the
+// CSS transition moves it between readings. null hides it.
+const arrowAng={};
+function setArrow(id,deg){const e=document.getElementById(id),w=e.parentNode.classList.contains('cmp')?e.parentNode:null;
+  if(deg==null||isNaN(deg)){e.hidden=true;if(w)w.hidden=true;delete arrowAng[id];return}
+  if(w)w.hidden=false;
+  let a=arrowAng[id];
+  if(a==null){a=deg;e.style.transition='none';e.style.transform='rotate('+a.toFixed(1)+'deg)';void e.offsetWidth;e.style.transition='';e.hidden=false}
+  else{a+=(((deg-a)%360+540)%360-180)*0.35;e.hidden=false;e.style.transform='rotate('+a.toFixed(1)+'deg)'}
+  arrowAng[id]=a}
 
 // Tile layout. Hidden tiles (hardware not fitted) do not count.
 //  - Main group: if its cells (tiles plus the height graph) come to an odd number, the Height
@@ -410,7 +425,7 @@ async function poll(){
     if(schemaKey&&k!==schemaKey&&!saveInFlight&&!settingsBusy){settingsBusy=true;loadSettings().catch(()=>{}).finally(()=>{settingsBusy=false})}
     txt('t-agl',fH(s.agl));txt('t-msl',fH(s.altMsl)+' MSL');
     txt('t-vario',(s.vario>=0?'+':'')+s.vario.toFixed(1)+' m/s');txt('t-mute',s.muted?'muted':'');
-    txt('t-speed',G.fix?fS(G.speed):'–');
+    txt('t-speedv',G.fix?fS(G.speed):'–');
     const L=s.glide||{};txt('t-glide',L.now!=null?fR(L.now):'–');txt('t-glides',(cfg.glideLongS||60)+' s avg '+(L.avg!=null?fR(L.avg):'–'));txt('t-track',G.fix?'track '+Math.round(G.track)+'°':'');
     // Flight time: the elapsed time is the main value while flying; on the ground it says Grounded and,
     // after a flight, the length of the last one.
@@ -422,11 +437,13 @@ async function poll(){
     // gives a direction of travel; the compass degrees move to the line under the value. Standing still
     // there is no direction of travel: the degrees stay as the value.
     const moving=!!G.fix&&G.speed>=1.5;
-    html('t-lz',!s.lz.valid?'not set':s.lz.dist!=null?fD(s.lz.dist)+(moving&&s.lz.brg!=null?' '+arrow(s.lz.brg-G.track):''):'set');
-    txt('t-lzs',s.lz.valid?(s.lz.brg!=null?'bearing '+Math.round(s.lz.brg)+'° · ':'')+fH(s.lz.elev)+' MSL':'');
-    if(!s.wind.valid){html('t-wind','unknown');txt('t-winds','')}
-    else if(moving){html('t-wind',arrow(s.wind.from+180-G.track));txt('t-winds','from '+Math.round(s.wind.from)+'° · '+fS(s.wind.speed)+' · '+s.wind.src)}
-    else{html('t-wind',Math.round(s.wind.from)+'°');txt('t-winds',fS(s.wind.speed)+' · '+s.wind.src)}
+    setArrow('a-track',moving?G.track:null);  // ground speed tile: the track against absolute north (the N marks it)
+    txt('t-lzv',!s.lz.valid?'not set':s.lz.dist!=null?fD(s.lz.dist):'set');
+    setArrow('a-lz',s.lz.valid&&s.lz.dist!=null&&moving&&s.lz.brg!=null?s.lz.brg-G.track:null);
+    txt('t-lzs',s.lz.valid?fH(s.lz.elev)+' MSL':'');
+    if(!s.wind.valid){txt('t-windv','unknown');setArrow('a-wind',null);txt('t-winds','')}
+    else if(moving){txt('t-windv','');setArrow('a-wind',s.wind.from+180-G.track);txt('t-winds','from '+Math.round(s.wind.from)+'° · '+fS(s.wind.speed)+' · '+s.wind.src)}
+    else{txt('t-windv',Math.round(s.wind.from)+'°');setArrow('a-wind',null);txt('t-winds',fS(s.wind.speed)+' · '+s.wind.src)}
     txt('t-gps',!G.link?'no data':G.sats+' sats');
     const h=G.hdop,gq=!G.fix||!(h<=20)?'none':h<=2?'strong':h<=5?'good':h<=10?'ok':'poor';
     txt('t-gpss',(G.fix?'Fix':'Searching')+' · signal '+gq);

@@ -14,6 +14,12 @@ bool runUnitSuite(const String& name, String* json) {
     circuitUnitSuite(r);
   } else if (name == "battery") {
     batteryUnitSuite(r);
+  } else if (name == "rpmtrack") {
+    rpmTrackUnitSuite(r);
+  } else if (name == "baro") {
+    baroUnitSuite(r);
+  } else if (name == "flight") {
+    flightUnitSuite(r);
   } else {
     return false;
   }
