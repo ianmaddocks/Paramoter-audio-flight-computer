@@ -101,6 +101,11 @@ struct Settings {
   bool gpsLed = false;
   int32_t readyMinSats = 6;
   float readyMaxHdop = 2.0f;
+  // The direction arrows (compass, landing zone, windsock) appear above one speed and go below a lower one, each held this long,
+  // so a GPS standing still (1 to 2 m/s of noise) does not make them flicker.
+  float moveShowMs = 2.0f;
+  float moveHideMs = 1.0f;
+  int32_t moveHoldS = 3;
   int32_t gpsFixHoldS = 10;  // "GPS fix" is announced once the fix has met the ready limits this long without a break
 
   // The Bluetooth and Wi-Fi names are plain settings, used exactly as stored. Their default is "ParaVario-" and the last two

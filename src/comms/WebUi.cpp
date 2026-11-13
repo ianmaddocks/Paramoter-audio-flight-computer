@@ -245,6 +245,7 @@ void handleStatus() {
     gps["lat"] = n.lat;
     gps["lon"] = n.lon;
     gps["speed"] = n.speedMs;
+    gps["moving"] = app.moving.on();  // a direction of travel exists (arrows shown), with hysteresis
     gps["track"] = n.trackDeg;
     gps["alt"] = n.gpsAltM;
     // Glide ratio (ground distance per height lost) over the two windows; a key is left out

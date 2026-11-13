@@ -908,6 +908,11 @@ How good the GPS accuracy must be before the banner turns green.
 
 HDOP is lower for better accuracy. At 2.0 the banner waits for a good geometry. Default: 2.0.
 
+### Show the direction arrows above / Hide the direction arrows below / Arrows: speed must hold for
+*GPS Module*
+
+The compass arrow (Ground speed tile), the landing zone arrow and the windsock only mean something when you are moving, because they point relative to your direction of travel. A GPS standing still reports a ground speed of 1 to 2 m/s of noise, so a single limit made them appear and disappear. There are two limits instead. The arrows appear once your ground speed has been **above** the first for the hold time, and go once it has been **below** the second for the hold time. Between the two, nothing changes. Losing the GPS fix hides them at once. Defaults: show above 2.0 m/s (7 km/h), hide below 1.0 m/s (3.6 km/h), hold 3 s. The speeds are shown in your speed unit.
+
 ### Announce "GPS fix" after the fix has held for
 How long the GPS must keep meeting the two limits above, without a break, before you hear "GPS fix". Default: 10 s. If the number of satellites flickers around the limit, every dip starts the count again, so the call comes only once the fix has settled. 0 announces at once.
 

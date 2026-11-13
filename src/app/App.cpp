@@ -248,6 +248,7 @@ void flightTick(uint32_t now) {
   app.heightHistory.update(now, app.nav.aglM, app.nav.flying);
   alerts::update(now, app.nav, app.battery.volts(), app.battery.minutesLeftOrUnknown());
   if (app.nav.flying && now - lastSaveMs >= kSaveIntervalMs) saveFlightState();
+  app.moving.update(now, hw::hasGps() && app.nav.fix, app.nav.speedMs, g_cfg.moveShowMs, g_cfg.moveHideMs, (uint32_t)g_cfg.moveHoldS * 1000u);
   uievents::update(now);
   trace::update(now);
 }
@@ -324,6 +325,7 @@ void testResetFlight() {
   app.emergency = Emergency();
   app.glide = Glide();
   app.heightHistory = HeightHistory();
+  app.moving.reset();
   app.varioMuted = false;
   alerts::reset();
   trace::reset();
