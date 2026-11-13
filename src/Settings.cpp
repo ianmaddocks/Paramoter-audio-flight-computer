@@ -140,9 +140,10 @@ const Field kFields[] = {
 
     SR(wifiSsid, "Wi-Fi", "Network name (ParaVario = unit code added, e.g. ParaVario-A1B2)"),
     SR(wifiPass, "Wi-Fi", "Password (8+ chars, blank = open)"),
-    SR(serverSsid, "Wi-Fi", "Server network name (blank = off)"),
-    SR(serverPass, "Wi-Fi", "Server network password"),
-    I(serverGiveUpS, "Wi-Fi", "Stop searching if server network not found after (0 = keep trying)", "s", 0, 600),
+    BR(maintWifi, "Firmware Update", "Enable maintenance server connection"),
+    SR(serverSsid, "Firmware Update", "Maintenance wifi SSID"),
+    SR(serverPass, "Firmware Update", "Maintenance wifi password"),
+    I(serverGiveUpS, "Firmware Update", "Stop searching if the maintenance wifi is not found after (0 = keep trying)", "s", 0, 600),
 
     FL(battDivider, "Battery", "Divider ratio", "", 1.0f, 10.0f),
     FL(battCal, "Battery", "Calibration factor", "", 0.8f, 1.2f),
@@ -386,6 +387,10 @@ void load() {
   }
   if (root["serverPass"].isNull() && !root["homePass"].isNull()) {
     root["serverPass"] = root["homePass"];
+  }
+  // Units that already had a server network set keep using it: the switch is new.
+  if (root["maintWifi"].isNull() && root["serverSsid"].is<const char*>() && root["serverSsid"].as<const char*>()[0]) {
+    root["maintWifi"] = true;
   }
   fromJson(doc.as<JsonObjectConst>());
 }

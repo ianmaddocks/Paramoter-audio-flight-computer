@@ -109,6 +109,9 @@ struct Settings {
 
   char wifiSsid[33] = "ParaVario";
   char wifiPass[65] = "";
+  // The maintenance connection (the vario also joining a workshop or home Wi-Fi so a computer can reach it and update the
+  // firmware) is for the maker and testers, not pilots: off unless switched on, and its settings are hidden until then.
+  bool maintWifi = false;
   char serverSsid[33] = "";
   char serverPass[65] = "";
   // While the vario searches for the server network its own network is unreliable (one radio,

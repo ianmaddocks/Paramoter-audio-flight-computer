@@ -69,6 +69,7 @@ struct State {
   float rpmGlitch = 0;   // one analysis window reports this RPM
   uint32_t utcBaseS = 0; // seconds added to the simulated GPS clock (which starts at 12:00:00 at power-on)
   int button = 0;        // an injected button event (ButtonEvent value)
+  bool buttonHeld = false;
 
   uint32_t lastMs = 0;
 } s;
@@ -150,6 +151,8 @@ int32_t micSample() {
   x += ((rng >> 8) / 8388608.0f - 1.0f) * s.micNoise;
   return constrain((int32_t)lroundf(2048.0f + x), 0, 4095);
 }
+
+bool buttonHeld() { return s.buttonHeld; }
 
 int takeButton() {
   int b = s.button;
@@ -343,9 +346,11 @@ bool set(const String& key, const String& value) {
     s.micHz = f;
   } else if (key == "micAmp") {
     s.micAmp = f;
-  } else if (key == "button") {  // ButtonEvent: None, Press, HoldCue, Single, Double, Triple, Hold
+  } else if (key == "button") {  // ButtonEvent: None, Press, HoldCue, Single, Double, Triple, Hold, Five
     s.button = value == "press" ? 1 : value == "holdcue" ? 2 : value == "single" ? 3 : value == "double" ? 4
-               : value == "triple" ? 5 : value == "hold" ? 6 : 0;
+               : value == "triple" ? 5 : value == "hold" ? 6 : value == "five" ? 7 : 0;
+  } else if (key == "buttonHeld") {
+    s.buttonHeld = on;
   } else if (key == "gpsBoot") {  // silent | real: what the simulated GPS does after every restart
     Preferences prefs;
     if (prefs.begin("simtest", false)) {

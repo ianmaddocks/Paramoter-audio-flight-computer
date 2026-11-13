@@ -23,6 +23,7 @@
 #include "app/Alerts.h"
 #include "app/Status.h"
 #include "flight/Resume.h"
+#include "input/FactoryReset.h"
 #include "app/Trace.h"
 #include "app/VarioSound.h"
 #include "audio/Audio.h"
@@ -52,6 +53,8 @@ uint32_t lastSaveMs = 0;
 bool resumePending = false;  // a flight saved as "flying" is waiting for the first trusted GPS fix to be judged
 FlightRecord resumeRec = {};
 uint32_t resumeDeadlineMs = 0;
+FactoryResetGesture factoryReset;
+uint32_t factoryRestartAtMs = 0;  // set once the settings are wiped: the restart follows when the announcement has played
 
 // ---------- flight state kept across a restart in the air ----------
 
@@ -154,7 +157,46 @@ void handleFlightEvent(FlightEvent ev) {
 //                  hold 1.5 s = emergency glide, start or cancel
 //                  triple = mute or unmute the vario
 //   without a GPS  single = tell me (height, battery); double, triple or hold = mute or unmute
-void handleButton(ButtonEvent ev) {
+// The factory reset (button: five clicks, then five clicks and a 2 s hold): every setting back to its default, the
+// Wi-Fi names and passwords included, and a saved flight forgotten. The test build keeps its Wi-Fi settings (the test
+// harness reaches the vario over them) and says so.
+void doFactoryReset() {
+  LOGI("APP", "Factory reset by the button");
+  speech::say(Priority::Urgent, "factory_reset");
+  actionResetFlight();
+#if PV_TEST
+  Settings keep = g_cfg;
+#endif
+  settings::resetDefaults();
+#if PV_TEST
+  strlcpy(g_cfg.wifiSsid, keep.wifiSsid, sizeof(g_cfg.wifiSsid));
+  strlcpy(g_cfg.wifiPass, keep.wifiPass, sizeof(g_cfg.wifiPass));
+  strlcpy(g_cfg.serverSsid, keep.serverSsid, sizeof(g_cfg.serverSsid));
+  strlcpy(g_cfg.serverPass, keep.serverPass, sizeof(g_cfg.serverPass));
+  g_cfg.maintWifi = keep.maintWifi;
+  settings::save();
+  LOGI("APP", "(test build: the Wi-Fi settings were kept)");
+#endif
+  factoryRestartAtMs = millis() | 1;
+}
+
+void handleButton(ButtonEvent ev, bool pressed) {
+  const bool wasArmed = factoryReset.armed();
+  switch (factoryReset.update(ev, pressed, !app.nav.flying, millis())) {
+    case FactoryResetGesture::Action::Prompt:
+      LOGI("APP", "Factory reset: waiting for five clicks and a 2 s hold");
+      speech::say(Priority::Urgent, "factory_prompt");
+      return;
+    case FactoryResetGesture::Action::Cancelled:
+      LOGI("APP", "Factory reset cancelled");
+      speech::say(Priority::Urgent, "factory_cancelled");
+      break;
+    case FactoryResetGesture::Action::Reset:
+      doFactoryReset();
+      return;
+    default:
+      break;
+  }
   if (ev == ButtonEvent::None) return;
   if (ev == ButtonEvent::Press) {
     LOGD("BTN", "click");
@@ -166,8 +208,11 @@ void handleButton(ButtonEvent ev) {
     audio::cue(1200.0f, 120);
     return;
   }
+  if (wasArmed) return;  // a step of the factory reset: nothing else is done with the button meanwhile
   LOGD("BTN", "%s", ev == ButtonEvent::Single ? "single" : ev == ButtonEvent::Double ? "double"
-                                                     : ev == ButtonEvent::Triple ? "triple" : "hold");
+                                                     : ev == ButtonEvent::Triple ? "triple"
+                                                     : ev == ButtonEvent::Five ? "five" : "hold");
+  if (ev == ButtonEvent::Five) return;  // only means something as the start of the factory reset (not flying)
   if (ev == ButtonEvent::Single) {
     actionTellMe();
   } else if (!hw::hasGps() || ev == ButtonEvent::Triple) {
@@ -321,10 +366,16 @@ void appLoop() {
   esp_task_wdt_reset();
 
   readSensors(now);
-  handleButton(app.button.update(now));
+  const ButtonEvent bev = app.button.update(now);
 #if PV_TEST
-  handleButton((ButtonEvent)sim::takeButton());  // a press injected by a test (button=single|double|triple|hold|press|holdcue)
+  // a press injected by a test (button=single|double|triple|five|hold|press|holdcue; buttonHeld=1 holds it down)
+  const bool down = app.button.pressed() || sim::buttonHeld();
+  handleButton(bev, down);
+  handleButton((ButtonEvent)sim::takeButton(), down);
+#else
+  handleButton(bev, app.button.pressed());
 #endif
+  if (factoryRestartAtMs && (int32_t)(now - factoryRestartAtMs) >= 3000) ESP.restart();
 
   if (now - lastSoundMs >= kSoundTickMs) {
     lastSoundMs = now;

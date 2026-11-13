@@ -2254,6 +2254,93 @@ def t_audio_logic(v, a):
     return f"{n} cases passed: urgent calls get the signal tone, nothing else does"
 
 
+def factory_clicks(v, n=5):
+    for _ in range(n):
+        v.sim(button="press")
+        time.sleep(0.35)
+
+
+def t_factory_reset(v, a):
+    """The button's factory reset: five clicks give the instruction and wait; then five clicks and a sixth held for 2 s do
+    the reset at the 2 s point (every setting back to its default, then a restart; the test build keeps its Wi-Fi settings
+    so the harness can still reach it). Let go early = cancelled and nothing changed; not flying only; the clicks do
+    nothing else meanwhile (no approach, no mute)."""
+    notes = []
+    try:
+        on_ground_with_fix(v)
+        defaults = {"speechVolume": 5, "pilotName": ""}
+        v.set(speechVolume=55, pilotName="Test Pilot")
+
+        # in flight the five clicks are nothing, and give no instruction
+        airborne(v, hdg=90, air=10, wfrom=270, wspd=3, climb=40.0, vz=2.0)
+        m = v.mark()
+        v.sim(button="five")
+        time.sleep(3)
+        if v.find("SAY", r"factory_prompt", m):
+            raise Fail("the factory reset prompt was given in flight")
+        v.sim(vz=0, speed=0, fly=0)
+        v.action("reset_flight")
+        on_ground_with_fix(v)
+        notes.append("no prompt in flight")
+
+        # five clicks: the instruction, and nothing else happens with the clicks that follow
+        m = v.mark()
+        v.sim(button="five")
+        v.expect("SAY", r"\[urgent\] factory_prompt", m, timeout=4, what="the instruction after five clicks")
+        m = v.mark()
+        factory_clicks(v, 5)
+        st = v.status()
+        if st["mode"] != "none" or st["muted"]:
+            raise Fail(f"the clicks did something else: mode {st['mode']}, muted {st['muted']}")
+        if v.settings()["speechVolume"] != 55:
+            raise Fail("settings changed after only five clicks")
+        notes.append("five clicks: instruction given, the next five clicks do nothing else")
+
+        # the sixth press held: not at 1.6 s, at 2 s
+        m = v.mark()
+        v.sim(buttonHeld=1)
+        v.sim(button="press")
+        time.sleep(1.6)
+        if v.find("APP", r"Factory reset by the button", m) or v.settings()["speechVolume"] != 55:
+            raise Fail("reset before the 2 s point")
+        v.expect("APP", r"Factory reset by the button", m, timeout=3, what="the reset at the 2 s point")
+        v.expect("SAY", r"\[urgent\] factory_reset", m, timeout=3, what="'Restoring factory settings' spoken")
+        v.sim(buttonHeld=0)
+        end = time.time() + 90
+        time.sleep(4)
+        while True:
+            try:
+                json.loads(v._open("/api/status", tries=1)[1])
+                break
+            except Fail:
+                if time.time() > end:
+                    raise Fail("the vario did not come back after the factory reset")
+                time.sleep(2)
+        s = v.settings()
+        for k, want in defaults.items():
+            if s[k] != want:
+                raise Fail(f"after the reset {k} = {s[k]!r}, expected the default {want!r}")
+        notes.append("held 2 s: reset (settings back to defaults) and restart")
+
+        # let go early: cancelled, nothing changed
+        v.set(speechVolume=55)
+        m = v.mark()
+        v.sim(button="five")
+        v.expect("SAY", r"factory_prompt", m, timeout=4, what="the instruction again")
+        factory_clicks(v, 5)
+        v.sim(buttonHeld=1)
+        v.sim(button="press")
+        time.sleep(0.9)
+        v.sim(buttonHeld=0)
+        v.expect("SAY", r"\[urgent\] factory_cancelled", m, timeout=4, what="'cancelled' after letting go early")
+        if v.settings()["speechVolume"] != 55:
+            raise Fail("a cancelled reset changed the settings")
+        notes.append("let go early: cancelled, nothing changed")
+        return "; ".join(notes)
+    finally:
+        v.sim(buttonHeld=0, vz=0, speed=0, fly=0)
+
+
 def t_button_actions(v, a):
     """Every button gesture, injected as decoded events: click and hold cues, single = tell me (and never starts or
     cancels guidance), double = approach on/off, hold = emergency on/off, triple = mute/unmute; and the same on a vario
@@ -3540,27 +3627,31 @@ def ui_actions_body(v, a, p, m):
     p.click('button[data-a="test_voice"]')
     v.expect("SAY", r"\[urgent\] system_ready ", m2, timeout=4, what="Test voice button")
     time.sleep(4)
-    p.click('button[data-a="lz_here"]')
-    p.wait_text("toast", r"^Failed: no GPS fix$", 5, "Set LZ here refused without a fix")
+    p.tab("settings")
+    p.js("document.querySelectorAll('#settings details').forEach(d=>d.open=true)")
+    p.wait("document.getElementById('b-lz-here')!==null", 5, "Use current position button in the Landing zone settings")
+    if p.js("document.querySelector('button[data-a=\"lz_here\"], button[data-a=\"lz_takeoff\"]')"):
+        raise Fail("web page: Set LZ manually / LZ = takeoff are still on the page as buttons")
+    p.click('#b-lz-here')
+    p.wait_text("toast", r"^No GPS fix$", 5, "Use current position refused without a fix")
+    p.tab("flight")
 
     v.sim(gps="fix", sats=10, hdop=0.9, speed=0, lat=51.5, lon=0.5)
     v.expect("RDY", r"^ready$", m2, timeout=25)
     m3 = v.mark()
-    p.click('button[data-a="lz_here"]')
-    v.expect("SAY", r"\] lz_set$", m3, timeout=4, what="Set LZ here button")
-    s = v.settings()
-    near(s["lzMode"], 1, 0, "LZ mode after Set LZ here (manual)")
-    near(s["lzLat"], 51.5, 0.001, "saved LZ latitude")
     p.tab("settings")
+    p.click('#b-lz-here')
+    v.expect("SAY", r"\] lz_set$", m3, timeout=4, what="Use current position button")
+    s = v.settings()
+    near(s["lzMode"], 1, 0, "LZ mode after Use current position (manual)")
+    near(s["lzLat"], 51.5, 0.001, "saved LZ latitude")
     p.wait("tInput('lzMode') && tInput('lzMode').value==='1'", 12, "settings tab shows the manual LZ")
-    p.tab("flight")
-    p.click('button[data-a="lz_takeoff"]')
-    end = time.time() + 6
-    while v.settings()["lzMode"] != 0:
-        if time.time() > end:
-            raise Fail("web page: LZ = takeoff button did not switch the LZ mode back")
-        time.sleep(0.5)
-    return "mute, test voice, Set LZ here (refused and accepted), LZ = takeoff"
+    p.wait("Math.abs(+tInput('lzLat').value-51.5)<0.001", 12, "settings tab shows the saved latitude")
+    # back to the takeoff point is the Landing zone setting itself
+    p.js("tSet('lzMode', 0)")
+    p.wait_text("saveState", r"^Saved", 5)
+    near(v.settings()["lzMode"], 0, 0, "LZ mode set back to takeoff point in Settings")
+    return "mute, test voice, Use current position (refused without a fix, accepted with one), LZ mode back to takeoff in Settings"
 
 
 def t_ui_pilot(v, a):
@@ -3584,7 +3675,7 @@ def t_ui_pilot(v, a):
         if heads != ["Actions", "Actions"]:
             raise Fail(f"web page: the action cards are headed {heads}, expected Actions on both")
         ground = p.js("[...document.querySelectorAll('#groundActions button')].map(b=>b.textContent)")
-        if sorted(ground) != ["Audio test", "LZ = takeoff", "Mute vario", "Set LZ manually"]:
+        if sorted(ground) != ["Audio test", "Mute vario"]:
             raise Fail(f"web page: the ground Actions card holds {ground}")
         if p.js("document.getElementById('alerts').children.length") != 0:
             raise Fail("web page: an alert shown on the ground with a good battery")
@@ -3795,7 +3886,8 @@ def t_ui_guidance(v, a):
     if letters != "NESW":
         raise Fail(f"web page: the compass letters read {letters!r}, expected NESW (N at the top)")
     p.wait("!/bearing/.test(document.getElementById('t-lzs').textContent)", 4, "no bearing on the landing zone tile")
-    p.wait_text("t-winds", r"takeoff$")
+    p.wait_text("t-winds", r"^from \d+° · takeoff$")
+    p.wait_text("t-wind", r"^\d+ km/h$", 8, "the wind speed is the tile's main value while moving, with the direction under the windsock")
     v.expect("SIM", r"reached target", m, timeout=40)
 
     m2 = v.mark()
@@ -3864,7 +3956,7 @@ def t_ui_settings(v, a):
                 groups.append(f["g"])
         # Battery, Wi-Fi, GPS, Engine RPM, Wind, Logging and Glide sit in a collapsed "Advanced settings"
         # section at the end; the other groups keep the firmware's order.
-        adv_order = ["Battery", "Wi-Fi", "GPS", "Engine RPM", "Wind", "Logging", "Glide"]
+        adv_order = ["Battery", "Wi-Fi", "Firmware Update", "GPS", "Engine RPM", "Wind", "Logging", "Glide"]
         main_groups = [g for g in groups if g not in adv_order]
         adv_groups = [g for g in adv_order if g in groups]
         shown = p.js("[...document.querySelectorAll('#settings>details>summary')].map(s=>s.firstChild.textContent)")
@@ -3882,6 +3974,16 @@ def t_ui_settings(v, a):
         if missing:
             raise Fail(f"web page: no input found for {missing}")
         p.wait_text("w-ap", r"^ParaVario-[0-9A-F]{4} · 192\.168\.4\.1 · \d+ connected$", 4)
+        # The firmware update box is in Advanced settings / Firmware Update (not on the Logs & system tab), version shown, guarded
+        where = p.js("(e=>e?[...e.closest('details').querySelector('summary').childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join(''):null)(document.getElementById('fwcard'))")
+        if where != "Firmware Update" or not p.js("!!document.getElementById('fwcard').closest('#advSettings')"):
+            raise Fail(f"web page: the firmware update box is in {where!r}, expected Advanced settings / Firmware Update")
+        st0 = v.status()
+        p.wait_text("fwver", rf"^Installed: {re.escape(st0['version'])} · git {re.escape(st0['git'])} \(debug build\)$", 5)
+        p.click("#fwgo")
+        p.wait_text("toast", r"^Choose a \.bin file first$", 3, "Install refused without a file")
+        if p.js("document.getElementById('fwpass').type") != "password":
+            raise Fail("web page: update password box is not masked")
         p.wait_text("w-server", r"\S")
 
         # Number, saved as typed.
@@ -3931,6 +4033,23 @@ def t_ui_settings(v, a):
             raise Fail("web page: restart mark missing on the GPS LED setting")
         if p.js("tInput('wifiPass').type") != "password" or p.js("tInput('serverPass').type") != "password":
             raise Fail("web page: Wi-Fi passwords are not masked")
+        # The maintenance connection settings (for the maker, not pilots) are in a sub-section that shows only while its switch is on.
+        was = bool(v.settings()["maintWifi"])
+        hid = lambda: p.js("document.querySelector('.maintbox').hidden")
+        vis_now = lambda: p.js("(()=>{const b=document.querySelector('.maintbox');return b.offsetParent!==null&&b.querySelector('[data-key=serverSsid]').offsetParent!==null})()")
+        for want in (not was, was):
+            p.js("tInput('maintWifi').click()")
+            p.wait("(()=>{const b=document.querySelector('.maintbox');return (b.offsetParent!==null)===" + ("true" if want else "false") + "})()", 4,
+                   "maintenance settings " + ("shown" if want else "hidden") + " by their switch")
+            p.wait_text("saveState", r"^Saved", 5)
+        if v.settings()["maintWifi"] != was:
+            raise Fail("web page: the maintenance switch did not go back")
+        txt = p.js("document.getElementById('settings').textContent")
+        for s in ("Enable maintenance server connection", "Maintenance wifi SSID", "Maintenance wifi password", "Assigned IP address"):
+            if s not in txt:
+                raise Fail(f"web page: Wi-Fi settings lack the label '{s}'")
+        if re.search(r"Server (network|IP)", txt, re.I):
+            raise Fail("web page: an old 'Server network' / 'Server IP' label is still on the settings tab")
         p.js("document.querySelectorAll('#settings details').forEach(d=>d.open=true)")
         p.check_fits("settings tab with every group open")
     finally:
@@ -4010,6 +4129,9 @@ def t_ui_system(v, a):
     reset(v, baro="on", alt=GROUND_M, vz=0)
     st = v.status()
     p = v.page()
+    order = p.js("[...document.querySelectorAll('nav.tabs button[data-tab]')].map(b=>b.dataset.tab)")
+    if order[:3] != ["flight", "system", "settings"] or order[-1] != "help":
+        raise Fail(f"web page: tab order {order}, expected Flight, Logs & system, Settings, (Spectrum), Help")
     for name in ("flight", "settings", "spectrum", "system", "help"):
         p.tab(name)
         vis = p.js("[...document.querySelectorAll('.page')].filter(x=>!x.hidden).map(x=>x.id)")
@@ -4027,7 +4149,6 @@ def t_ui_system(v, a):
         code, body = v._open(path)
         if code != 200 or body[:8] != b"\x89PNG\r\n\x1a\n" or struct.unpack(">II", body[16:24]) != (180, 180):
             raise Fail(f"{path}: expected a 180 x 180 PNG, got HTTP {code}, {len(body)} bytes")
-    p.wait_text("fwver", rf"^Installed: {re.escape(st['version'])} · git {re.escape(st['git'])} \(debug build\)$", 5)
     p.wait_text("sys", r"^Uptime \d+:\d\d(:\d\d)? · heap \d+ kB · BLE clients \d+ · baro [\d.]+ hPa$", 5)
     p.wait("document.querySelector('#logs').textContent.length>0 && "
            "document.querySelector('#logs').textContent!=='Loading…'", 5, "flight log list loaded")
@@ -4048,12 +4169,10 @@ def t_ui_system(v, a):
     p.click("#dbgclear")
     if p.js("document.getElementById('dbglog').childElementCount") > 12:
         raise Fail("web page: Clear did not empty the debug log")
-    p.click("#fwgo")
-    p.wait_text("toast", r"^Choose a \.bin file first$", 3, "Install refused without a file")
-    if p.js("document.getElementById('fwpass').type") != "password":
-        raise Fail("web page: update password box is not masked")
+    if p.js("document.querySelector('#systemPage #fwgo, #systemPage #fwfile')"):
+        raise Fail("web page: the firmware update box is still on the Logs & system tab")
     p.check_fits("logs & system tab")
-    return "5 tabs switch, debug log live/pause/clear, firmware box guarded, version and system line"
+    return "5 tabs switch, debug log live/pause/clear, version and system line"
 
 
 def t_ota_guard(v, a):
@@ -4110,7 +4229,7 @@ TESTS = [
     ("boot", t_boot), ("settings", t_settings), ("vario_climb", t_vario_climb),
     ("vario_sink", t_vario_sink), ("vario_thresholds", t_vario_thresholds), ("vario_logic", t_vario_logic),
     ("mute", t_mute), ("auto_volume", t_auto_volume), ("rpm_logic", t_rpm_logic), ("rpm", t_rpm), ("rpm_speech", t_rpm_speech), ("rpm_glitch", t_rpm_glitch), ("geo_logic", t_geo_logic), ("wind_logic", t_wind_logic),
-    ("circuit_logic", t_circuit_logic), ("battery_logic", t_battery_logic), ("flight_logic", t_flight_logic), ("button_logic", t_button_logic), ("status_logic", t_status_logic), ("alerts_logic", t_alerts_logic), ("resume_logic", t_resume_logic), ("audio_logic", t_audio_logic), ("rpmtrack_logic", t_rpmtrack_logic), ("baro_logic", t_baro_logic), ("wind", t_wind), ("wind_faults", t_wind_faults), ("wind_change", t_wind_change), ("circuit_right", t_circuit_right), ("circuit_slow_pilot", t_circuit_slow_pilot), ("circuit_left_wind", t_circuit_left_wind),
+    ("circuit_logic", t_circuit_logic), ("battery_logic", t_battery_logic), ("flight_logic", t_flight_logic), ("button_logic", t_button_logic), ("factory_reset", t_factory_reset), ("status_logic", t_status_logic), ("alerts_logic", t_alerts_logic), ("resume_logic", t_resume_logic), ("audio_logic", t_audio_logic), ("rpmtrack_logic", t_rpmtrack_logic), ("baro_logic", t_baro_logic), ("wind", t_wind), ("wind_faults", t_wind_faults), ("wind_change", t_wind_change), ("circuit_right", t_circuit_right), ("circuit_slow_pilot", t_circuit_slow_pilot), ("circuit_left_wind", t_circuit_left_wind),
     ("circuit_events", t_circuit_events),
     ("fault_baro", t_fault_baro), ("fault_gps", t_fault_gps), ("fault_battery", t_fault_battery), ("landing_gps_quality", t_landing_gps_quality), ("landing_hover", t_landing_hover), ("button_actions", t_button_actions), ("alerts_flight", t_alerts_flight), ("resume_flight", t_resume_flight), ("battery_flight", t_battery_flight),
     ("memory_events", t_memory_events), ("soak", t_soak),

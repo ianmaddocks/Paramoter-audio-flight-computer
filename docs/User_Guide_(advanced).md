@@ -16,6 +16,8 @@ There is only one program for both. The vario finds out at power-on whether a GP
 
 You hear a short **click** on every press, and a rising tone 0.8 s into a hold that says "keep holding". Let go before 1.5 s and the hold is abandoned: nothing happens. Release between the clicks of a double or triple press takes up to 0.6 s (wide enough for gloves). A single press is spoken about 0.6 s after you let go, because the vario waits to see whether a second press follows.
 
+**Factory reset (button, on the ground only).** Press the button **5 times** quickly. You hear "To restore factory settings, press the button 5 times, and then hold it down for 2 seconds." Then press it **5 more times** and **hold the sixth press for 2 seconds**: at the 2-second point you hear "Restoring factory settings", every setting goes back to its default (the Wi-Fi names and passwords too, so the vario's Wi-Fi becomes `ParaVario-XXXX`, open) and the vario restarts. If you let go early, press a long press while still counting, wait 8 s between presses or 30 s after the instruction, or take off, you hear "Factory reset cancelled" and nothing changes. The five clicks do nothing else meanwhile, and in flight they do nothing at all. The web page's **Factory defaults** button does the same.
+
 **This changed:** earlier versions started the approach with a single press, the emergency with a double press and muted with a long press. Starting guidance is now the deliberate gesture and a single press only tells. On a vario without a GPS a single press tells the height and battery, and a double press, triple press or hold mutes.
 
 
@@ -42,7 +44,7 @@ What the vario remembers when it is switched on again in flight:
 
 - It remembers the flight if it was switched off within *Resume the flight if switched back on within* (GPS settings, default 3 hours) **and** it is moving at flying speed at the first good GPS fix, in a place the flight could have got to. Then you hear "Flight resumed" and it still knows the landing zone, the heights, the wind and the flight time, including the time it was off.
 - It does **not** resume if the record is too old, the position is impossible, it is standing still (for example switched on at the launch), or no GPS position and time arrive within 3 minutes. It then starts as on any other day, so it can never come up believing it is flying when it is not.
-- If you switch it on again below flying speed (for example hanging in a strong headwind), it does not resume; a landing zone you set with **Set LZ manually** is still remembered.
+- If you switch it on again below flying speed (for example hanging in a strong headwind), it does not resume; a landing zone you set with **Use current position** (Settings → Landing zone) is still remembered.
 - If it ever does think it is flying when it is not, press **Reset flight state** on the Logs & system tab.
 
 ## What you will hear
@@ -111,7 +113,7 @@ Glide range uses the glide ratio and trim airspeed settings, adjusted for the es
 
 ## The web page
 
-1. On your phone, join the Wi-Fi network **ParaVario-XXXX** (default password **paramotor**), where XXXX is a code unique to your unit (the last four digits of its MAC address), so several varios nearby can be told apart. The same code is in its Bluetooth name.
+1. On your phone, join the Wi-Fi network **ParaVario-XXXX** (by default it has no password: it is an open network until you set one under Settings → Wi-Fi), where XXXX is a code unique to your unit (the last four digits of its MAC address), so several varios nearby can be told apart. The same code is in its Bluetooth name.
 2. The page usually opens by itself. If it doesn't, open **http://192.168.4.1** in a browser.
 
 The phone has no internet while it's on this network, so turn mobile data on if you need both.
@@ -121,13 +123,12 @@ The phone has no internet while it's on this network, so turn mobile data on if 
 | Banner | Green **Ready to fly**, or amber with what's missing and the satellite count. Hidden while flying, except during guidance: blue **Approach** with the current circuit leg, or red **Emergency** with the glide range. |
 | Tiles | Refreshed every second. Top group: height above the LZ (and above sea level) with a rolling graph of the last 10 minutes beside it, vario, ground speed and track, **glide ratio**, flight state and time, LZ distance with an arrow to it, wind as a windsock (the sock streams the way the wind blows), both relative to your direction of travel. Under the Actions: GPS signal quality (strong, good, ok, poor, none) with the satellite count, battery (minutes left when known, otherwise the percentage), engine RPM. The Ground speed tile has a **compass** for your track against absolute north (a ring marked N, E, S, W with an arrow inside). The **Background noise** tile and the RPM confidence are tuning data and are hidden unless you turn on *Show background noise and RPM confidence on the flight tab* (Engine RPM, Advanced). |
 | Glide ratio | Ground distance covered per unit of height lost, e.g. `6.7 : 1`. The big value is the average over the last second, the small one the average over the last 60 seconds (both windows are in the Glide settings). Shows `–` when level or climbing, and `>50` above 50. Needs a GPS. |
-| Actions | One card headed **Actions**, and which one you see depends on the phase. **In flight:** **Landing support**, **Emergency support**, **Update me** and **Mute vario** (the same as the button). **On the ground:** **Audio test**, **Mute vario**, **Set LZ manually** and **LZ = takeoff**. Below them, **Full screen** (hides the browser's bars). |
+| Actions | One card headed **Actions**, and which one you see depends on the phase. **In flight:** **Landing support**, **Emergency support**, **Update me** and **Mute vario** (the same as the button). **On the ground:** **Audio test** and **Mute vario**. (Setting the landing zone is in Settings → Landing zone: **Use current position**.) Below them, **Full screen** (hides the browser's bars). |
 | Alerts | A strip under the banner for what a pilot must know in flight: **Battery low** or **critical** (with the minutes left and the distance to the LZ), **Barometer failed**, **No GPS fix**. It clears when the problem goes away. |
 | Settings | **Quick settings** first: volumes, units, circuit direction, glide ratio and trim airspeed (also in their groups; the two copies follow each other). Then collapsible groups (see below); Battery, Wi-Fi, GPS, Engine RPM, Wind, Logging and Glide are inside **Advanced settings** at the end. Change a value and it is saved a moment later. Settings marked *restart* apply after a restart. |
 | Reset flight state | On the Logs & system tab. The way out if the vario ever thinks it is flying when it is not: it forgets the flight and any guidance. |
 | Flight logs | IGC files for each flight. Tap a name to download or Delete to remove. The oldest logs are deleted automatically when space runs low. |
 | Logging | Live messages from the vario, with Pause, Clear and Save as file, for finding problems. Opens automatically on the debug firmware. The same lines appear on the USB serial port. (Flight recording is set in the Logging group of the settings.) |
-| Firmware update | Shows the installed version. Choose a `.bin` file and tap **Install update** (see *Maintenance*). Disabled while flying. |
 | System | Restart, Factory defaults. |
 | Help | The **Help** tab opens the guides and the feature reference on GitHub (the latest version; the phone needs internet, so turn mobile data on). Each group on the Settings tab also has **Help** links to its entry in the reference. |
 
@@ -157,8 +158,8 @@ Every setting, with its default, an example and what it does underneath, is in [
 ## Maintenance
 
 - **Firmware (USB):** `pio run -e release_usb -t upload`. Use `-e debug_usb` for detailed logging.
-- **Firmware (Wi-Fi from VS Code):** connect the PC to the vario's Wi-Fi (or, if you have set the *Server network*, just power the vario on near the PC), then `pio run -e release -t upload` (or `-e debug`). The vario restarts when it is done.
-- **Firmware (phone):** build on the PC (`pio run -e release`) and copy `.pio/build/release/firmware.bin` to the phone. On the phone, join the vario's Wi-Fi, open **http://192.168.4.1** in the normal browser (the pop-up captive-portal window often can't pick files), then go to **Logs & system**, choose the file, enter the update password and tap **Install update**. Keep the phone close and the page open until it says *Installed*. A failed or interrupted upload leaves the old firmware running.
+- **Firmware (Wi-Fi from VS Code):** connect the PC to the vario's Wi-Fi (or, if you have switched on the *maintenance server connection*, just power the vario on near the PC), then `pio run -e release -t upload` (or `-e debug`). The vario restarts when it is done.
+- **Firmware (phone):** build on the PC (`pio run -e release`) and copy `.pio/build/release/firmware.bin` to the phone. On the phone, join the vario's Wi-Fi, open **http://192.168.4.1** in the normal browser (the pop-up captive-portal window often can't pick files), then go to **Settings → Advanced settings → Firmware Update**, choose the file, enter the update password and tap **Install update**. Keep the phone close and the page open until it says *Installed*. A failed or interrupted upload leaves the old firmware running.
 - **One program for every vario.** The same `firmware.bin` goes on a vario with and without a GPS module.
 - **Voice clips:** edit `tools/vocab.txt` or add your own recordings to `tools/voice_custom/`, run `python tools/make_voice.py`, then `pio run -e release -t uploadfs`. You can also run `pio run -e release -t buildfs` and install `.pio/build/release/littlefs.bin` from the phone page. **This erases the flight logs stored on the vario, so download them first.** Settings are kept.
 - Firmware and voice-clip updates are refused while the vario is flying.
@@ -170,7 +171,7 @@ A separate test firmware in `hardware_test/` checks every part of the hardware w
 
 1. `cd hardware_test`, then `pio run -t upload`. Re-flash the flight firmware from the main folder afterwards.
 2. You hear a rising chirp at power-on if the amplifier and speaker work.
-3. Join Wi-Fi **ParaVario-Test** (password **paramotor**). The page opens by itself, or go to http://192.168.4.1. USB serial (`pio device monitor`) prints the same results every 5 s.
+3. Join Wi-Fi **ParaVario-Test** (no password unless you have set one). The page opens by itself, or go to http://192.168.4.1. USB serial (`pio device monitor`) prints the same results every 5 s.
 
 Each part gets a green, amber or red indicator with a hint: storage and voice clips, I2C bus (lists every address found), barometer (lift the vario about 1 m and watch the vario reading), GPS (bytes, detected baud, NMEA checksums, satellites and fix, plus the raw NMEA lines), battery (pin and battery voltage), push button (state, count, single/double/long), Bluetooth (advertises as *ParaVario-Test* and sends a test `$LK8EX1` every second when FlyGaggle connects) and Wi-Fi.
 

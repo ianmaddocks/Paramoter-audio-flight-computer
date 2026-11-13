@@ -42,7 +42,10 @@ div.page[hidden]{display:none}
 body.flying .groundonly{display:none}
 body:not(.flying) .flightonly{display:none}
 #t-winds{white-space:normal}
-.windrow{height:92px}
+.maintbox{margin:6px 0 2px;padding-left:10px;border-left:3px solid var(--bd)}
+.maintbox[hidden]{display:none}
+.windrow{display:flex;justify-content:flex-end;height:92px}
+.windrow[hidden]{display:none}
 .sockw{flex:none;width:92px;height:92px}
 .sockw[hidden]{display:none}
 .sockg{transform-origin:42px 42px;transition:transform .9s linear}
@@ -135,6 +138,7 @@ summary .help a{margin-left:12px;color:var(--acc)}
 </style></head><body>
 <nav class="tabs" role="tablist" aria-label="Main views">
 <button type="button" role="tab" aria-selected="true" data-tab="flight">Flight</button>
+<button type="button" role="tab" aria-selected="false" data-tab="system">Logs &amp; system</button>
 <button type="button" role="tab" aria-selected="false" data-tab="settings">Settings</button>
 )HTML"
 #if PV_HAS_SPECTRUM
@@ -142,7 +146,6 @@ R"HTML(<button type="button" role="tab" aria-selected="false" data-tab="spectrum
 )HTML"
 #endif
 R"HTML(
-<button type="button" role="tab" aria-selected="false" data-tab="system">Logs &amp; system</button>
 <button type="button" role="tab" aria-selected="false" data-tab="help">Help</button>
 </nav>
 <div id="flightPage" class="page" role="tabpanel">
@@ -156,7 +159,7 @@ R"HTML(
 <div class="tile needgps"><div class="k">Glide ratio</div><div class="v" id="t-glide">–</div><div class="s" id="t-glides"></div></div>
 <div class="tile"><div class="k">Flight time</div><div class="v" id="t-flight">–</div><div class="s" id="t-ftime"></div></div>
 <div class="tile needgps"><div class="k">Landing zone</div><div class="v vrow" id="t-lz"><span id="t-lzv">–</span><svg id="a-lz" class="arr" viewBox="-20 -20 40 40" aria-hidden="true" hidden><path d="M0 -19 L12 -4 L4.5 -4 L4.5 19 L-4.5 19 L-4.5 -4 L-12 -4 Z" fill="currentColor"/></svg></div><div class="s" id="t-lzs"></div></div>
-<div class="tile needgps" id="tile-wind"><div class="k">Wind</div><div class="v vrow windrow" id="t-wind"><span id="t-windv">–</span><span class="sockw" hidden><svg viewBox="0 0 84 84" width="92" height="92" aria-hidden="true"><g id="a-wind" class="sockg"><polygon class="so" points="24,78 60,78 56,60 28,60"/><polygon class="sw" points="28,60 56,60 53,42 31,42"/><polygon class="so" points="31,42 53,42 50,24 34,24"/><polygon class="sw" points="34,24 50,24 47,6 37,6"/><line class="sring" x1="22" y1="78" x2="62" y2="78"/></g></svg></span></div><div class="s" id="t-winds"></div></div>
+<div class="tile needgps" id="tile-wind"><div class="k">Wind</div><div class="v" id="t-wind">–</div><div class="windrow" id="wind-sockrow" hidden><span class="sockw" hidden><svg viewBox="0 0 84 84" width="92" height="92" aria-hidden="true"><g id="a-wind" class="sockg"><polygon class="so" points="24,78 60,78 56,60 28,60"/><polygon class="sw" points="28,60 56,60 53,42 31,42"/><polygon class="so" points="31,42 53,42 50,24 34,24"/><polygon class="sw" points="34,24 50,24 47,6 37,6"/><line class="sring" x1="22" y1="78" x2="62" y2="78"/></g></svg></span></div><div class="s" id="t-winds"></div></div>
 </section>
 <section class="card flightonly" id="flightActions"><h2>Actions</h2><div class="btns">
 <button data-a="approach" id="b-approach" class="needgps">Landing support</button>
@@ -167,8 +170,6 @@ R"HTML(
 <section class="card groundonly" id="groundActions"><h2>Actions</h2><div class="btns">
 <button data-a="test_voice">Audio test</button>
 <button data-a="mute" id="b-mute-g" class="b-mute">Mute vario</button>
-<button data-a="lz_here" class="needgps">Set LZ manually</button>
-<button data-a="lz_takeoff" class="needgps">LZ = takeoff</button>
 </div></section>
 <div class="btns"><button type="button" id="b-fs" class="wide" hidden>Full screen</button></div>
 <section class="tiles more" id="tilesMore">
@@ -199,19 +200,21 @@ R"HTML(
 <details class="card" id="dbg"><summary>Logging <small class="mut" id="dbginfo"></small></summary>
 <div class="dbgbar"><button id="dbgpause">Pause</button><button id="dbgclear">Clear</button><button id="dbgsave">Save as file</button></div>
 <pre id="dbglog"></pre></details>
-<section class="card"><h2>Firmware update</h2>
-<p class="mut" id="fwver"></p>
-<input type="file" id="fwfile" accept=".bin">
-<input type="password" id="fwpass" placeholder="Update password" autocomplete="off">
-<button class="pri" id="fwgo">Install update</button>
-<div class="prog"><div id="fwbar"></div></div><p class="mut" id="fwmsg">Choose firmware.bin (program) or littlefs.bin (voice clips &ndash; erases flight logs) and enter the update password.</p>
-</section>
 <section class="card"><h2>System</h2><div class="btns">
 <button data-a="restart">Restart</button>
 <button data-a="reset_flight">Reset flight state</button>
 <button data-a="defaults" class="dng">Factory defaults</button>
 </div><p class="mut" id="sys"></p></section>
 </div>
+<!-- The firmware update box lives in Settings / Advanced / Firmware Update: the settings list is rebuilt now and then, so
+     the box waits here and is put into the group each time (see render). -->
+<div id="fwholder" hidden><div id="fwcard">
+<p class="mut" id="fwver"></p>
+<input type="file" id="fwfile" accept=".bin">
+<input type="password" id="fwpass" placeholder="Update password" autocomplete="off">
+<button class="pri" id="fwgo">Install update</button>
+<div class="prog"><div id="fwbar"></div></div><p class="mut" id="fwmsg">Choose firmware.bin (program) or littlefs.bin (voice clips &ndash; erases flight logs) and enter the update password.</p>
+</div></div>
 <div id="helpPage" class="page" role="tabpanel" hidden>
 <section class="card" id="helpList"><h2>Help and guides</h2>
 <div id="helpBody"></div></section>
@@ -302,7 +305,7 @@ const GROUP_HELP={'Units':{b:'basic-settings-units-and-audio',a:'adv-settings-un
   'Takeoff & landing':{b:'basic-settings-takeoff-and-landing',a:'adv-settings-takeoff-and-landing'},
   'Glide':{a:'adv-settings-glide'},'Landing zone':{a:'adv-settings-landing-zone'},'Landing approach':{a:'adv-settings-landing-approach'},
   'Emergency':{a:'adv-settings-emergency'},'Wind':{a:'adv-settings-wind'},'GPS':{a:'adv-settings-gps',always:1},
-  'Bluetooth':{b:'basic-settings-bluetooth',a:'adv-settings-bluetooth'},'Wi-Fi':{b:'basic-settings-wi-fi'},
+  'Bluetooth':{b:'basic-settings-bluetooth',a:'adv-settings-bluetooth'},'Wi-Fi':{b:'basic-settings-wi-fi'},'Firmware Update':{b:'basic-settings-firmware-update'},
   'Battery':{b:'basic-settings-battery'},'Logging':{a:'adv-settings-logging'}};
 let hwNow={gps:true,mic:true,spectrum:true};
 // A link to a guide section. The address is the GitHub one (for long-press or copy); a tap opens the reader.
@@ -495,9 +498,11 @@ async function poll(){
     txt('t-lzv',!s.lz.valid?'not set':s.lz.dist!=null?fD(s.lz.dist):'set');
     setArrow('a-lz',s.lz.valid&&s.lz.dist!=null&&moving&&s.lz.brg!=null?s.lz.brg-G.track:null);
     txt('t-lzs',s.lz.valid?fH(s.lz.elev)+' MSL':'');
-    if(!s.wind.valid){txt('t-windv','unknown');setArrow('a-wind',null);txt('t-winds','')}
-    else if(moving){txt('t-windv','');setArrow('a-wind',s.wind.from+180-G.track);txt('t-winds','from '+Math.round(s.wind.from)+'° · '+fS(s.wind.speed)+' · '+s.wind.src)}
-    else{txt('t-windv',Math.round(s.wind.from)+'°');setArrow('a-wind',null);txt('t-winds',fS(s.wind.speed)+' · '+s.wind.src)}
+    // The wind speed is the main value; the direction it blows from (and where the figure came from) is the line under the
+    // windsock, which appears once there is a direction of travel to turn it against.
+    if(!s.wind.valid){txt('t-wind','unknown');setArrow('a-wind',null);txt('t-winds','')}
+    else{txt('t-wind',fS(s.wind.speed));setArrow('a-wind',moving?s.wind.from+180-G.track:null);txt('t-winds','from '+Math.round(s.wind.from)+'° · '+s.wind.src)}
+    $('#wind-sockrow').hidden=$('#tile-wind .sockw').hidden;
     {const h=G.hdop,gq=!G.fix||!(h<=20)?'none':h<=2?'strong':h<=5?'good':h<=10?'ok':'poor';
     txt('t-gps',!G.link?'no data':gq);
     txt('t-gpss',G.link?G.sats+' satellites · '+(G.fix?'fix':'searching'):'')}
@@ -551,7 +556,8 @@ function field(f){
   if(f.r){const sm=document.createElement('small');sm.textContent='· restart';sp.appendChild(sm)}
   let i;
   if(f.t==='bool'){i=document.createElement('input');i.type='checkbox';i.checked=!!cfg[f.k];
-    i.onchange=()=>{setVal(f,i.checked);document.querySelectorAll('input[data-gate="'+f.k+'"]').forEach(x=>x.disabled=!i.checked)}}
+    i.onchange=()=>{setVal(f,i.checked);document.querySelectorAll('input[data-gate="'+f.k+'"]').forEach(x=>x.disabled=!i.checked);
+      document.querySelectorAll('[data-showif="'+f.k+'"]').forEach(x=>x.hidden=!i.checked)}}
   else if(f.t==='enum'){i=document.createElement('select');f.o.split('|').forEach((o,n)=>i.add(new Option(o,n)));i.value=cfg[f.k];
     i.onchange=()=>{setVal(f,+i.value);if(/Unit$/.test(f.k))render()}}
   else if(f.t==='str'){i=document.createElement('input');i.type=/Pass$/.test(f.k)?'password':'text';i.maxLength=f.n;i.value=cfg[f.k];i.onchange=()=>setVal(f,i.value)}
@@ -567,17 +573,35 @@ function field(f){
 }
 // Settings that most pilots never need to change sit in one collapsed "Advanced settings" section at the
 // end of the list, in this order.
-const ADV_GROUPS=['Battery','Wi-Fi','GPS','Engine RPM','Wind','Logging','Glide'];
+const ADV_GROUPS=['Battery','Wi-Fi','Firmware Update','GPS','Engine RPM','Wind','Logging','Glide'];
 function render(){
+  $('#fwholder').appendChild($('#fwcard'));  // out of the list before it is cleared
   const root=$('#settings');root.innerHTML='';const groups={};
   for(const f of schema)(groups[f.g]=groups[f.g]||[]).push(f);
   const group=(g,parent,cls)=>{
     const d=document.createElement('details');d.className=cls;d.open=openGroups.has(g);
     d.ontoggle=()=>d.open?openGroups.add(g):openGroups.delete(g);
     const s=document.createElement('summary');s.textContent=g;d.appendChild(s);
-    if(g==='Wi-Fi')d.insertAdjacentHTML('beforeend','<div class="row"><span>Vario network</span><b id="w-ap">–</b></div>'+
-      '<div class="row"><span>Server network</span><b id="w-server">–</b></div><div class="row"><span>Server IP address</span><b id="w-server-ip">–</b></div>');
-    groups[g].forEach(f=>d.appendChild(field(f)));parent.appendChild(d);return d};
+    if(g==='Firmware Update')d.appendChild($('#fwcard'));
+    if(g==='Wi-Fi')d.insertAdjacentHTML('beforeend','<div class="row"><span>Status</span><b id="w-ap">–</b></div>');
+    // The maintenance connection (for the maker and testers) is a sub-section that exists only while its switch is on.
+    const MAINT=['serverSsid','serverPass','serverGiveUpS'];
+    groups[g].forEach(f=>{
+      if(MAINT.includes(f.k))return;
+      d.appendChild(field(f));
+      if(f.k==='lzElevM'){  // fills the three above from where the vario is now (needs a GPS fix)
+        const r=document.createElement('div');r.className='row';
+        const b=document.createElement('button');b.type='button';b.id='b-lz-here';b.textContent='Use current position';b.onclick=()=>act('lz_here');
+        r.appendChild(b);d.appendChild(r);
+      }
+      if(f.k==='maintWifi'){
+        const m=document.createElement('div');m.className='maintbox';m.dataset.showif='maintWifi';m.hidden=!cfg.maintWifi;
+        m.insertAdjacentHTML('beforeend','<div class="row"><span>Status</span><b id="w-server">–</b></div><div class="row"><span>Assigned IP address</span><b id="w-server-ip">–</b></div>');
+        groups[g].filter(x=>MAINT.includes(x.k)).forEach(x=>m.appendChild(field(x)));
+        m.insertAdjacentHTML('beforeend','<p class="mut">The vario also joins this Wi-Fi so a computer can reach it (http://paravario.local) and update its firmware.</p>');
+        d.appendChild(m);
+      }});
+    parent.appendChild(d);return d};
   // Quick settings: the few a pilot changes most, first. They are the same settings as in their groups below (the
   // two copies follow each other).
   const QUICK=['varioVolume','speechVolume','heightUnit','distUnit','speedUnit','circuitSide','glideRatio','trimAirspeedMs'];
@@ -604,7 +628,7 @@ function showWifi(){
   const w=wifiInfo;if(!w||!document.getElementById('w-server'))return;
   txt('w-ap',(w.apSsid?w.apSsid+' · ':'')+w.apIp+' · '+w.apClients+' connected');
   const q=w.rssi>-60?'good':w.rssi>-70?'fair':'weak';
-  let status=!w.serverSsid?'Off (not set)':w.server=='connected'?'Connected to '+w.serverSsid+' · signal '+q+' ('+w.rssi+' dBm)':
+  let status=!cfg.maintWifi&&!w.maint?'Off':!w.serverSsid?'Off (not set)':w.server=='connected'?'Connected to '+w.serverSsid+' · signal '+q+' ('+w.rssi+' dBm)':
     w.server=='connecting'?'Connecting to '+w.serverSsid+'…':w.serverSsid+' – '+w.server;
   if(w.restart)status+=' · restart to apply changes';
   txt('w-server',status);
@@ -701,7 +725,7 @@ async function act(a){
   try{const r=await fetch('/api/action?do='+a,{method:'POST'});const j=await r.json();if(!r.ok)throw j.error;
     toast(a==='restart'||a==='defaults'?'Restarting…':'Done');
     if(a.startsWith('lz_'))loadSettings();
-  }catch(e){toast('Failed: '+e)}
+  }catch(e){toast(a==='lz_here'&&e==='no GPS fix'?'No GPS fix':'Failed: '+e)}
 }
 document.querySelectorAll('button[data-a]').forEach(b=>b.onclick=()=>act(b.dataset.a));
 

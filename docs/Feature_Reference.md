@@ -17,7 +17,7 @@ Heights in the examples use the default unit (feet). You can switch to metres in
 
 - [Part 1 - Basic](#part-1---basic)
   - [Tiles](#basic-tiles) · [Banner](#basic-banner) · [Buttons and actions](#basic-buttons) · [Sounds](#basic-sounds) · [Spectrum tab](#basic-spectrum)
-  - [Settings: Units and Audio](#basic-settings-units-and-audio) · [Engine RPM](#basic-settings-engine-rpm) · [Vario](#basic-settings-vario) · [Height calls](#basic-settings-height-calls) · [Takeoff and landing](#basic-settings-takeoff-and-landing) · [Bluetooth](#basic-settings-bluetooth) · [Wi-Fi](#basic-settings-wi-fi) · [Battery](#basic-settings-battery)
+  - [Settings: Units and Audio](#basic-settings-units-and-audio) · [Engine RPM](#basic-settings-engine-rpm) · [Vario](#basic-settings-vario) · [Height calls](#basic-settings-height-calls) · [Takeoff and landing](#basic-settings-takeoff-and-landing) · [Bluetooth](#basic-settings-bluetooth) · [Wi-Fi](#basic-settings-wi-fi) · [Firmware Update](#basic-settings-firmware-update) · [Battery](#basic-settings-battery)
   - [Logs and system tab](#basic-system) · [Help tab](#basic-help)
 - [Part 2 - Advanced](#part-2---advanced)
   - [Tiles](#adv-tiles) · [Banner](#adv-banner) · [Buttons and actions](#adv-buttons) · [Guidance](#adv-guidance) · [Sounds](#adv-sounds)
@@ -121,7 +121,7 @@ Tap **Full screen**, below the Actions card, and the address bar and the phone's
 ### Actions (card)
 The page shows one card of buttons, headed **Actions**, and which one depends on whether you are flying, so only what is useful then is on the screen.
 
-**On the ground:** *Audio test*, *Mute vario* and, on an Advanced vario, *Set LZ manually* and *LZ = takeoff*. **In flight:** *Update me*, *Mute vario* and, on an Advanced vario, *Landing support* and *Emergency support*. *Full screen* sits below the card in both phases.
+**On the ground:** *Audio test* and *Mute vario*. **In flight:** *Update me*, *Mute vario* and, on an Advanced vario, *Landing support* and *Emergency support*. *Full screen* sits below the card in both phases.
 
 ### Audio test
 Plays a sample announcement so you can check the speaker and the volume.
@@ -416,17 +416,33 @@ Join it with your phone to open the web page. Like the Bluetooth name, the defau
 ### Password
 The password for that network.
 
-It must be at least 8 characters. Leave it blank for an open network (not recommended). Restart to apply. Default: paramotor.
+It must be at least 8 characters. Leave it blank for an open network (not recommended). Restart to apply. Default: blank (an open network).
 
-### Server network name / Server network password
-Lets the vario also join your home Wi-Fi, so a computer there can reach it.
+### Status
+The first line of the Wi-Fi group: the name the vario's network is using now, its address (192.168.4.1) and how many devices are connected to it.
 
-Enter your home router's name and password. When the vario is switched on at home it joins that network as well, and you can open `http://paravario.local` from your computer and update the firmware without changing your computer's Wi-Fi. The vario's own network stays on. Leave the name blank to turn this off. Restart to apply.
+<a id="basic-settings-firmware-update"></a>
+## Settings: Firmware Update
+*In Advanced settings. For the maker and testers; pilots do not need it.*
 
-Only 2.4 GHz networks work. While the vario is searching for your network, its own network can be less reliable (it has one radio), which is why it gives up after a while (next setting).
+### Install update (firmware box)
+At the top of the section: the installed version, a file chooser, the update password and **Install update**. Choose `firmware.bin` (the program) or `littlefs.bin` (the voice clips; this erases flight logs), enter the password and tap Install. Keep the page open until it says *Installed*; a failed upload leaves the old firmware running. Refused while flying. (It was on the Logs & system tab in earlier versions.)
 
-### Stop searching if server network not found after
-How long the vario looks for your home network before giving up.
+### Enable maintenance server connection
+For the maker and testers; pilots do not need it. Off by default. Restart to apply.
+
+Switching it on shows the maintenance settings below it (they are hidden while it is off). The vario then also joins a workshop or home Wi-Fi, so a computer there can reach it at `http://paravario.local` and update the firmware without changing the computer's Wi-Fi. The vario's own network stays on. A vario that already had a server network set before this switch existed has it switched on.
+
+### Status and Assigned IP address
+Under the switch, shown while it is on: **Status** (Off, Connecting, Connected with the signal quality, or why it is not connected) and the **Assigned IP address** the router gave the vario (a computer can use it, or `paravario.local`).
+
+### Maintenance wifi SSID / Maintenance wifi password
+The name and password of the router the vario joins when the maintenance connection is on. Only 2.4 GHz networks work. Restart to apply.
+
+While the vario is searching for that network, its own network can be less reliable (it has one radio), which is why it gives up after a while (next setting).
+
+### Stop searching if the maintenance wifi is not found after
+How long the vario looks for the maintenance network before giving up.
 
 Away from home the vario would otherwise keep searching, which makes its own network unreliable. After this time (30 s) it stops. A restart tries again. 0 keeps trying. Default: 30 s.
 
@@ -553,7 +569,7 @@ How far away the landing zone (LZ) is, and which way to turn to it.
 
 For example, `620 m` with `330 ft MSL` under it and a large arrow at the right: the LZ is 620 metres away and 330 feet above sea level. The arrow points to the LZ relative to the way you are travelling: straight up means it is dead ahead, pointing right means it is off to your right, pointing down means it is behind you. The arrow is smoothed so it does not jump about, and appears once you are moving (at walking pace or more). Until a landing zone is set it says `not set`.
 
-By default the LZ is the spot where you stood before taking off. You can pick a different one (see *Set LZ manually*).
+By default the LZ is the spot where you stood before taking off. You can pick a different one (see *Use current position*).
 
 ### Wind
 *GPS Module*
@@ -600,6 +616,8 @@ One button, four gestures, with a click on every press.
 
 *Single press*: **Update me**: your height, the landing zone (clock position and distance), the wind and the battery. It never starts or cancels anything. *Double press*: start landing approach (double press again to cancel). *Hold* for 1.5 s: start emergency glide (hold again to cancel); a rising tone at 0.8 s says "keep holding", and letting go before 1.5 s does nothing. *Triple press*: mute or unmute the beeps.
 
+*Five presses, then five more and a 2 s hold* (on the ground only): the **factory reset**. The first five give the instruction "To restore factory settings, press the button 5 times, and then hold it down for 2 seconds"; after the next five and a sixth press held for 2 s you hear "Restoring factory settings", every setting (Wi-Fi names and passwords included) goes back to its default and the vario restarts. Letting go early, a long press while counting, 8 s between presses, 30 s with nothing done, or taking off: "Factory reset cancelled", nothing changes. The clicks do nothing else meanwhile. The triple press now waits 0.6 s after the last click (as the single and double always did) so that five clicks can be told from three.
+
 Starting guidance is the deliberate gesture so that an accidental touch can only ever tell you something. (Earlier versions used a single press for the approach, a double press for the emergency and a long press to mute.) A single press is spoken about 0.6 s after you let go, the time the vario waits for a second press; the gap between the clicks of a double or triple press can be up to 0.6 s. An approach press while emergency guidance is running does nothing; starting an emergency cancels any approach.
 
 ### Landing support / Emergency support (page buttons)
@@ -609,21 +627,14 @@ The same as the double press and the hold.
 
 Tap to start, tap again to stop. The button lights up while active.
 
-### Set LZ manually
+### Use current position (Settings → Landing zone)
 *GPS Module*
 
-Makes the spot where you are standing the landing zone.
+Makes the spot where you are standing the landing zone. It is a button in the *Landing zone* settings, under *Elevation*.
 
-Walk to the middle of the field you want to land in and tap it; you hear "Landing zone set". Now it stays the LZ until you change it. It needs a GPS fix, otherwise it says there is none.
+Walk to the middle of the field you want to land in and tap it; you hear "Landing zone set" and *Latitude*, *Longitude* and *Elevation* are filled in from the GPS. It switches *Landing zone* to *Manual*, so it stays the LZ until you change it. Without a GPS fix a short message says "No GPS fix" and nothing changes.
 
-It also switches *Landing zone* to *Manual* and stores your position and height.
-
-### LZ = takeoff
-*GPS Module*
-
-Goes back to using your takeoff point as the landing zone.
-
-Tap it after a trip to a different field, to make the next takeoff point the LZ again.
+To go back to using your takeoff point as the landing zone, set *Landing zone* to *Takeoff point* in the same settings (do it after a trip to a different field).
 
 <a id="adv-guidance"></a>
 ## Guidance
@@ -765,7 +776,7 @@ Where the landing zone comes from: your takeoff point, or a place you set.
 ### Latitude / Longitude / Elevation
 The stored position and height of the manual landing zone.
 
-Easiest is to stand on the field and tap *Set LZ manually*, which fills all three in. Typing them is only needed if you know the coordinates.
+Easiest is to stand on the field and tap *Use current position*, which fills all three in. Typing them is only needed if you know the coordinates.
 
 <a id="adv-settings-landing-approach"></a>
 ## Settings: Landing approach
