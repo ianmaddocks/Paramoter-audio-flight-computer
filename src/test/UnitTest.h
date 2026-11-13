@@ -50,6 +50,7 @@ void flightUnitSuite(UnitReport& r);
 void baroUnitSuite(UnitReport& r);
 void rpmTrackUnitSuite(UnitReport& r);
 void buttonUnitSuite(UnitReport& r);
+void heightUnitSuite(UnitReport& r);
 void statusUnitSuite(UnitReport& r);
 void alertsUnitSuite(UnitReport& r);
 void resumeUnitSuite(UnitReport& r);

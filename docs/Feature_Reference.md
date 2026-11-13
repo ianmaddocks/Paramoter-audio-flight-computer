@@ -23,7 +23,7 @@ Heights in the examples use the default unit (feet). You can switch to metres in
   - [Tiles](#adv-tiles) · [Banner](#adv-banner) · [Buttons and actions](#adv-buttons) · [Guidance](#adv-guidance) · [Sounds](#adv-sounds)
   - [Settings: Units and Audio](#adv-settings-units-and-audio) · [Takeoff and landing](#adv-settings-takeoff-and-landing) · [Glide](#adv-settings-glide) · [Landing zone](#adv-settings-landing-zone) · [Landing approach](#adv-settings-landing-approach) · [Emergency](#adv-settings-emergency) · [Wind](#adv-settings-wind) · [GPS](#adv-settings-gps) · [Bluetooth](#adv-settings-bluetooth) · [Logging](#adv-settings-logging)
 
-Settings are changed on the Settings tab of the web page. A change is saved a moment after you make it. A setting marked **restart** takes effect after the vario is restarted.
+Settings are changed on the Settings tab of the web page. A change is saved a moment after you make it. A setting marked **restart** takes effect after the vario is restarted: once you have changed one, a **Restart** button appears at the bottom of the Settings tab (it goes away after the restart, and also if you reload the page meanwhile).
 
 The settings most pilots never need to change are collected in an **Advanced settings** section at the end of the list. It starts closed; tap it to open it. It holds the groups Battery, Wi-Fi, GPS, Engine RPM, Wind, Logging (including *Keep this much track before takeoff*) and Glide. A vario with no GPS module shows only those that apply to it: Battery, Wi-Fi, Engine RPM, and the one GPS setting, *GPS module*.
 
@@ -42,11 +42,11 @@ After you take off from the field the tile starts at 0 ft and climbs as you do, 
 "AGL" means above ground level. The vario has no way to see the ground, so it uses the spot you were standing on before the climb as zero. While you stand still it follows slow weather changes in air pressure, so it stays at 0. It stops following the moment you start climbing or sinking (see *Ground level held when climbing or sinking faster than*). The sea-level figure is the barometer's pressure altitude on a standard-pressure day, so on a Basic vario it can differ from the true altitude by the weather of the day. Advanced varios correct it from the GPS.
 
 ### Height graph
-A small graph of your height over the last 10 minutes.
+A small graph of your height over the last 10 minutes of flying. It sits in the **Vario** tile, under the climb rate.
 
 Look at it to see how your climb or descent has gone: a steady slope up means a steady climb, a flat line means level flight. The newest height is at the right edge; the number at top left is the highest point shown.
 
-The vario itself remembers the last 10 minutes (one point every 2 seconds), so the graph is complete as soon as you open the page, even if you opened it only now. The 10 minute span is fixed.
+It only records while you are flying: nothing is drawn for time on the ground, and after landing the trace stays on the screen (it is not cleared). When you take off again the new flight continues to the right of the old one, with a gap and a dotted line between them, so separate flights are not run together. The vario itself remembers the last 10 minutes flown (one point every 2 seconds), so the graph is complete as soon as you open the page, even if you opened it only now. The 10 minute span is fixed; older flying scrolls off the left edge. Switching the vario off clears it.
 
 ### Vario
 How fast you are climbing (+) or sinking (-), in metres per second.
@@ -396,7 +396,7 @@ This is for a strong headwind: the vario can hold station with a ground speed ne
 ### Device name
 The name your phone or app sees when it looks for the vario.
 
-While it stays at the default `ParaVario` the vario adds a code taken from its unique hardware address, for example `ParaVario-12B8`, so two varios nearby can be told apart. Type a name of your own and it is used exactly as typed. Restart to apply. Default: ParaVario.
+The default is `ParaVario` with a code taken from its unique hardware address, for example `ParaVario-12B8`, so two varios nearby can be told apart. The setting is used exactly as stored. Its default value includes the unit code (for example `ParaVario-12B8`), written into the setting by a new unit's first start and by a factory reset, so the box shows what the phone sees. Type a name of your own and that is used exactly as typed. An emptied box cannot be used as a name, so at the next start the default (with the code) is written into it. Restart to apply. Default: `ParaVario-XXXX`.
 
 ### Vario sentences rate
 How often vario data is sent over Bluetooth.
@@ -411,7 +411,7 @@ The data is sent in the common `$LK8EX1` and `$LXWP0` formats, which FlyGaggle a
 ### Network name
 The name of the Wi-Fi network the vario creates.
 
-Join it with your phone to open the web page. Like the Bluetooth name, the default `ParaVario` becomes `ParaVario-XXXX` with a code unique to your vario. Restart to apply.
+Join it with your phone to open the web page. Like the Bluetooth name, the default is `ParaVario-XXXX` with a code unique to your vario, written into the setting by a new unit's first start and by a factory reset, so the box shows exactly the name your phone sees. Type your own name to replace it. An emptied box is refilled with the default at the next start. Restart to apply.
 
 ### Password
 The password for that network.
@@ -419,7 +419,7 @@ The password for that network.
 It must be at least 8 characters. Leave it blank for an open network (not recommended). Restart to apply. Default: blank (an open network).
 
 ### Status
-The first line of the Wi-Fi group: the name the vario's network is using now, its address (192.168.4.1) and how many devices are connected to it.
+The first line of the Wi-Fi group: the vario's address on its own network (192.168.4.1) and how many devices are connected to it. The name is the *Network name* setting under it.
 
 <a id="basic-settings-firmware-update"></a>
 ## Settings: Firmware Update
@@ -434,14 +434,16 @@ For the maker and testers; pilots do not need it. Off by default. Restart to app
 Switching it on shows the maintenance settings below it (they are hidden while it is off). The vario then also joins a workshop or home Wi-Fi, so a computer there can reach it at `http://paravario.local` and update the firmware without changing the computer's Wi-Fi. The vario's own network stays on. A vario that already had a server network set before this switch existed has it switched on.
 
 ### Status and Assigned IP address
+When the vario joins the maintenance Wi-Fi at power-up you hear "Connected to maintenance server Wi-Fi" (once per power-up, and not in flight).
+
 Under the switch, shown while it is on: **Status** (Off, Connecting, Connected with the signal quality, or why it is not connected) and the **Assigned IP address** the router gave the vario (a computer can use it, or `paravario.local`).
 
-### Maintenance wifi SSID / Maintenance wifi password
+### WiFi SSID / WiFi password
 The name and password of the router the vario joins when the maintenance connection is on. Only 2.4 GHz networks work. Restart to apply.
 
 While the vario is searching for that network, its own network can be less reliable (it has one radio), which is why it gives up after a while (next setting).
 
-### Stop searching if the maintenance wifi is not found after
+### Stop looking after (0=never)
 How long the vario looks for the maintenance network before giving up.
 
 Away from home the vario would otherwise keep searching, which makes its own network unreliable. After this time (30 s) it stops. A restart tries again. 0 keeps trying. Default: 30 s.
@@ -679,7 +681,7 @@ The range comes from your height, the *Glide ratio (engine off)*, and the *Trim 
 ### "GPS fix"
 *GPS Module*
 
-Said once, when the GPS first finds your position.
+Said once per power-up, when the GPS fix is good enough (at least the *Ready to fly* satellites and accuracy) and has stayed that way for *Announce "GPS fix" after the fix has held for* (10 s). A fix whose satellite count flickers around the limit is not announced until it has settled, and it is not announced again later.
 
 ### "No GPS"
 *GPS Module*
@@ -903,6 +905,9 @@ For example, at 6, you wait for at least 6. A higher number waits longer but is 
 How good the GPS accuracy must be before the banner turns green.
 
 HDOP is lower for better accuracy. At 2.0 the banner waits for a good geometry. Default: 2.0.
+
+### Announce "GPS fix" after the fix has held for
+How long the GPS must keep meeting the two limits above, without a break, before you hear "GPS fix". Default: 10 s. If the number of satellites flickers around the limit, every dip starts the count again, so the call comes only once the fix has settled. 0 announces at once.
 
 <a id="adv-settings-bluetooth"></a>
 ## Settings: Bluetooth

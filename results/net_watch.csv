@@ -1,0 +1,45 @@
+time,state,via,latency_s,error,uptime,resetReason,rssi,channel,staConn,staDisc,staReason,staDiscAgoS,apClients,heap,heapMin,battV,version,pcSsid,pcBssid,pcSignal,pcChannel,pcState,ping
+22:07:55,DOWN,name,4.02,URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,70%,6,connected,no reply
+22:08:09,DOWN,name,4.02,URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,70%,6,connected,no reply
+22:08:24,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,70%,6,connected,no reply
+22:08:36,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,70%,6,connected,no reply
+22:08:49,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,70%,6,connected,no reply
+22:09:01,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:09:14,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:09:26,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,70%,6,connected,no reply
+22:09:39,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:09:52,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:10:04,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:10:17,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:10:29,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,75%,6,connected,no reply
+22:10:42,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:10:54,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:11:07,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:11:19,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:11:32,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:11:45,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:11:58,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:12:10,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,75%,6,connected,no reply
+22:12:23,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:12:36,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:12:49,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:13:02,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:13:14,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,75%,6,connected,no reply
+22:13:27,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:13:39,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:13:52,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:14:04,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:14:17,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,75%,6,connected,no reply
+22:14:30,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:14:43,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:14:55,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:15:08,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,75%,6,connected,no reply
+22:15:21,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:15:34,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:15:46,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:15:59,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:16:11,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:16:24,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:16:37,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,75%,6,connected,no reply
+22:16:50,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,72%,6,connected,no reply
+22:17:03,DOWN,,0.00,name does not resolve; address: URLError: <urlopen error timed out>,,,,,,,,,,,,,,Glenwoods,,75%,6,connected,no reply

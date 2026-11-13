@@ -132,18 +132,19 @@ const Field kFields[] = {
     BR(gpsLed, "GPS", "GPS module LED (time-pulse output)"),
     I(readyMinSats, "GPS", "Ready to fly: minimum satellites", "", 4, 20),
     FL(readyMaxHdop, "GPS", "Ready to fly: maximum HDOP", "", 0.5f, 10.0f),
+    I(gpsFixHoldS, "GPS", "Announce \"GPS fix\" after the fix has held for", "s", 0, 60),
 
-    SR(bleName, "Bluetooth", "Device name (ParaVario = unit code added, e.g. ParaVario-A1B2)"),
+    SR(bleName, "Bluetooth", "Device name (default ParaVario-XXXX, with the unit code)"),
     I(bleRateHz, "Bluetooth", "Vario sentences ($LK8EX1, $LXWP0) rate", "Hz", 1, 10),
     B(bleGps, "Bluetooth", "Send pseudo-GPS ($GPGGA, $GPRMC)"),
     I(bleGpsRateHz, "Bluetooth", "Pseudo-GPS rate", "Hz", 1, 10),
 
-    SR(wifiSsid, "Wi-Fi", "Network name (ParaVario = unit code added, e.g. ParaVario-A1B2)"),
+    SR(wifiSsid, "Wi-Fi", "Network name"),
     SR(wifiPass, "Wi-Fi", "Password (8+ chars, blank = open)"),
     BR(maintWifi, "Firmware Update", "Enable maintenance server connection"),
-    SR(serverSsid, "Firmware Update", "Maintenance wifi SSID"),
-    SR(serverPass, "Firmware Update", "Maintenance wifi password"),
-    I(serverGiveUpS, "Firmware Update", "Stop searching if the maintenance wifi is not found after (0 = keep trying)", "s", 0, 600),
+    SR(serverSsid, "Firmware Update", "WiFi SSID"),
+    SR(serverPass, "Firmware Update", "WiFi password"),
+    I(serverGiveUpS, "Firmware Update", "Stop looking after (0=never)", "s", 0, 600),
 
     FL(battDivider, "Battery", "Divider ratio", "", 1.0f, 10.0f),
     FL(battCal, "Battery", "Calibration factor", "", 0.8f, 1.2f),
@@ -325,26 +326,17 @@ const char* unitSuffix() {
   return suffix;
 }
 
-// `configured` as is, unless it is the default name (or empty): then the default plus the suffix.
-const char* uniqueName(const char* configured, char* out, size_t size) {
-  if (configured[0] && strcmp(configured, kDefaultName) != 0) {
-    strlcpy(out, configured, size);
-  } else {
-    snprintf(out, size, "%s-%s", kDefaultName, unitSuffix());
-  }
+// The default name of this unit: "ParaVario-" and the unit code.
+const char* defaultName(char* out, size_t size) {
+  snprintf(out, size, "%s-%s", kDefaultName, unitSuffix());
   return out;
 }
 }  // namespace
 
-const char* bleName() {
-  static char name[sizeof(g_cfg.bleName)];
-  return uniqueName(g_cfg.bleName, name, sizeof(name));
-}
+// The names are the stored settings, exactly as they are.
+const char* bleName() { return g_cfg.bleName; }
 
-const char* apSsid() {
-  static char name[sizeof(g_cfg.wifiSsid)];
-  return uniqueName(g_cfg.wifiSsid, name, sizeof(name));
-}
+const char* apSsid() { return g_cfg.wifiSsid; }
 
 int schemaCount() { return sizeof(kFields) / sizeof(kFields[0]); }
 
@@ -369,7 +361,7 @@ bool schemaEntry(int index, JsonObject o) {
   return true;
 }
 
-void load() {
+static void loadStored() {
   Preferences prefs;
   // Read-write open creates the namespace on a fresh device instead of logging NOT_FOUND.
   if (!prefs.begin("paravario", false)) return;
@@ -413,8 +405,31 @@ bool save() {
   return ok;
 }
 
+// The default Wi-Fi and Bluetooth names include the unit code ("ParaVario-12B8"). They are written into the settings, visibly,
+// wherever a name is empty: a fresh unit, a factory reset, or a box the owner emptied (an empty name cannot be used).
+// A name that is there is never changed.
+static void applyUnitNames() {
+  char tmp[33];
+  bool changed = false;
+  if (!g_cfg.bleName[0]) {
+    strlcpy(g_cfg.bleName, defaultName(tmp, sizeof(tmp)), sizeof(g_cfg.bleName));
+    changed = true;
+  }
+  if (!g_cfg.wifiSsid[0]) {
+    strlcpy(g_cfg.wifiSsid, defaultName(tmp, sizeof(tmp)), sizeof(g_cfg.wifiSsid));
+    changed = true;
+  }
+  if (changed) save();
+}
+
+void load() {
+  loadStored();
+  applyUnitNames();
+}
+
 void resetDefaults() {
   g_cfg = Settings();
+  applyUnitNames();
   save();
 }
 

@@ -1,0 +1,26 @@
+ParaVario 20261113-213525 (627b276-dirty) at paravario.local, 11 tests
+  PASS  maint_voice       10.0 s  joined the maintenance Wi-Fi and said so once: [     0.792] D SAY: [normal] maint_connected
+        WARNING: somebody else was using the vario during this test (before: web pages 2, Wi-Fi stations 1, BLE 0; after: web pages 0, Wi-Fi stations 1, BLE 0): its timing, memory and log results may be affected
+  FAIL  names_default    133.0 s  vario not reachable (/api/settings): <urlopen error [Errno 11001] getaddrinfo failed>
+        state: could not read the status (vario not reachable (/api/status): <urlopen error [Errno 11001] getaddrinfo failed>)
+        sim: could not read (vario not reachable (/api/sim): <urlopen error [Errno 11001] getaddrinfo failed>)
+        log: could not read (vario not reachable (/api/debuglog?since=90): <urlopen error [Errno 11001] getaddrinfo failed>)
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 1, BLE 0; after: unknown): its timing, memory and log results may be affected
+  FAIL  ui_flight        could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_pilot         could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_layout        could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_actions       could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_guidance      could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_settings      could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_spectrum      could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_system        could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_help          could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+Cleanup: ;
+WARNING: cleanup step 'simulation off' failed: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+WARNING: cleanup step 'flight logic reset' failed: vario not reachable (/api/sim?reset=1): <urlopen error [Errno 11001] getaddrinfo failed>
+WARNING: cleanup step 'settings restored' failed: vario not reachable (/api/settings): <urlopen error [Errno 11001] getaddrinfo failed>
+WARNING: cleanup step 'leftover test logs' failed: vario not reachable (/api/logs): <urlopen error [Errno 11001] getaddrinfo failed>
+
+NOTE: 2 test(s) ran while a phone, browser or BLE client was connected: maint_voice, names_default
+
+1 passed, 10 failed

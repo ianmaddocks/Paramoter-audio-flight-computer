@@ -82,9 +82,9 @@ There are four tabs:
 
 | Tab | What is there |
 |---|---|
-| **Flight** | The ready banner; tiles for **Height**, a **height graph** of the last 10 minutes, **Vario**, **Flight time**, **Battery**, **Engine RPM** and **Background noise**; an **alert strip** for a low or critical battery (with the minutes left) and a failed barometer; and one card headed **Actions**: **Update me** and **Mute vario** in flight, **Audio test** and **Mute vario** on the ground; below it **Full screen** (hides the browser's bars). The battery tile shows the minutes left when known. **Background noise** and the RPM confidence are tuning data, hidden unless switched on in Engine RPM (Advanced). Refreshed every second. |
+| **Flight** | The ready banner; tiles for **Height**, **Vario** with a **height graph** of the last 10 minutes of flying under it (nothing is recorded on the ground; the trace stays after landing), **Flight time**, **Battery**, **Engine RPM** and **Background noise**; an **alert strip** for a low or critical battery (with the minutes left) and a failed barometer; and one card headed **Actions**: **Update me** and **Mute vario** in flight, **Audio test** and **Mute vario** on the ground; below it **Full screen** (hides the browser's bars). The battery tile shows the minutes left when known. **Background noise** and the RPM confidence are tuning data, hidden unless switched on in Engine RPM (Advanced). Refreshed every second. |
 | **Logs & system** | The **Logging** section (live messages from the vario, for finding problems), **Restart** and **Factory defaults**. (The firmware update is in Settings → Advanced settings → Firmware Update.) (The flight-log list is empty on this version, because logs need a GPS.) |
-| **Settings** | **Quick settings** first (volumes, units and the like), then every setting, in groups. Change a value and it is saved a moment later. A setting marked *restart* takes effect after a restart. The rarely needed groups (Battery, Wi-Fi, Engine RPM and the GPS module choice on this version) are inside **Advanced settings** at the end. |
+| **Settings** | **Quick settings** first (volumes, units and the like), then every setting, in groups. Change a value and it is saved a moment later. A setting marked *restart* takes effect after a restart: a **Restart** button appears at the bottom of Settings once you have changed one. The rarely needed groups (Battery, Wi-Fi, Engine RPM and the GPS module choice on this version) are inside **Advanced settings** at the end. |
 | **Help** | Opens this guide and the feature reference on GitHub (the latest version; the phone needs internet, so turn mobile data on). Each group on the Settings tab also has a **Help** link to its entry in the reference. |
 
 Heights follow your chosen unit (feet or metres), and the heights you type in settings are in that unit too.
@@ -108,7 +108,7 @@ Details of each tile and button: [reference, Tiles](Feature_Reference.md#basic-t
 | Landing not noticed on high ground | Counts as near the ground below (increase) | [Takeoff and landing](Feature_Reference.md#basic-settings-takeoff-and-landing) |
 | Stop a false "Landed" close to the ground | Landed after (increase) | [Takeoff and landing](Feature_Reference.md#basic-settings-takeoff-and-landing) |
 | Name my vario in the app | Device name | [Bluetooth](Feature_Reference.md#basic-settings-bluetooth) |
-| Reach the vario from my home computer (maker/tester only) | Enable maintenance server connection, Maintenance wifi SSID and password | [Wi-Fi](Feature_Reference.md#basic-settings-wi-fi) |
+| Reach the vario from my home computer (maker/tester only) | Enable maintenance server connection, WiFi SSID and WiFi password (Settings → Advanced → Firmware Update) | [Wi-Fi](Feature_Reference.md#basic-settings-wi-fi) |
 
 ## Bluetooth (FlyGaggle)
 
