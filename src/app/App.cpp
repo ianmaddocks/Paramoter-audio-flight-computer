@@ -22,6 +22,7 @@
 #include "Version.h"
 #include "app/Alerts.h"
 #include "app/Status.h"
+#include "app/UiEvents.h"
 #include "flight/Resume.h"
 #include "input/FactoryReset.h"
 #include "app/Trace.h"
@@ -247,6 +248,7 @@ void flightTick(uint32_t now) {
   app.heightHistory.update(now, app.nav.aglM, app.nav.flying);
   alerts::update(now, app.nav, app.battery.volts(), app.battery.minutesLeftOrUnknown());
   if (app.nav.flying && now - lastSaveMs >= kSaveIntervalMs) saveFlightState();
+  uievents::update(now);
   trace::update(now);
 }
 
@@ -325,6 +327,7 @@ void testResetFlight() {
   app.varioMuted = false;
   alerts::reset();
   trace::reset();
+  uievents::reset();
   LOGI("SIM", "flight state reset");
 }
 #endif

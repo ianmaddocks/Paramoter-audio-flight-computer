@@ -508,6 +508,8 @@ A live view of what the vario is doing, useful when something does not work as e
 
 Open the Logging section and the vario's own messages scroll past. *Pause* freezes them, *Clear* empties the list, and *Save as file* keeps a copy to send to someone who is helping you. (This is not the flight log, which is the list of recorded flights above, and it is not the *Logging* group of settings, which controls flight recording.) The section opens by itself on a debug build.
 
+**Screen events ("UI" lines).** Every time something on the Flight tab appears, disappears or changes state, the vario writes one Info line starting `UI`, with the numbers that caused it: the compass arrow, landing zone arrow and windsock appearing or hiding (a direction of travel exists when there is a fix and the ground speed is at least 1.5 m/s), the GPS tile class, the ready banner, flying and grounded (Actions card, height trace), mute, and the alert strip (barometer, no GPS fix, battery). They use the same tests as the page, on the same values. More than 30 in a minute are summarised ("N more were not logged") so a flickering tile cannot fill the log. Use them to find out why a tile came or went.
+
 ### Firmware update
 Installs a new program on the vario from your phone or computer.
 
