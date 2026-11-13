@@ -36,6 +36,7 @@
 #include "app/Status.h"
 #include "flight/Resume.h"
 #include "input/Button.h"
+#include "input/FactoryReset.h"
 #include <string>
 
 namespace {
@@ -1164,9 +1165,9 @@ struct ButtonScript {
   }
   void click(uint32_t on = 100) { run(true, on); }
   void idle(uint32_t ms) { run(false, ms); }
-  // the events as letters: P press, C hold cue, 1 single, 2 double, 3 triple, H hold
+  // the events as letters: P press, C hold cue, 1 single, 2 double, 3 triple, H hold, F five
   void letters(char* out) const {
-    static const char k[] = ".PC123H";
+    static const char k[] = ".PC123HF";
     for (int i = 0; i < n; ++i) out[i] = k[(int)ev[i].e];
     out[n] = 0;
   }
@@ -1197,7 +1198,7 @@ void buttonUnitSuite(UnitReport& r) {
     b.letters(s);
     r.check(strcmp(s, "PP2") == 0, "two clicks gave '%s', expected 'PP2'", s);
   }
-  {  // three clicks: Triple at once on the third release, no waiting
+  {  // three clicks: Triple once the gap has passed (it waits, because five clicks are something else)
     ButtonScript b;
     b.click();
     b.idle(150);
@@ -1206,10 +1207,35 @@ void buttonUnitSuite(UnitReport& r) {
     b.click();
     b.idle(40);
     b.letters(s);
-    r.check(strcmp(s, "PPP3") == 0, "three clicks gave '%s', expected 'PPP3' (Triple on the third release)", s);
+    r.check(strcmp(s, "PPP") == 0, "three clicks gave '%s' before the gap, expected 'PPP'", s);
     b.idle(kGap + 300);
     b.letters(s);
-    r.check(strcmp(s, "PPP3") == 0, "after a Triple more events came: '%s'", s);
+    r.check(strcmp(s, "PPP3") == 0, "three clicks gave '%s', expected 'PPP3'", s);
+  }
+  for (int clicks : {4, 5, 6, 7}) {  // five clicks are Five; four, six or more are nothing at all
+    ButtonScript b;
+    for (int i = 0; i < clicks; ++i) {
+      b.click(80);
+      b.idle(150);
+    }
+    b.idle(kGap + 300);
+    b.letters(s);
+    char want[16] = "";
+    for (int i = 0; i < clicks; ++i) strcat(want, "P");
+    if (clicks == 5) strcat(want, "F");
+    r.check(strcmp(s, want) == 0, "%d clicks gave '%s', expected '%s'", clicks, s, want);
+  }
+  {  // five clicks and then a single one a moment later (an unfinished count): two separate gestures
+    ButtonScript b;
+    for (int i = 0; i < 5; ++i) {
+      b.click(80);
+      b.idle(150);
+    }
+    b.idle(kGap + 100);
+    b.click(80);
+    b.idle(kGap + 200);
+    b.letters(s);
+    r.check(strcmp(s, "PPPPPFP1") == 0, "five clicks then one later gave '%s', expected 'PPPPPFP1'", s);
   }
   {  // clicks further apart than the gap are separate singles
     ButtonScript b;
@@ -1275,6 +1301,79 @@ void buttonUnitSuite(UnitReport& r) {
     b.run(true, 6000);
     b.letters(s);
     r.check(strcmp(s, "PCH") == 0, "a 6 s hold gave '%s', expected 'PCH'", s);
+  }
+
+  // ---- the factory reset gesture: five clicks (the prompt), then five clicks and a sixth press held for 2 s
+  using FR = FactoryResetGesture;
+  struct Fr {
+    FR g;
+    uint32_t t = 5000;
+    FR::Action at(ButtonEvent ev, bool down, uint32_t afterMs, bool canArm = true) {
+      t += afterMs;
+      return g.update(ev, down, canArm, t);
+    }
+    void armed() { g.update(ButtonEvent::Five, false, true, t); }
+    // n quick clicks, 480 ms apart
+    void clicks(int n) {
+      for (int i = 0; i < n; ++i) {
+        g.update(ButtonEvent::Press, true, true, t += 400);
+        g.update(ButtonEvent::None, false, true, t += 80);
+      }
+    }
+  };
+  {
+    Fr f;
+    r.check(f.at(ButtonEvent::Single, false, 10) == FR::Action::None && !f.g.armed(), "a single click armed the factory reset");
+    r.check(f.at(ButtonEvent::Five, false, 10, false) == FR::Action::None && !f.g.armed(), "five clicks in flight gave a prompt");
+    r.check(f.at(ButtonEvent::Five, false, 10) == FR::Action::Prompt && f.g.armed(), "five clicks (not flying) gave no prompt");
+  }
+  {  // the whole thing: five quick clicks and then the sixth held: reset at the 2 s point, and only then, and once
+    Fr f;
+    f.armed();
+    f.clicks(5);
+    r.check(f.g.armed() && f.g.presses() == 5, "after five clicks: armed %d, presses %d", f.g.armed(), f.g.presses());
+    r.check(f.at(ButtonEvent::Press, true, 400) == FR::Action::None, "the sixth press did something at once");
+    r.check(f.at(ButtonEvent::HoldCue, true, 800) == FR::Action::None, "the hold cue of the sixth press did something");
+    r.check(f.at(ButtonEvent::Hold, true, 700) == FR::Action::None, "the 1.5 s Hold event reset it (at 1.5 s, expected 2 s)");
+    r.check(f.at(ButtonEvent::None, true, 490) == FR::Action::None, "reset before the 2 s point (at 1.99 s)");
+    r.check(f.at(ButtonEvent::None, true, 10) == FR::Action::Reset, "no reset at the 2 s point");
+    r.check(!f.g.armed() && f.at(ButtonEvent::None, true, 100) == FR::Action::None, "reset more than once, or still armed");
+  }
+  {  // the sixth press let go before 2 s: cancelled
+    Fr f;
+    f.armed();
+    f.clicks(5);
+    f.at(ButtonEvent::Press, true, 400);
+    f.at(ButtonEvent::HoldCue, true, 800);
+    r.check(f.at(ButtonEvent::None, false, 500) == FR::Action::Cancelled && !f.g.armed(), "let go at 1.3 s did not cancel");
+  }
+  {  // a press held while still counting (the third one) cancels
+    Fr f;
+    f.armed();
+    f.clicks(2);
+    f.at(ButtonEvent::Press, true, 400);
+    r.check(f.at(ButtonEvent::HoldCue, true, 800) == FR::Action::Cancelled, "a long press while counting did not cancel");
+  }
+  {  // too few clicks and then a long wait: cancelled 8 s after the last press, not before
+    Fr f;
+    f.armed();
+    f.clicks(3);
+    r.check(f.at(ButtonEvent::None, false, 7000) == FR::Action::None, "cancelled 7 s after the last press");
+    r.check(f.at(ButtonEvent::None, false, 1100) == FR::Action::Cancelled, "not cancelled 8 s after the last press");
+  }
+  {  // nothing done after the prompt: 30 s
+    Fr f;
+    f.armed();
+    r.check(f.at(ButtonEvent::None, false, 29000) == FR::Action::None, "cancelled before 30 s");
+    r.check(f.at(ButtonEvent::None, false, 1100) == FR::Action::Cancelled, "not cancelled after 30 s");
+    r.check(f.at(ButtonEvent::Five, false, 100) == FR::Action::Prompt, "could not start again after a cancel");
+  }
+  {  // taking off while it waits: cancelled, and a hold that would reset does not
+    Fr f;
+    f.armed();
+    f.clicks(5);
+    f.at(ButtonEvent::Press, true, 400);
+    r.check(f.at(ButtonEvent::None, true, 2100, false) == FR::Action::Cancelled, "reset while flying");
   }
 }
 

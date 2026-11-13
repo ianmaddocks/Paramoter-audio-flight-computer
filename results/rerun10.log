@@ -1,0 +1,12 @@
+ParaVario 20261113-183153 (a843caf-dirty) at paravario.local, 3 tests
+  PASS  circuit_right    272.2 s  crosswind turn at x=226 (expected 225); downwind turn at y=370 (expected 371); base turn at x=-226 for 167 m (expected -226; final 270 m); final turn at y=29, 79 m up; touchdown 3 m from the field; no steering call during any called turn
+        WARNING: somebody else was using the vario during this test (before: web pages 2, Wi-Fi stations 1, BLE 0; after: web pages 0, Wi-Fi stations 1, BLE 0): its timing, memory and log results may be affected
+  PASS  circuit_left_wind 289.5 s  crosswind turn at x=278 (expected 277); downwind turn at y=-366 (expected -374); base turn at x=-251 for 166 m (expected -267; final 308 m); final turn at y=-40, 80 m up; touchdown 34 m from the field; no steering call during any called turn
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 1, BLE 0; after: web pages 0, Wi-Fi stations 1, BLE 0): its timing, memory and log results may be affected
+  PASS  circuit_events   318.0 s  crosswind turn at x=226 (expected 225); downwind turn at y=371 (expected 370); base turn at x=-218 for 164 m (expected -217; final 261 m); final turn at y=31, 75 m up; touchdown 3 m from the field; 1 steering calls (a turn was ignored on purpose); start point called 4 times while flying away, no leg change during the 6 s GPS loss, 1 steer right calls while the turn was ignored
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 1, BLE 0; after: web pages 0, Wi-Fi stations 1, BLE 0): its timing, memory and log results may be affected
+Cleanup: simulation off, flight logic reset, settings restored, 1 leftover test log(s) deleted, leftover test logs.
+
+NOTE: 3 test(s) ran while a phone, browser or BLE client was connected: circuit_right, circuit_left_wind, circuit_events
+
+3 passed, 0 failed

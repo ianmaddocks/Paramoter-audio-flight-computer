@@ -50,6 +50,7 @@ uint32_t serverAttemptStartedMs = 0;  // start of the current search for the ser
 const char* serverWhyOff = "not set";
 char serverSsidUsed[33] = "";
 char serverPassUsed[65] = "";
+bool maintUsed = false;  // the maintenance-connection switch as it was at power-up
 
 void serverStop(const char* why) {
   WiFi.disconnect();
@@ -270,7 +271,9 @@ void handleStatus() {
     wifi["serverIp"] = WiFi.localIP().toString();
     wifi["rssi"] = WiFi.RSSI();
   }
-  if (strcmp(serverSsidUsed, g_cfg.serverSsid) != 0 || strcmp(serverPassUsed, g_cfg.serverPass) != 0) {
+  wifi["maint"] = maintUsed;
+  if (maintUsed != g_cfg.maintWifi || (g_cfg.maintWifi && (strcmp(serverSsidUsed, g_cfg.serverSsid) != 0 ||
+                                                           strcmp(serverPassUsed, g_cfg.serverPass) != 0))) {
     wifi["restart"] = true;
   }
   doc["ble"] = app.ble.clients();
@@ -717,8 +720,9 @@ void begin() {
   serverAttemptStartedMs = millis();
   strlcpy(serverSsidUsed, g_cfg.serverSsid, sizeof(serverSsidUsed));
   strlcpy(serverPassUsed, g_cfg.serverPass, sizeof(serverPassUsed));
-  bool joinServer = serverSsidUsed[0] != 0;
-  serverWhyOff = "not set";
+  maintUsed = g_cfg.maintWifi;
+  bool joinServer = maintUsed && serverSsidUsed[0] != 0;
+  serverWhyOff = g_cfg.maintWifi ? "not set" : "switched off";
   WiFi.setHostname("paravario");
   WiFi.mode(joinServer ? WIFI_AP_STA : WIFI_AP);
   const char* pass = strlen(g_cfg.wifiPass) >= 8 ? g_cfg.wifiPass : nullptr;

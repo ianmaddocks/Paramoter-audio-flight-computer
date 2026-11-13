@@ -101,3 +101,6 @@ crosswind|Crosswind
 downwind|Downwind
 base|Base
 final|Final
+factory_prompt|To restore factory settings, press the button 5 times, and then hold it down for 2 seconds.
+factory_cancelled|Factory reset cancelled
+factory_reset|Restoring factory settings

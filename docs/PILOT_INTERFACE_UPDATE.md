@@ -15,7 +15,8 @@ pilot never has to look, and make every control safe to use with a gloved finger
 | Single press | start / cancel landing approach | **Update me**: height, landing zone, wind, battery. Never starts or cancels anything. |
 | Double press | start / cancel emergency glide | start / cancel **landing approach** |
 | Long press (0.8 s) | mute | **Hold 1.5 s**: start / cancel **emergency glide** (rising cue at 0.8 s; let go earlier and nothing happens) |
-| (none) | | **Triple press**: mute / unmute |
+| (none) | | **Triple press**: mute / unmute (now decided 0.6 s after the last click) |
+| (none) | | **5 presses, then 5 presses + 2 s hold** (ground only): factory reset, with spoken instruction and cancel |
 | Feedback | none | a click on every press |
 | Gap between clicks | 0.4 s | 0.6 s (gloves) |
 | No GPS | every press mutes | single = tell height and battery; double, triple, hold = mute |
@@ -39,9 +40,9 @@ muscle memory**: try it on the ground before relying on it.
 
 ### Flight tab (page)
 
-- **By phase:** one card headed **Actions** at a time. On the ground: **Audio test**, **Mute vario**, **Set LZ manually**, **LZ = takeoff**. In flight:
+- **By phase:** one card headed **Actions** at a time. On the ground: **Audio test**, **Mute vario**. In flight:
   **Landing support**, **Emergency support**, **Update me**, **Mute vario**. **Full screen** sits below both. (Buttons renamed: Test voice to Audio test,
-  Tell me to Update me, Landing approach to Landing support, Emergency glide to Emergency support, Set LZ here to Set LZ manually.)
+  Tell me to Update me, Landing approach to Landing support, Emergency glide to Emergency support, Set LZ here moved to Settings → Landing zone as **Use current position**; LZ = takeoff is the *Landing zone* setting.)
 - **Alert strip** under the banner: Battery low / critical (with minutes and distance to the LZ), Barometer failed, No GPS fix. Clears itself.
 - **GPS tile:** the signal quality is the big word (strong / good / ok / poor / none), the satellites underneath.
 - **Battery tile:** minutes left when known, else the percentage; volts and percent underneath.
@@ -90,6 +91,6 @@ is a manual way out. A resumed flight lands by the normal rules (ground speed un
   **erases the stored flight logs** (download any you want first). Until then the vario works, with the fallbacks above.
 - **Resume** needs a GPS; a vario without one does not resume (it has no landing zone to remember). A flight resumed after a long time off relies on
   the GPS time: if the GPS never gives a time, nothing resumes.
-- **Switching on below flying speed** (for example hanging in a strong headwind) does not resume; a landing zone saved with Set LZ manually is still there.
+- **Switching on below flying speed** (for example hanging in a strong headwind) does not resume; a landing zone saved with Use current position is still there.
 - **Same-day flights:** the vario does not resume if you were standing still at the first fix, even if it had been flying.
 - Not changed: the physical single-press delay is now 0.6 s (the time the vario waits for a second press).

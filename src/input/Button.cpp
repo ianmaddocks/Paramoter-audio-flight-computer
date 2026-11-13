@@ -22,10 +22,7 @@ ButtonEvent ButtonDecoder::feed(bool raw, uint32_t now) {
       return ButtonEvent::None;
     }
     releaseMs_ = now;
-    if (++clicks_ >= 3) {
-      clicks_ = 0;
-      return ButtonEvent::Triple;
-    }
+    if (clicks_ < 9) ++clicks_;
     return ButtonEvent::None;
   }
   if (pressed_) {
@@ -41,7 +38,11 @@ ButtonEvent ButtonDecoder::feed(bool raw, uint32_t now) {
     return ButtonEvent::None;
   }
   if (clicks_ > 0 && now - releaseMs_ >= kGapMs) {
-    const ButtonEvent ev = clicks_ == 1 ? ButtonEvent::Single : ButtonEvent::Double;
+    const ButtonEvent ev = clicks_ == 1   ? ButtonEvent::Single
+                           : clicks_ == 2 ? ButtonEvent::Double
+                           : clicks_ == 3 ? ButtonEvent::Triple
+                           : clicks_ == 5 ? ButtonEvent::Five
+                                          : ButtonEvent::None;
     clicks_ = 0;
     return ev;
   }
