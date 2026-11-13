@@ -46,18 +46,18 @@ struct Settings {
   // Climbing: 50, 100, 250, 500, 750, 1000 ft.
   char boundariesUp[128] = "15.24,30.48,76.2,152.4,228.6,304.8";
   // Descending (key kept as "boundaries" so values saved before the split carry over).
-  char boundaries[128] = "15.24,30.48,45.72,76.2,106.68,152.4,228.6,304.8";
-  float boundaryStepM = 152.4f;
+  char boundaries[128] = "3.05,4.57,6.10,9.14,12.19,15.24,22.86,30.48";
+  float boundaryStepM = 30.48f;  // 100 ft
   float boundaryHystM = 3.0f;
   bool boundaryClimbing = true;
   bool boundaryDescending = true;
   int32_t heightIntervalS = 60;
-  int32_t flightTimeIntervalMin = 5;
+  int32_t flightTimeIntervalMin = 10;
 
-  float takeoffSpeedMs = 15.0f / 3.6f;
+  float takeoffSpeedMs = 8.0f / 3.6f;
   int32_t takeoffTimeS = 5;
-  float takeoffGainM = 3.048f;  // 10 ft
-  float baroTakeoffGainM = 15.0f;   // height gain that counts as takeoff with no usable GPS
+  float takeoffGainM = 4.572f;  // 15 ft
+  float baroTakeoffGainM = 6.096f;   // height gain that counts as takeoff with no usable GPS
   float groundHoldVarioMs = 0.5f;   // ground level stops following the baro above this rate
   float landingSpeedMs = 5.0f / 3.6f;
   int32_t landingTimeS = 30;
@@ -85,7 +85,7 @@ struct Settings {
   float arrivalRadiusM = 80.0f;
   float turnLeadS = 3.0f;
   bool turnLearn = true;  // landing support learns how fast the pilot turns from the first two turns and calls the later ones to suit
-  float offHeadingDeg = 30.0f;
+  float offHeadingDeg = 15.0f;
   int32_t guidanceUpdateS = 20;
 
   int32_t emergencyUpdateS = 30;

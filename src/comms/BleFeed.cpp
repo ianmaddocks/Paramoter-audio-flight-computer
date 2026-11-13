@@ -4,6 +4,7 @@
 
 #include "Log.h"
 #include "Settings.h"
+#include "Version.h"
 #include "Hardware.h"
 #include "sensors/GpsData.h"
 
@@ -76,8 +77,11 @@ void BleFeed::begin() {
   nus->start();
 
   NimBLEService* info = server_->createService(kDeviceInfoService);
-  info->createCharacteristic(kManufacturerChar, NIMBLE_PROPERTY::READ)->setValue("ParaVario");
-  info->createCharacteristic(kModelChar, NIMBLE_PROPERTY::READ)->setValue("XIAO ESP32C3");
+  // Device Information: the maker, and the model with the release (the newest git tag, for example "ParaVario 1.0")
+  static char model[40];
+  snprintf(model, sizeof(model), "ParaVario %s", PV_RELEASE);
+  info->createCharacteristic(kManufacturerChar, NIMBLE_PROPERTY::READ)->setValue("Ian Maddocks");
+  info->createCharacteristic(kModelChar, NIMBLE_PROPERTY::READ)->setValue(model);
   info->start();
 
   NimBLEAdvertising* adv = NimBLEDevice::getAdvertising();

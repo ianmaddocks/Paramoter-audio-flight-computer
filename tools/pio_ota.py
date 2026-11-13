@@ -17,6 +17,16 @@ import urllib.request
 import uuid
 
 
+def git_release():
+    """The newest git tag reachable from HEAD (the release, e.g. 1.0), shown in the Bluetooth model name."""
+    try:
+        out = subprocess.check_output(["git", "describe", "--tags", "--abbrev=0"],
+                                      cwd=env.subst("$PROJECT_DIR"), stderr=subprocess.DEVNULL)
+        return out.decode().strip()
+    except Exception:
+        return "dev"
+
+
 def git_version():
     try:
         out = subprocess.check_output(["git", "describe", "--always", "--dirty"],
@@ -31,8 +41,8 @@ def write_version_header():
     gen_dir = os.path.join(env.subst("$BUILD_DIR"), "generated")
     os.makedirs(gen_dir, exist_ok=True)
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    text = ('#pragma once\n#define PV_STAMP "%s"\n#define PV_GIT "%s"\n'
-            % (stamp, git_version()))
+    text = ('#pragma once\n#define PV_STAMP "%s"\n#define PV_GIT "%s"\n#define PV_RELEASE "%s"\n'
+            % (stamp, git_version(), git_release()))
     with open(os.path.join(gen_dir, "BuildVersion.h"), "w", newline="\n") as f:
         f.write(text)
     projenv.Append(CPPPATH=[gen_dir])

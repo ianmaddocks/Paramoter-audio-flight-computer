@@ -2226,6 +2226,20 @@ def t_button_logic(v, a):
     return f"{n} cases passed: single/double/triple clicks, gloved gaps, hold with cue, abandoned hold, bounce"
 
 
+def t_ble_info(v, a):
+    """The Bluetooth Device Information is the maker and "ParaVario <release>", the release being the newest git tag. The
+    status reports that release (the Bluetooth read itself is not available here), and it must match the repository's tag."""
+    rel = v.status().get("release")
+    try:
+        tag = subprocess.check_output(["git", "describe", "--tags", "--abbrev=0"], cwd=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."),
+                                      stderr=subprocess.DEVNULL).decode().strip()
+    except Exception:
+        tag = "dev"
+    if rel != tag:
+        raise Fail(f"the vario reports release {rel!r}, the newest git tag is {tag!r}")
+    return f"release {rel}: the Bluetooth model reads 'ParaVario {rel}', the manufacturer 'Ian Maddocks' (read over Bluetooth is not tested here)"
+
+
 def t_height_logic(v, a):
     """Software-level unit test of the height trace (flight/HeightHistory): nothing recorded on the ground, kept after
     landing, a gap marker block between flights, the ring of 300."""
@@ -4360,7 +4374,7 @@ TESTS = [
     ("boot", t_boot), ("settings", t_settings), ("vario_climb", t_vario_climb),
     ("vario_sink", t_vario_sink), ("vario_thresholds", t_vario_thresholds), ("vario_logic", t_vario_logic),
     ("mute", t_mute), ("auto_volume", t_auto_volume), ("rpm_logic", t_rpm_logic), ("rpm", t_rpm), ("rpm_speech", t_rpm_speech), ("rpm_glitch", t_rpm_glitch), ("geo_logic", t_geo_logic), ("wind_logic", t_wind_logic),
-    ("circuit_logic", t_circuit_logic), ("battery_logic", t_battery_logic), ("flight_logic", t_flight_logic), ("button_logic", t_button_logic), ("factory_reset", t_factory_reset), ("height_logic", t_height_logic), ("moving_logic", t_moving_logic), ("height_trace", t_height_trace), ("maint_voice", t_maint_voice), ("names_default", t_names_default), ("status_logic", t_status_logic), ("alerts_logic", t_alerts_logic), ("resume_logic", t_resume_logic), ("audio_logic", t_audio_logic), ("rpmtrack_logic", t_rpmtrack_logic), ("baro_logic", t_baro_logic), ("wind", t_wind), ("wind_faults", t_wind_faults), ("wind_change", t_wind_change), ("circuit_right", t_circuit_right), ("circuit_slow_pilot", t_circuit_slow_pilot), ("circuit_left_wind", t_circuit_left_wind),
+    ("circuit_logic", t_circuit_logic), ("battery_logic", t_battery_logic), ("flight_logic", t_flight_logic), ("button_logic", t_button_logic), ("factory_reset", t_factory_reset), ("ble_info", t_ble_info), ("height_logic", t_height_logic), ("moving_logic", t_moving_logic), ("height_trace", t_height_trace), ("maint_voice", t_maint_voice), ("names_default", t_names_default), ("status_logic", t_status_logic), ("alerts_logic", t_alerts_logic), ("resume_logic", t_resume_logic), ("audio_logic", t_audio_logic), ("rpmtrack_logic", t_rpmtrack_logic), ("baro_logic", t_baro_logic), ("wind", t_wind), ("wind_faults", t_wind_faults), ("wind_change", t_wind_change), ("circuit_right", t_circuit_right), ("circuit_slow_pilot", t_circuit_slow_pilot), ("circuit_left_wind", t_circuit_left_wind),
     ("circuit_events", t_circuit_events),
     ("fault_baro", t_fault_baro), ("fault_gps", t_fault_gps), ("fault_battery", t_fault_battery), ("landing_gps_quality", t_landing_gps_quality), ("landing_hover", t_landing_hover), ("button_actions", t_button_actions), ("alerts_flight", t_alerts_flight), ("resume_flight", t_resume_flight), ("battery_flight", t_battery_flight),
     ("memory_events", t_memory_events), ("soak", t_soak),
