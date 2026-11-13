@@ -10,6 +10,7 @@
 #include <Update.h>
 #include <WebServer.h>
 #include <WiFi.h>
+#include <esp_system.h>
 #include <esp_task_wdt.h>
 #include <lwip/sockets.h>
 #include <sys/stat.h>
@@ -42,6 +43,39 @@ WebServer server(80);
 DNSServer dns;
 bool restartPending = false;
 uint32_t restartAtMs = 0;
+// Network diagnostics, for finding out why a vario drops off the network: what the Wi-Fi driver reports (set from its event
+// callback, which only stores numbers) and why the vario last restarted. Shown in the status (wifi.* and resetReason) and
+// logged when something changes.
+volatile uint32_t diagStaDisc = 0, diagStaReason = 0, diagStaDiscMs = 0, diagGotIp = 0, diagApJoin = 0, diagApLeave = 0, diagStaConn = 0;
+uint32_t diagLoggedDisc = 0;
+const char* resetReasonName() {
+  switch (esp_reset_reason()) {
+    case ESP_RST_POWERON: return "power-on";
+    case ESP_RST_SW: return "software restart";
+    case ESP_RST_PANIC: return "crash (panic)";
+    case ESP_RST_INT_WDT: return "interrupt watchdog";
+    case ESP_RST_TASK_WDT: return "task watchdog";
+    case ESP_RST_WDT: return "watchdog";
+    case ESP_RST_BROWNOUT: return "brownout (low supply voltage)";
+    case ESP_RST_DEEPSLEEP: return "deep sleep";
+    default: return "other";
+  }
+}
+void onWifiEvent(arduino_event_id_t ev, arduino_event_info_t info) {
+  switch (ev) {
+    case ARDUINO_EVENT_WIFI_STA_CONNECTED: ++diagStaConn; break;
+    case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+      ++diagStaDisc;
+      diagStaReason = info.wifi_sta_disconnected.reason;
+      diagStaDiscMs = millis();
+      break;
+    case ARDUINO_EVENT_WIFI_STA_GOT_IP: ++diagGotIp; break;
+    case ARDUINO_EVENT_WIFI_AP_STACONNECTED: ++diagApJoin; break;
+    case ARDUINO_EVENT_WIFI_AP_STADISCONNECTED: ++diagApLeave; break;
+    default: break;
+  }
+}
+bool settingsNeedRestart = false;  // a setting that only applies at power-up was changed since power-up
 
 // Server Wi-Fi runs alongside the vario AP only during its configured boot window.
 enum class ServerWifi : uint8_t { Off, Connecting, Connected };
@@ -61,12 +95,23 @@ void serverStop(const char* why) {
 }
 
 void serverUpdate(uint32_t now) {
+  if (diagStaDisc != diagLoggedDisc) {  // say so in the log when the router link dropped (the callback only counts)
+    diagLoggedDisc = diagStaDisc;
+    LOGW("WEB", "Wi-Fi dropped (reason %u), %u drops since power-up, free heap %u", (unsigned)diagStaReason, (unsigned)diagStaDisc,
+         (unsigned)ESP.getFreeHeap());
+  }
   if (serverWifi == ServerWifi::Off) return;
   bool up = WiFi.status() == WL_CONNECTED;
   if (serverWifi == ServerWifi::Connecting && up) {
     serverWifi = ServerWifi::Connected;
     LOGI("WEB", "Joined server network '%s' as %s (http://paravario.local)", g_cfg.serverSsid,
          WiFi.localIP().toString().c_str());
+    // Said once per power-up, and not in the air: tells whoever is at the bench that the maintenance connection is up.
+    static bool announced = false;
+    if (!announced) {
+      announced = true;
+      if (!app.nav.flying) speech::say(audio::Priority::Normal, "maint_connected");
+    }
   } else if (serverWifi == ServerWifi::Connected && !up) {
     serverWifi = ServerWifi::Connecting;
     serverAttemptStartedMs = now;
@@ -148,6 +193,8 @@ void handleStatus() {
   if (why) doc["notReady"] = why;
   doc["minSats"] = g_cfg.readyMinSats;
   doc["uptime"] = millis() / 1000;
+  doc["restartNeeded"] = settingsNeedRestart;
+  doc["resetReason"] = resetReasonName();  // why the vario last restarted
   doc["heap"] = ESP.getFreeHeap();
   doc["heapMin"] = ESP.getMinFreeHeap();     // lowest since power-on
   doc["heapBlock"] = ESP.getMaxAllocHeap();  // largest single block available now
@@ -272,6 +319,14 @@ void handleStatus() {
     wifi["rssi"] = WiFi.RSSI();
   }
   wifi["maint"] = maintUsed;
+  wifi["staConn"] = diagStaConn;      // times the vario joined the router
+  wifi["staDisc"] = diagStaDisc;      // times it was dropped (or lost the router)
+  wifi["staReason"] = diagStaReason;  // the Wi-Fi reason code of the last drop (e.g. 2 auth expired, 8 left, 200 beacon timeout, 201 no AP found)
+  wifi["staDiscAgoS"] = diagStaDisc ? (millis() - diagStaDiscMs) / 1000 : -1;
+  wifi["gotIp"] = diagGotIp;
+  wifi["apJoin"] = diagApJoin;        // devices that joined the vario's own network
+  wifi["apLeave"] = diagApLeave;
+  wifi["channel"] = WiFi.channel();
   if (maintUsed != g_cfg.maintWifi || (g_cfg.maintWifi && (strcmp(serverSsidUsed, g_cfg.serverSsid) != 0 ||
                                                            strcmp(serverPassUsed, g_cfg.serverPass) != 0))) {
     wifi["restart"] = true;
@@ -404,6 +459,7 @@ void handlePostSettings() {
     }
     restart = settings::fromJson(in.as<JsonObjectConst>());
   }
+  if (restart) settingsNeedRestart = true;
   LOGI("WEB", "settings saved%s", restart ? " (restart needed)" : "");
   if (!settings::save()) {
     g_cfg = previous;
@@ -510,7 +566,8 @@ void handleSpectrum() {
 #endif  // PV_HAS_SPECTRUM
 
 // Binary: u16 sample count, u16 seconds between samples, then that many int16 heights above
-// ground in quarter metres, oldest first (the last ten minutes, for the flight tab's graph).
+// ground in quarter metres, oldest first (the last ten minutes flown, for the flight tab's graph); -32768 marks the gap
+// between two flights.
 void handleHeight() {
   uint8_t buf[4 + 2 * HeightHistory::kSamples];
   int16_t samples[HeightHistory::kSamples];
@@ -717,6 +774,8 @@ void route(const char* path, HTTPMethod method, void (*handler)()) {
 }
 
 void begin() {
+  WiFi.onEvent(onWifiEvent);
+  LOGI("WEB", "Restarted: %s", resetReasonName());
   serverAttemptStartedMs = millis();
   strlcpy(serverSsidUsed, g_cfg.serverSsid, sizeof(serverSsidUsed));
   strlcpy(serverPassUsed, g_cfg.serverPass, sizeof(serverPassUsed));

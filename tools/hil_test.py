@@ -2226,6 +2226,13 @@ def t_button_logic(v, a):
     return f"{n} cases passed: single/double/triple clicks, gloved gaps, hold with cue, abandoned hold, bounce"
 
 
+def t_height_logic(v, a):
+    """Software-level unit test of the height trace (flight/HeightHistory): nothing recorded on the ground, kept after
+    landing, a gap marker block between flights, the ring of 300."""
+    n = unit_suite(v, "height", 8)
+    return f"{n} cases passed: no samples on the ground, trace kept after landing, one gap between flights, ring"
+
+
 def t_status_logic(v, a):
     """Software-level unit test of the spoken status (app/Status.cpp): order and content of the two calls, clock
     positions, units, battery minutes or percent, and what is left out without a fix, a landing zone, wind or GPS."""
@@ -2258,6 +2265,51 @@ def factory_clicks(v, n=5):
     for _ in range(n):
         v.sim(button="press")
         time.sleep(0.35)
+
+
+def t_names_default(v, a):
+    """The default Wi-Fi and Bluetooth names are written into the settings, with the unit code: emptying both boxes (an empty
+    name cannot be used) gives 'ParaVario-' and four hex digits in the stored values after a restart, the same code in both,
+    and the status shows exactly the stored values (nothing is added behind the settings' back). A name of the owner's own
+    is left as it is."""
+    saved = {k: v.settings()[k] for k in ("bleName", "wifiSsid")}
+    try:
+        v.set(bleName="", wifiSsid="")
+        restart_vario(v, "names")
+        s = v.settings()
+        for k in ("bleName", "wifiSsid"):
+            if not re.fullmatch(r"ParaVario-[0-9A-F]{4}", s[k]):
+                raise Fail(f"after emptying {k} and a restart it is {s[k]!r}, expected ParaVario-XXXX")
+        if s["bleName"] != s["wifiSsid"]:
+            raise Fail(f"the unit code differs: {s['bleName']} and {s['wifiSsid']}")
+        w = v.status()["wifi"]
+        if w["apSsid"] != s["wifiSsid"] or w["bleName"] != s["bleName"]:
+            raise Fail(f"the names in use {w['apSsid']}, {w['bleName']} are not the stored {s['wifiSsid']}, {s['bleName']}")
+        default = s["wifiSsid"]
+        v.set(bleName="MyVario", wifiSsid="MyVario-Wifi")
+        restart_vario(v, "names")
+        s = v.settings()
+        if s["bleName"] != "MyVario" or s["wifiSsid"] != "MyVario-Wifi" or v.status()["wifi"]["apSsid"] != "MyVario-Wifi":
+            raise Fail(f"a name of the owner's own was changed: {s['bleName']!r}, {s['wifiSsid']!r}")
+        return f"emptied names became {default} in the settings (same code for both, nothing added behind the settings); own names kept"
+    finally:
+        v.set(**saved)
+
+
+def t_maint_voice(v, a):
+    """With the maintenance connection on, joining the maintenance Wi-Fi at power-up is spoken once ("Connected to maintenance
+    server Wi-Fi"): the vario is reached over that connection, so the line is in its log from power-up."""
+    st = v.settings()
+    if not (st["maintWifi"] and st["serverSsid"]):
+        return "skipped: this vario is not set up for the maintenance connection"
+    restart_vario(v, "maint voice")
+    time.sleep(2)
+    code, body = v._open("/api/debuglog?since=0")
+    said = [l for l in body.decode("utf-8", "replace").splitlines() if "SAY" in l and "maint_connected" in l]
+    joined = [l for l in body.decode("utf-8", "replace").splitlines() if "Joined server network" in l]
+    if len(said) != 1 or len(joined) < 1:
+        raise Fail(f"after a restart: {len(joined)} 'Joined' lines and {len(said)} 'Connected to maintenance server' prompts, expected 1 prompt")
+    return "joined the maintenance Wi-Fi and said so once: " + said[0].strip()
 
 
 def t_factory_reset(v, a):
@@ -2764,7 +2816,7 @@ def t_gps_states(v, a):
         raise Fail("reported ready on a weak fix")
     # Good fix, standing still.
     v.sim(sats=10, hdop=0.9, speed=0, gpsAltErr=0)
-    v.expect("SAY", r"\] gps_fix$", m, timeout=8)
+    v.expect("SAY", r"\] gps_fix$", m, timeout=25, what="GPS fix said after the good fix held 10 s")
     v.expect("FLT", r"GPS altitude datum set", m, timeout=8)
     v.expect("RDY", r"^ready$", m, timeout=15, what="ready after a steady good fix")
     n = v.wait_nav(lambda n: abs(float(n["msl"]) - GROUND_M) < 3, 8, "height matches GPS altitude")
@@ -3241,32 +3293,87 @@ def t_variant_no_mic(v, a):
 def check_tile_layout(p, gps, mic, eng=False):
     """Flight tab: tiles in their groups, graph beside Height, a lone last tile full width."""
     info = p.js("""(()=>{const vis=e=>getComputedStyle(e).display!=='none';
-      const ids=s=>[...document.getElementById(s).children].filter(vis).map(e=>e.querySelector('.v')?e.querySelector('.v').id:'graph');
-      const g=document.getElementById('tile-hgraph');
+      const ids=s=>[...document.getElementById(s).children].filter(vis).map(e=>e.querySelector('.v').id);
+      const vt=document.getElementById('tile-vario'),cv=document.getElementById('hgCv');
       return {main:ids('tilesMain'),more:ids('tilesMore'),
-        graphAfter:g.previousElementSibling.id,
-        heightBig:document.getElementById('tile-height').classList.contains('big'),
+        graphInVario:cv.parentElement===vt,
+        wideMain:[...document.querySelectorAll('#tilesMain .wide')].map(e=>e.querySelector('.v').id),
         wide:[...document.querySelectorAll('#tilesMore .wide')].map(e=>e.querySelector('.v').id),
         graphPixels:(()=>{const c=document.getElementById('hgCv');if(!c.width)return -1;
           const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let n=0;for(let i=3;i<d.length;i+=4)if(d[i])n++;return n})(),
-        graphW:document.getElementById('hgCv').clientWidth,tileW:document.getElementById('tile-height').clientWidth}})()""")
-    want_main = ["t-agl", "graph", "t-vario"] + (["t-speed", "t-glide"] if gps else []) + ["t-flight"] + \
-                (["t-lz", "t-wind"] if gps else [])
+        graphW:cv.clientWidth,tileW:vt.clientWidth}})()""")
+    # Height | Flight time, Vario (with the height graph) | Ground speed, Landing zone | Wind, Glide ratio | Battery
+    want_main = ["t-agl", "t-flight", "t-vario"] + (["t-speed", "t-lz", "t-wind", "t-glide"] if gps else []) + ["t-batt"]
     if info["main"] != want_main:
         raise Fail(f"web page: top tiles are {info['main']}, expected {want_main}")
-    want_more = (["t-gps"] if gps else []) + ["t-batt"] + (["t-rpm"] + (["t-noise"] if eng else []) if mic else [])
+    want_more = (["t-gps"] if gps else []) + (["t-rpm"] + (["t-noise"] if eng else []) if mic else [])
     if info["more"] != want_more:
         raise Fail(f"web page: lower tile group is {info['more']}, expected {want_more}")
-    if info["heightBig"] or info["graphAfter"] != "tile-height":
-        raise Fail(f"web page: with an even number of cells the graph belongs beside Height (big={info['heightBig']}, "
-                   f"graph follows {info['graphAfter']})")
+    if not info["graphInVario"]:
+        raise Fail("web page: the height graph is not inside the Vario tile")
+    if len(want_main) % 2 == 1 and info["wideMain"] != [want_main[-1]]:
+        raise Fail(f"web page: lone last top tile {want_main[-1]} not full width (wide: {info['wideMain']})")
+    if len(want_main) % 2 == 0 and info["wideMain"]:
+        raise Fail(f"web page: top tiles wrongly full width: {info['wideMain']}")
     if len(want_more) % 2 == 1 and info["wide"] != [want_more[-1]]:
         raise Fail(f"web page: lone last tile {want_more[-1]} not full width (wide: {info['wide']})")
     if len(want_more) % 2 == 0 and info["wide"]:
         raise Fail(f"web page: tiles wrongly full width: {info['wide']}")
-    if abs(info["graphW"] - info["tileW"]) > 40:
-        raise Fail(f"web page: graph {info['graphW']} px wide beside a Height tile {info['tileW']} px wide")
+    if info["graphW"] < info["tileW"] - 40 or info["graphW"] > info["tileW"]:
+        raise Fail(f"web page: graph {info['graphW']} px wide in a Vario tile {info['tileW']} px wide")
     return info
+
+
+def height_trace(v):
+    """/api/height: the samples (height in metres, None for the gap between two flights)."""
+    code, body = v._open("/api/height")
+    n, step = struct.unpack("<HH", body[:4])
+    raw = struct.unpack("<%dh" % n, body[4:4 + 2 * n])
+    return [None if r == -32768 else r / 4.0 for r in raw], step
+
+
+def t_height_trace(v, a):
+    """The height trace: nothing is recorded on the ground, it is kept (not cleared) after landing, and a new flight
+    continues it after a gap that marks the two flights as separate."""
+    notes = []
+    try:
+        m = reset(v, baro="on", alt=GROUND_M, vz=0, baroOffset=150, gps="fix", sats=10, hdop=0.9, speed=0, lat=51.5, lon=0.5)
+        time.sleep(8)
+        tr, _ = height_trace(v)
+        if tr:
+            raise Fail(f"{len(tr)} height samples recorded on the ground")
+        notes.append("nothing recorded on the ground")
+        take_off(v, climb_to=GROUND_M + 60, vz=4.0)
+        time.sleep(14)
+        tr, step = height_trace(v)
+        if len(tr) < 5 or any(x is None for x in tr) or step != 2:
+            raise Fail(f"flying: {len(tr)} samples every {step} s, gaps {sum(x is None for x in tr)}")
+        n1 = len(tr)
+        notes.append(f"{n1} samples in the first 14 s of flight")
+        v.sim(speed=0, vz=-4.0, to=GROUND_M + 2)
+        v.expect("APP", r"Landed after", m, timeout=90, what="landing")
+        time.sleep(3)
+        tr, _ = height_trace(v)
+        n2 = len(tr)
+        time.sleep(10)
+        tr, _ = height_trace(v)
+        if len(tr) != n2 or n2 < n1:
+            raise Fail(f"after landing the trace has {n2} then {len(tr)} samples (before landing {n1}): it must neither grow nor be cleared")
+        notes.append(f"after landing: kept ({n2} samples), no new ones in 10 s")
+        take_off(v, climb_to=GROUND_M + 60, vz=4.0)
+        time.sleep(8)
+        tr, _ = height_trace(v)
+        gaps = sum(x is None for x in tr)
+        if gaps < 10 or tr[-1] is None or len(tr) <= n2 + gaps - 1:
+            raise Fail(f"second flight: {len(tr)} samples, {gaps} gap markers (expected a gap of about 15 between the flights)")
+        first_gap = next(i for i, x in enumerate(tr) if x is None)
+        if first_gap < n2 - 2 or any(x is None for x in tr[:first_gap]) or any(x is None for x in tr[first_gap + gaps:]):
+            raise Fail(f"the gap is not one block between the two flights: {[('-' if x is None else int(x)) for x in tr]}")
+        notes.append(f"second flight continues after a gap of {gaps} markers")
+        return "; ".join(notes)
+    finally:
+        v.sim(speed=0, vz=0, fly=0)
+        v.action("reset_flight")
 
 
 def check_height_graph(p):
@@ -3569,7 +3676,6 @@ def t_ui_flight(v, a):
     p.wait_text("t-noises", rf"^vario vol {a.volume}%$")
     p.wait_text("t-rpm", r"^(off|\d+ rpm)$")
     p.wait_text("hver", rf"^v{re.escape(st['version'])} debug$")
-    check_height_graph(p)
     p.check_fits("flight tab")
     p.wait_text("t-glide", r"^–$")
     p.wait_text("t-glides", r"^20 s avg –$")
@@ -3888,6 +3994,7 @@ def t_ui_guidance(v, a):
     p.wait("!/bearing/.test(document.getElementById('t-lzs').textContent)", 4, "no bearing on the landing zone tile")
     p.wait_text("t-winds", r"^from \d+° · takeoff$")
     p.wait_text("t-wind", r"^\d+ km/h$", 8, "the wind speed is the tile's main value while moving, with the direction under the windsock")
+    check_height_graph(p)  # on the ground nothing is recorded: the graph draws once the flight has been recorded for a few seconds
     v.expect("SIM", r"reached target", m, timeout=40)
 
     m2 = v.mark()
@@ -3973,7 +4080,11 @@ def t_ui_settings(v, a):
         missing = p.js("schema.filter(f=>!tInput(f.k)).map(f=>f.k)")
         if missing:
             raise Fail(f"web page: no input found for {missing}")
-        p.wait_text("w-ap", r"^ParaVario-[0-9A-F]{4} · 192\.168\.4\.1 · \d+ connected$", 4)
+        p.wait_text("w-ap", r"^192\.168\.4\.1 · \d+ connected$", 4)  # the status line has no name: the name is the setting under it
+        # The vario's own names are plain settings: the boxes show the stored values, which are what the phone sees
+        for k in ("bleName", "wifiSsid"):
+            want = v.settings()[k]
+            p.wait(f"tInput('{k}').value===" + json.dumps(want), 6, f"{k} box shows the stored value")
         # The firmware update box is in Advanced settings / Firmware Update (not on the Logs & system tab), version shown, guarded
         where = p.js("(e=>e?[...e.closest('details').querySelector('summary').childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join(''):null)(document.getElementById('fwcard'))")
         if where != "Firmware Update" or not p.js("!!document.getElementById('fwcard').closest('#advSettings')"):
@@ -4031,6 +4142,19 @@ def t_ui_settings(v, a):
         # Restart mark, password boxes masked.
         if "· restart" not in p.js("tRow('gpsLed').textContent"):
             raise Fail("web page: restart mark missing on the GPS LED setting")
+        # A Restart button appears at the bottom of Settings only while a change that needs a restart is waiting
+        if p.js("document.getElementById('restartBar').offsetParent!==null"):
+            raise Fail("web page: the Restart button is shown with no restart needed")
+        was = p.js("tInput('gpsLed').checked")
+        p.js("tSet('gpsLed', " + ("false" if was else "true") + ")")
+        p.wait_text("saveState", r"^Saved", 5)
+        p.wait("document.getElementById('restartBar').offsetParent!==null", 6, "Restart button shown after a setting that needs a restart")
+        p.js("tSet('gpsLed', " + ("true" if was else "false") + ")")
+        p.wait_text("saveState", r"^Saved", 5)
+        p.click('#restartBar button')
+        time.sleep(4)
+        p.wait("document.getElementById('restartBar').offsetParent===null && document.getElementById('t-agl')!==null", 90,
+               "Restart button gone after the restart")
         if p.js("tInput('wifiPass').type") != "password" or p.js("tInput('serverPass').type") != "password":
             raise Fail("web page: Wi-Fi passwords are not masked")
         # The maintenance connection settings (for the maker, not pilots) are in a sub-section that shows only while its switch is on.
@@ -4045,7 +4169,7 @@ def t_ui_settings(v, a):
         if v.settings()["maintWifi"] != was:
             raise Fail("web page: the maintenance switch did not go back")
         txt = p.js("document.getElementById('settings').textContent")
-        for s in ("Enable maintenance server connection", "Maintenance wifi SSID", "Maintenance wifi password", "Assigned IP address"):
+        for s in ("Enable maintenance server connection", "WiFi SSID", "WiFi password", "Stop looking after", "Assigned IP address"):
             if s not in txt:
                 raise Fail(f"web page: Wi-Fi settings lack the label '{s}'")
         if re.search(r"Server (network|IP)", txt, re.I):
@@ -4229,7 +4353,7 @@ TESTS = [
     ("boot", t_boot), ("settings", t_settings), ("vario_climb", t_vario_climb),
     ("vario_sink", t_vario_sink), ("vario_thresholds", t_vario_thresholds), ("vario_logic", t_vario_logic),
     ("mute", t_mute), ("auto_volume", t_auto_volume), ("rpm_logic", t_rpm_logic), ("rpm", t_rpm), ("rpm_speech", t_rpm_speech), ("rpm_glitch", t_rpm_glitch), ("geo_logic", t_geo_logic), ("wind_logic", t_wind_logic),
-    ("circuit_logic", t_circuit_logic), ("battery_logic", t_battery_logic), ("flight_logic", t_flight_logic), ("button_logic", t_button_logic), ("factory_reset", t_factory_reset), ("status_logic", t_status_logic), ("alerts_logic", t_alerts_logic), ("resume_logic", t_resume_logic), ("audio_logic", t_audio_logic), ("rpmtrack_logic", t_rpmtrack_logic), ("baro_logic", t_baro_logic), ("wind", t_wind), ("wind_faults", t_wind_faults), ("wind_change", t_wind_change), ("circuit_right", t_circuit_right), ("circuit_slow_pilot", t_circuit_slow_pilot), ("circuit_left_wind", t_circuit_left_wind),
+    ("circuit_logic", t_circuit_logic), ("battery_logic", t_battery_logic), ("flight_logic", t_flight_logic), ("button_logic", t_button_logic), ("factory_reset", t_factory_reset), ("height_logic", t_height_logic), ("height_trace", t_height_trace), ("maint_voice", t_maint_voice), ("names_default", t_names_default), ("status_logic", t_status_logic), ("alerts_logic", t_alerts_logic), ("resume_logic", t_resume_logic), ("audio_logic", t_audio_logic), ("rpmtrack_logic", t_rpmtrack_logic), ("baro_logic", t_baro_logic), ("wind", t_wind), ("wind_faults", t_wind_faults), ("wind_change", t_wind_change), ("circuit_right", t_circuit_right), ("circuit_slow_pilot", t_circuit_slow_pilot), ("circuit_left_wind", t_circuit_left_wind),
     ("circuit_events", t_circuit_events),
     ("fault_baro", t_fault_baro), ("fault_gps", t_fault_gps), ("fault_battery", t_fault_battery), ("landing_gps_quality", t_landing_gps_quality), ("landing_hover", t_landing_hover), ("button_actions", t_button_actions), ("alerts_flight", t_alerts_flight), ("resume_flight", t_resume_flight), ("battery_flight", t_battery_flight),
     ("memory_events", t_memory_events), ("soak", t_soak),

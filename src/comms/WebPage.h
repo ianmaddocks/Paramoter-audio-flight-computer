@@ -64,7 +64,6 @@ body:not(.flying) .flightonly{display:none}
 .cn{fill:var(--bad);font-size:17px}
 .tile .v{font-size:22px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tile .s{font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tile.big{grid-column:span 2}.tile.big .v{font-size:40px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;margin-top:10px}
 details.card{padding:0}
 summary{padding:12px;font-weight:600;cursor:pointer}
@@ -130,9 +129,7 @@ summary .help a{margin-left:12px;color:var(--acc)}
 #helpBody .jump{margin:6px 0 2px;color:var(--mut);font-size:13px}#helpBody .jump a{margin-right:12px;color:var(--acc);white-space:nowrap}
 .tile.wide{grid-column:span 2}
 .btns .wide{grid-column:span 2}
-.tile.graph{display:flex;flex-direction:column;padding:6px 8px}
-.tile.graph .k{margin-bottom:2px}
-#hgCv{width:100%;height:60px;flex:1 1 auto;display:block}
+#hgCv{width:100%;height:56px;display:block;margin-top:2px}
 .tiles.more{margin-top:10px}
 .badge{font-size:11px;background:var(--warn);color:#000;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle}
 </style></head><body>
@@ -153,13 +150,13 @@ R"HTML(
 <div id="alerts" class="alerts" role="alert" aria-live="assertive"></div>
 <section class="tiles" id="tilesMain">
 <div class="tile" id="tile-height"><div class="k">Height AGL</div><div class="v" id="t-agl">–</div><div class="s" id="t-msl"></div></div>
-<div class="tile graph" id="tile-hgraph"><div class="k">Height · last 10 min</div><canvas id="hgCv"></canvas></div>
-<div class="tile" id="tile-vario"><div class="k">Vario</div><div class="v" id="t-vario">–</div><div class="s" id="t-mute"></div></div>
-<div class="tile needgps" id="tile-speed"><div class="k">Ground speed</div><div class="v" id="t-speed"><span id="t-speedv">–</span></div><div class="s srow"><span id="t-track"></span><span class="cmp" hidden><svg viewBox="0 0 84 84" width="56" height="56" aria-hidden="true"><circle class="cring" cx="42" cy="42" r="33"/><g id="a-track" class="cmparrow"><path d="M42 26 L50 41 L45 41 L45 58 L39 58 L39 41 L34 41 Z"/></g><rect class="cb" x="31" y="1" width="22" height="22" rx="6"/><text class="cn" x="42" y="18">N</text><rect class="cb" x="61" y="31" width="22" height="22" rx="6"/><text class="cl" x="72" y="47">E</text><rect class="cb" x="31" y="61" width="22" height="22" rx="6"/><text class="cl" x="42" y="77">S</text><rect class="cb" x="1" y="31" width="22" height="22" rx="6"/><text class="cl" x="12" y="47">W</text></svg></span></div></div>
-<div class="tile needgps"><div class="k">Glide ratio</div><div class="v" id="t-glide">–</div><div class="s" id="t-glides"></div></div>
 <div class="tile"><div class="k">Flight time</div><div class="v" id="t-flight">–</div><div class="s" id="t-ftime"></div></div>
+<div class="tile" id="tile-vario"><div class="k">Vario</div><div class="v" id="t-vario">–</div><div class="s" id="t-mute"></div><canvas id="hgCv"></canvas></div>
+<div class="tile needgps" id="tile-speed"><div class="k">Ground speed</div><div class="v" id="t-speed"><span id="t-speedv">–</span></div><div class="s srow"><span id="t-track"></span><span class="cmp" hidden><svg viewBox="0 0 84 84" width="56" height="56" aria-hidden="true"><circle class="cring" cx="42" cy="42" r="33"/><g id="a-track" class="cmparrow"><path d="M42 26 L50 41 L45 41 L45 58 L39 58 L39 41 L34 41 Z"/></g><rect class="cb" x="31" y="1" width="22" height="22" rx="6"/><text class="cn" x="42" y="18">N</text><rect class="cb" x="61" y="31" width="22" height="22" rx="6"/><text class="cl" x="72" y="47">E</text><rect class="cb" x="31" y="61" width="22" height="22" rx="6"/><text class="cl" x="42" y="77">S</text><rect class="cb" x="1" y="31" width="22" height="22" rx="6"/><text class="cl" x="12" y="47">W</text></svg></span></div></div>
 <div class="tile needgps"><div class="k">Landing zone</div><div class="v vrow" id="t-lz"><span id="t-lzv">–</span><svg id="a-lz" class="arr" viewBox="-20 -20 40 40" aria-hidden="true" hidden><path d="M0 -19 L12 -4 L4.5 -4 L4.5 19 L-4.5 19 L-4.5 -4 L-12 -4 Z" fill="currentColor"/></svg></div><div class="s" id="t-lzs"></div></div>
 <div class="tile needgps" id="tile-wind"><div class="k">Wind</div><div class="v" id="t-wind">–</div><div class="windrow" id="wind-sockrow" hidden><span class="sockw" hidden><svg viewBox="0 0 84 84" width="92" height="92" aria-hidden="true"><g id="a-wind" class="sockg"><polygon class="so" points="24,78 60,78 56,60 28,60"/><polygon class="sw" points="28,60 56,60 53,42 31,42"/><polygon class="so" points="31,42 53,42 50,24 34,24"/><polygon class="sw" points="34,24 50,24 47,6 37,6"/><line class="sring" x1="22" y1="78" x2="62" y2="78"/></g></svg></span></div><div class="s" id="t-winds"></div></div>
+<div class="tile needgps"><div class="k">Glide ratio</div><div class="v" id="t-glide">–</div><div class="s" id="t-glides"></div></div>
+<div class="tile"><div class="k">Battery</div><div class="v" id="t-batt">–</div><div class="s" id="t-batts"></div></div>
 </section>
 <section class="card flightonly" id="flightActions"><h2>Actions</h2><div class="btns">
 <button data-a="approach" id="b-approach" class="needgps">Landing support</button>
@@ -174,7 +171,6 @@ R"HTML(
 <div class="btns"><button type="button" id="b-fs" class="wide" hidden>Full screen</button></div>
 <section class="tiles more" id="tilesMore">
 <div class="tile needgps"><div class="k">GPS</div><div class="v" id="t-gps">–</div><div class="s" id="t-gpss"></div></div>
-<div class="tile"><div class="k">Battery</div><div class="v" id="t-batt">–</div><div class="s" id="t-batts"></div></div>
 <div class="tile needmic"><div class="k">Engine RPM</div><div class="v" id="t-rpm">–</div><div class="s" id="t-rpms"></div></div>
 <div class="tile needmic" id="tile-noise" hidden><div class="k">Background noise</div><div class="v" id="t-noise">–</div><div class="s" id="t-noises"></div></div>
 </section>
@@ -182,6 +178,7 @@ R"HTML(
 <div id="settingsPage" class="page" role="tabpanel" hidden>
 <section id="settings"></section>
 <p id="saveState" class="mut" role="status" aria-live="polite"></p>
+<section class="card" id="restartBar" hidden><p>A restart is needed for some of the changes to take effect.</p><div class="btns"><button data-a="restart" class="pri">Restart</button></div></section>
 </div>
 )HTML"
 #if PV_HAS_SPECTRUM
@@ -277,14 +274,11 @@ function setArrow(id,deg){const e=document.getElementById(id),w=e.closest('.cmp,
 //  - Lower group: a tile left alone on the last row takes the full width.
 const shown=e=>getComputedStyle(e).display!=='none';
 function layout(){
-  const main=$('#tilesMain'),h=$('#tile-height'),g=$('#tile-hgraph'),v=$('#tile-vario');
-  const full=[...main.children].filter(shown).length%2===1;
-  h.classList.toggle('big',full);
-  (full?v:h).after(g);
-  const more=[...$('#tilesMore').children];
-  more.forEach(e=>e.classList.remove('wide'));
-  const vis=more.filter(shown);
-  if(vis.length%2===1)vis[vis.length-1].classList.add('wide');
+  for(const id of ['#tilesMain','#tilesMore']){
+    const ts=[...$(id).children];ts.forEach(e=>e.classList.remove('wide'));
+    const vis=ts.filter(shown);
+    if(vis.length%2===1)vis[vis.length-1].classList.add('wide');
+  }
   drawHeight();
 }
 let layKey='';
@@ -423,14 +417,15 @@ $('#helpDoc').onclick=e=>{
   else e.preventDefault();
 };
 
-// Rolling height graph: the vario keeps the last ten minutes, fetched every few seconds.
+// Rolling height graph: the vario keeps the last ten minutes flown (nothing while grounded, kept after landing, a gap
+// between flights), fetched every few seconds.
 let hgData=null,hgBusy=false;
 async function pollHeight(){
   if(hgBusy||document.hidden||$('#flightPage').hidden)return;hgBusy=true;
   try{
     const b=await fetch('/api/height',{cache:'no-store'}).then(r=>r.arrayBuffer());
     const dv=new DataView(b),n=dv.getUint16(0,true),a=new Array(n);
-    for(let i=0;i<n;i++)a[i]=dv.getInt16(4+2*i,true)/4;
+    for(let i=0;i<n;i++){const r=dv.getInt16(4+2*i,true);a[i]=r===-32768?null:r/4}  // null: the gap between two flights
     hgData={step:dv.getUint16(2,true),a};drawHeight();
   }catch(e){}finally{hgBusy=false}
 }
@@ -441,13 +436,20 @@ function drawHeight(){
   const g=c.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
   const d=hgData;if(!d||d.a.length<2)return;
   const cs=getComputedStyle(document.body),acc=cs.getPropertyValue('--acc'),mut=cs.getPropertyValue('--mut'),bd=cs.getPropertyValue('--bd');
-  const lo=Math.min(0,...d.a),hi=Math.max(...d.a,lo+30),N=300;
+  const real=d.a.filter(m=>m!==null);if(real.length<2)return;
+  const lo=Math.min(0,...real),hi=Math.max(...real,lo+30),N=300;
   const X=i=>W-(d.a.length-1-i)*W/(N-1),Y=m=>H-4-(m-lo)/(hi-lo)*(H-14);
   g.strokeStyle=bd;g.lineWidth=1;g.beginPath();g.moveTo(0,Math.round(Y(0))+.5);g.lineTo(W,Math.round(Y(0))+.5);g.stroke();
-  g.beginPath();g.moveTo(X(0),Y(lo));d.a.forEach((m,i)=>g.lineTo(X(i),Y(m)));g.lineTo(X(d.a.length-1),Y(lo));g.closePath();
-  g.globalAlpha=.25;g.fillStyle=acc;g.fill();g.globalAlpha=1;
-  g.strokeStyle=acc;g.lineWidth=1.5;g.beginPath();d.a.forEach((m,i)=>i?g.lineTo(X(i),Y(m)):g.moveTo(X(i),Y(m)));g.stroke();
+  // one trace per flight: a gap (null samples) ends the line and the fill, and is marked with a dotted vertical line
+  const runs=[];let cur=null;d.a.forEach((m,i)=>{if(m===null){cur=null;return}if(!cur){cur=[];runs.push(cur)}cur.push(i)});
+  for(const r of runs){
+    g.beginPath();g.moveTo(X(r[0]),Y(lo));r.forEach(i=>g.lineTo(X(i),Y(d.a[i])));g.lineTo(X(r[r.length-1]),Y(lo));g.closePath();
+    g.globalAlpha=.25;g.fillStyle=acc;g.fill();g.globalAlpha=1;
+    g.strokeStyle=acc;g.lineWidth=1.5;g.beginPath();r.forEach((i,k)=>k?g.lineTo(X(i),Y(d.a[i])):g.moveTo(X(i),Y(d.a[i])));g.stroke();
+  }
+  g.strokeStyle=bd;g.setLineDash([2,3]);d.a.forEach((m,i)=>{if(m===null&&i>0&&d.a[i-1]!==null&&i<d.a.length-1){const x=Math.round(X(i+7))+.5;g.beginPath();g.moveTo(x,2);g.lineTo(x,H-2);g.stroke()}});g.setLineDash([]);
   g.fillStyle=mut;g.font='10px system-ui,sans-serif';g.textAlign='left';g.textBaseline='top';g.fillText(fH(hi),2,0);
+  g.textAlign='right';g.fillText('last 10 min flown',W-2,0);
 }
 setInterval(pollHeight,3000);addEventListener('resize',drawHeight);
 
@@ -533,6 +535,8 @@ async function poll(){
     txt('hver','v'+(s.version||'unknown')+(s.debug?' debug':''));
     txt('sys','Uptime '+fT(s.uptime)+' · heap '+Math.round(s.heap/1024)+' kB · BLE clients '+s.ble+' · baro '+(s.baro.ok?(s.baro.pressure/100).toFixed(1)+' hPa':'missing'));
     wifiInfo=s.wifi;showWifi();
+    // At the bottom of Settings, only while a change that needs a restart is waiting (the vario says so, so it survives a page reload).
+    $('#restartBar').hidden=!(s.restartNeeded||(s.wifi&&s.wifi.restart));
   }catch(e){}
 }
 
@@ -626,7 +630,7 @@ function render(){
 let wifiInfo=null;
 function showWifi(){
   const w=wifiInfo;if(!w||!document.getElementById('w-server'))return;
-  txt('w-ap',(w.apSsid?w.apSsid+' · ':'')+w.apIp+' · '+w.apClients+' connected');
+  txt('w-ap',w.apIp+' · '+w.apClients+' connected');
   const q=w.rssi>-60?'good':w.rssi>-70?'fair':'weak';
   let status=!cfg.maintWifi&&!w.maint?'Off':!w.serverSsid?'Off (not set)':w.server=='connected'?'Connected to '+w.serverSsid+' · signal '+q+' ('+w.rssi+' dBm)':
     w.server=='connecting'?'Connecting to '+w.serverSsid+'…':w.serverSsid+' – '+w.server;

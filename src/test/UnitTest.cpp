@@ -28,6 +28,8 @@ bool runUnitSuite(const String& name, String* json) {
     rpmTrackUnitSuite(r);
   } else if (name == "baro") {
     baroUnitSuite(r);
+  } else if (name == "height") {
+    heightUnitSuite(r);
   } else if (name == "flight") {
     flightUnitSuite(r);
   } else {

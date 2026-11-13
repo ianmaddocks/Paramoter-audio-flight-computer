@@ -99,6 +99,7 @@ A failure prints the vario's state, the simulator state and the last log lines.
 | `vario_climb`, `vario_sink` | tone pitch in the log, and heard by the microphone |
 | `vario_thresholds` | climb and sink tones off just under their thresholds, on just over them at the calculated pitch, and off again (log, and the microphone unless `--no-audio`); speeds are well either side of each threshold |
 | `factory_reset` | the button factory reset on the vario: no prompt in flight; five clicks give the instruction and nothing else happens with the next five; the sixth press held 2 s resets (not at 1.6 s) and restarts (the test build keeps its Wi-Fi settings so the harness can still reach it); letting go early cancels with the spoken message and changes nothing |
+| `height_logic`, `height_trace` | the height trace: no samples on the ground, kept (not cleared) after landing, one block of gap markers between flights (unit suite and a simulated flight, landing and second flight) |
 | `button_logic`, `status_logic`, `alerts_logic`, `resume_logic`, `audio_logic` | unit suites for the pilot interface: button decoding (click counts, 0.6 s gap, triple and five clicks decided after the gap, the factory-reset gesture (prompt, 2 s hold, every way of cancelling), hold cue at 0.8 s and hold at 1.5 s, abandoned hold, bounce); the spoken "update me" (order, clock position, units, what is left out); the battery messages (minutes, landing zone distance, advice to switch off, critical and lost leads) and the barometer failed / back calls; when a saved flight is resumed (age, reach, speed, missing time or position); the signal tone before urgent calls only |
 | `button_actions` | every gesture injected: click and hold cues, single = update me and never starts or cancels guidance, double = approach on/off, hold = emergency on/off, triple = mute, and the no-GPS mapping |
 | `alerts_flight` | "Barometer failed" / "Barometer back" spoken in flight; routine height calls silent while an approach guides |
@@ -136,7 +137,7 @@ A failure prints the vario's state, the simulator state and the last log lines.
 | `ui_settings` (firmware box) | the firmware update box is in Advanced settings / Firmware Update (not on Logs & system), shows the installed version, refuses without a file, password masked |
 | `ui_actions` | on the ground: Mute vario, Audio test and the Landing zone settings button (Use current position: refused without a fix, accepted with one); the page has no Set LZ manually / LZ = takeoff buttons |
 | `ui_guidance` | flying display, emergency/approach banners, log list and delete |
-| `ui_settings` | every setting shown; editing, units, greyed-out boxes, restart marks |
+| `ui_settings` | every setting shown; editing, units, greyed-out boxes, restart marks, the Restart button at the bottom of Settings (only while a restart is needed) |
 | `ui_spectrum` | spectrum graph, tone marker, pause (skipped on a build made with `-DPV_HAS_SPECTRUM=0`) |
 | `ui_help` | Help tab and the Help links on the settings groups: the right guide for the hardware, links that stay in the docs folder and point at sections that exist |
 | `ui_system` | tabs, logging viewer, firmware box, version line |

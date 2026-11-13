@@ -37,6 +37,7 @@
 #include "flight/Resume.h"
 #include "input/Button.h"
 #include "input/FactoryReset.h"
+#include "flight/HeightHistory.h"
 #include <string>
 
 namespace {
@@ -1377,6 +1378,56 @@ void buttonUnitSuite(UnitReport& r) {
   }
 }
 
+// ---------------------------------------------------------------------------------------------- height trace
+void heightUnitSuite(UnitReport& r) {
+  HeightHistory h;
+  int16_t out[HeightHistory::kSamples];
+  uint32_t t = 10000;
+  auto fly = [&](int samples, float agl, bool flying = true) {
+    for (int i = 0; i < samples * 20; ++i) {  // flight logic ticks every 100 ms
+      t += 100;
+      h.update(t, agl, flying);
+    }
+  };
+  fly(30, 0.0f, false);
+  r.check(h.copy(out) == 0, "samples recorded on the ground before any flight");
+  fly(10, 50.0f);
+  int n = h.copy(out);
+  r.check(n >= 9 && n <= 11, "10 samples of flight gave %d", n);
+  r.check(out[0] == 200 && out[n - 1] == 200, "heights in quarter metres: %d, %d (expected 200 for 50 m)", out[0], out[n - 1]);
+  fly(40, 0.0f, false);  // landed: nothing more, and nothing cleared
+  r.check(h.copy(out) == n, "trace changed on the ground after landing: %d -> %d", n, h.copy(out));
+  fly(5, 80.0f);  // the next flight: a gap, then heights
+  int m = h.copy(out);
+  int gaps = 0, firstGap = -1;
+  for (int i = 0; i < m; ++i)
+    if (out[i] == HeightHistory::kGap) {
+      if (firstGap < 0) firstGap = i;
+      ++gaps;
+    }
+  r.check(gaps == HeightHistory::kGapSamples, "gap markers between flights: %d, expected %d", gaps, (int)HeightHistory::kGapSamples);
+  r.check(firstGap == n, "gap starts at %d, expected right after the first flight (%d)", firstGap, n);
+  r.check(out[m - 1] == 320 && m >= n + gaps + 4, "second flight after the gap: last %d, count %d", out[m - 1], m);
+  // any landing followed by a takeoff makes a new flight with its gap, however short; two takeoffs with nothing recorded
+  // between them make only one gap
+  HeightHistory g;
+  g.update(1000, 10.0f, true);
+  g.update(1100, 10.0f, false);
+  g.update(1200, 10.0f, true);
+  r.check(g.copy(out) == 1 + HeightHistory::kGapSamples + 1, "an interrupted flight gave %d samples, expected %d", g.copy(out),
+          1 + (int)HeightHistory::kGapSamples + 1);
+  HeightHistory e;
+  e.update(1000, 10.0f, false);
+  e.update(1100, 10.0f, true);
+  e.update(1150, 10.0f, false);
+  e.update(1200, 10.0f, true);
+  r.check(e.copy(out) == 1 + HeightHistory::kGapSamples + 1, "no gap expected before the first flight, one after: %d", e.copy(out));
+  // the ring keeps the newest 300 and never clears on its own
+  HeightHistory k;
+  for (int i = 0; i < 400; ++i) k.update(2000u * (uint32_t)(i + 1), 10.0f + (i % 5), true);
+  r.check(k.copy(out) == HeightHistory::kSamples, "ring holds %d samples, expected %d", k.copy(out), HeightHistory::kSamples);
+}
+
 // ---------------------------------------------------------------------------------------------- status ("tell me")
 void statusUnitSuite(UnitReport& r) {
   CfgGuard guard;
@@ -1476,6 +1527,39 @@ void alertsUnitSuite(UnitReport& r) {
   auto run = [&](const NavState& nav, float volts, int minutes, uint32_t seconds) {
     for (uint32_t s = 0; s < seconds; ++s) alerts::update(t += 1000, nav, volts, minutes);
   };
+  {  // "GPS fix": said once, only after the fix has met the ready limits for 10 s without a break
+    CfgGuard g;
+    g_cfg.gpsFixHoldS = 10;
+    NavState g0, good;
+    good.fix = good.gpsGood = true;
+    g0.fix = true;  // a fix, but a weak one
+    alerts::reset();
+    audio::testCapture(true);
+    run(good, 3.9f, -1, 9);
+    r.check(audio::testSaid() == 0, "GPS fix said after 9 s of good fix (%d calls)", audio::testSaid());
+    run(good, 3.9f, -1, 2);
+    r.check(audio::testSaid() == 1 && has(0, "gps_fix"), "GPS fix not said once after 10 s (%d calls)", audio::testSaid());
+    run(good, 3.9f, -1, 30);
+    run(g0, 3.9f, -1, 5);
+    run(good, 3.9f, -1, 40);
+    r.check(audio::testSaid() == 1, "GPS fix said again later: %d calls", audio::testSaid());
+    // satellites flickering around the limit: every dip starts the 10 s again, so nothing is said until it has settled
+    alerts::reset();
+    audio::testCapture(true);
+    for (int i = 0; i < 12; ++i) {  // 6 s good, 3 s weak, repeated
+      run(good, 3.9f, -1, 6);
+      run(g0, 3.9f, -1, 3);
+    }
+    r.check(audio::testSaid() == 0, "GPS fix said while the fix kept dipping (%d calls)", audio::testSaid());
+    run(good, 3.9f, -1, 12);
+    r.check(audio::testSaid() == 1, "GPS fix not said once the fix had settled (%d calls)", audio::testSaid());
+    // a hold of 0 announces at once
+    alerts::reset();
+    audio::testCapture(true);
+    g_cfg.gpsFixHoldS = 0;
+    run(good, 3.9f, -1, 2);
+    r.check(audio::testSaid() == 1, "hold 0: %d calls, expected 1 at once", audio::testSaid());
+  }
   auto fresh = [&](const NavState& n0) {  // reset; the first fix is announced once: let that pass, count from zero
     alerts::reset();
     alerts::update(t += 1000, n0, 3.9f, -1);

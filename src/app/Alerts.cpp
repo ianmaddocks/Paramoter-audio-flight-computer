@@ -19,7 +19,9 @@ constexpr float kBattPresentV = 2.5f;  // a reading under this is no battery mea
 constexpr uint32_t kBattUrgentHoldMs = 5000;   // critical, or the reading lost in flight: this long before the call
 constexpr uint32_t kBattUrgentRepeatMs = 60 * 1000;
 
-bool hadFix = false;
+bool hadFix = false;       // the GPS has had a fix at some time since power-up (a fix lost in flight is called)
+bool fixAnnounced = false;  // "GPS fix" has been said (once per power-up)
+uint32_t fixGoodSinceMs = 0;  // the fix has met the ready limits without a break since
 uint32_t fixLostMs = 0;
 bool fixLostCalled = false;
 uint32_t battLowSinceMs = 0;
@@ -33,8 +35,19 @@ uint32_t battUrgentSinceMs = 0;
 uint32_t lastBattUrgentMs = 0;
 
 void checkGps(uint32_t now, const NavState& nav) {
+  // "GPS fix" is said once, when the fix meets the ready limits (satellites, accuracy, steady) and has kept meeting them for
+  // gpsFixHoldS seconds. A fix whose satellite count flickers around the limit starts the count again each time it dips, so
+  // it is not announced until it has really settled.
+  if (nav.gpsGood) {
+    if (!fixGoodSinceMs) fixGoodSinceMs = now ? now : 1;
+    if (!fixAnnounced && now - fixGoodSinceMs >= (uint32_t)(g_cfg.gpsFixHoldS > 0 ? g_cfg.gpsFixHoldS : 0) * 1000u) {
+      fixAnnounced = true;
+      speech::say(Priority::Normal, "gps_fix");
+    }
+  } else {
+    fixGoodSinceMs = 0;
+  }
   if (nav.fix) {
-    if (!hadFix) speech::say(Priority::Normal, "gps_fix");
     hadFix = true;
     fixLostMs = 0;
     fixLostCalled = false;
@@ -141,6 +154,8 @@ void update(uint32_t nowMs, const NavState& nav, float batteryVolts, int battery
 
 void reset() {
   hadFix = false;
+  fixAnnounced = false;
+  fixGoodSinceMs = 0;
   fixLostMs = 0;
   fixLostCalled = false;
   battLowSinceMs = 0;

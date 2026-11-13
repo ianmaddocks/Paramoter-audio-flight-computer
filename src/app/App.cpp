@@ -244,7 +244,7 @@ void flightTick(uint32_t now) {
   }
   app.announcer.update(app.nav, app.approach.active() || app.emergency.active());
   app.glide.update(now, app.nav);
-  app.heightHistory.update(now, app.nav.aglM);
+  app.heightHistory.update(now, app.nav.aglM, app.nav.flying);
   alerts::update(now, app.nav, app.battery.volts(), app.battery.minutesLeftOrUnknown());
   if (app.nav.flying && now - lastSaveMs >= kSaveIntervalMs) saveFlightState();
   trace::update(now);

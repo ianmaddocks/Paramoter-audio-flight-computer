@@ -101,13 +101,17 @@ struct Settings {
   bool gpsLed = false;
   int32_t readyMinSats = 6;
   float readyMaxHdop = 2.0f;
+  int32_t gpsFixHoldS = 10;  // "GPS fix" is announced once the fix has met the ready limits this long without a break
 
-  char bleName[24] = "ParaVario";
+  // The Bluetooth and Wi-Fi names are plain settings, used exactly as stored. Their default is "ParaVario-" and the last two
+  // bytes of this unit's MAC address ("ParaVario-A1B2"): it is written into the stored value at the first start and by a
+  // factory reset (and in place of an emptied box), so what the page shows is what the phone sees.
+  char bleName[24] = "";
   int32_t bleRateHz = 5;
   bool bleGps = true;
   int32_t bleGpsRateHz = 1;
 
-  char wifiSsid[33] = "ParaVario";
+  char wifiSsid[33] = "";
   char wifiPass[65] = "";
   // The maintenance connection (the vario also joining a workshop or home Wi-Fi so a computer can reach it and update the
   // firmware) is for the maker and testers, not pilots: off unless switched on, and its settings are hidden until then.
@@ -144,9 +148,7 @@ void toJson(JsonObject obj);
 void toJsonString(String& out);
 // Applies known keys, clamped to their limits. Returns true if a changed key needs a restart.
 bool fromJson(JsonObjectConst obj);
-// Names this unit advertises. A name left at the default "ParaVario" gets "-" and the last two
-// bytes of the unit's MAC address added (for example "ParaVario-A1B2"), so several units near
-// each other are told apart. A name the pilot has changed is used exactly as typed.
+// Names this unit advertises: the stored settings, exactly (the default value, made when there is none, has the unit code).
 const char* bleName();
 const char* apSsid();
 // The settings table for the web page, one entry at a time so it can be sent in small pieces.
