@@ -1,0 +1,15 @@
+ParaVario 20261112-193541 (3130155-dirty) at paravario.local, 10 tests
+  PASS  circuit_right    266.4 s  crosswind turn at x=225 (expected 225); downwind turn at y=371 (expected 371); base turn at x=-232 for 168 m (expected -230; final 273 m); final turn at y=87, 84 m up; touchdown 1 m from the field; no steering call during any called turn
+  PASS  fault_baro       245.6 s  dead: detected, banner, silent, recovered; range: detected, banner, silent, recovered; NaN pressure: detected, silent, recovered; frozen value: detected after 5 s, banner, silent, recovered; one 30 m wild sample: held back, no tone, vario unmoved; -30 m and +12 m single samples: held back too; two wild samples in a row: accepted as a step, no tone; a 25 m step that stays: accepted as a step, no tone; intermittent: 1.2 s dropouts ignored, 3 s dropouts detected and recovered x3; 0.4 m noise: vario reads within +-0.09 m/s
+  PASS  ui_flight         36.7 s  banner, 11 tiles, height graph and layout correct; speed, vario, battery and GPS changes followed
+  PASS  ui_pilot          56.5 s  ground: setup card shown, no alerts, GPS tile says strong; flight: the ground card is gone, the in-flight card holds Landing support, Emergency support, Update me and Mute; Update me speaks; alert strip: low and critical battery, barometer, no GPS; each clears; battery tile '~3 h 54 min'; noise tile only on request; Quick settings first, same settings as their groups, saved; Reset flight state button ends the flight and brings the ground Actions card back
+  PASS  ui_actions        26.9 s  mute, test voice, Set LZ here (refused and accepted), LZ = takeoff
+  PASS  ui_guidance       65.1 s  flying tiles, emergency and approach banners, 210101-121127.igc listed and deleted from the page
+  PASS  ui_settings       21.9 s  16 groups, 94 settings; number, feet, list, checkbox gate, unit switch, text
+  PASS  ui_spectrum       20.3 s  4.7 updates/s, tone mark and peak at 290 Hz, pause and floor ok
+  PASS  ui_system         20.5 s  5 tabs switch, debug log live/pause/clear, firmware box guarded, version and system line
+  PASS  ui_help           19.6 s  13 links on the Help tab, 18 settings groups linked, guides rendered in the page; the guide for a vario without a GPS is offered then
+Cleanup: close the browser, simulation off, flight logic reset, settings restored, 2 leftover test log(s) deleted, leftover test logs.
+
+10 passed, 0 failed
+exit 0

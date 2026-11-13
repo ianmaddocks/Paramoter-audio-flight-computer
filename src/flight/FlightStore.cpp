@@ -3,7 +3,7 @@
 #include <Preferences.h>
 
 namespace {
-constexpr uint32_t kVersion = 1;
+constexpr uint32_t kVersion = 2;  // 2: adds the position at the time of the save
 const char* kNs = "flight";
 const char* kKey = "rec";
 }  // namespace

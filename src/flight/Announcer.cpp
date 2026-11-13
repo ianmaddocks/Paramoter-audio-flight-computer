@@ -76,9 +76,11 @@ void Announcer::update(const NavState& nav, bool guidanceActive) {
 
   if (g_cfg.heightIntervalS > 0 && nav.ms - lastHeightMs_ >= (uint32_t)g_cfg.heightIntervalS * 1000) {
     lastHeightMs_ = nav.ms;
-    audio::Utterance u(audio::Priority::Low);
-    speech::addHeight(u, h);
-    audio::say(u);
+    if (!guidanceActive) {  // the guidance is talking: routine height calls wait (boundary crossings still speak)
+      audio::Utterance u(audio::Priority::Low);
+      speech::addHeight(u, h);
+      audio::say(u);
+    }
   }
 
   if (g_cfg.flightTimeIntervalMin > 0 && nav.flightTimeS >= nextFlightTimeS_) {

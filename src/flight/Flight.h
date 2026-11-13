@@ -20,6 +20,15 @@ class Flight {
   static bool looksStill(bool speedOk, float speedMs, float landingSpeedMs, bool baroOk, float varioMs, float aglM,
                          float maxAglM);
 
+  // How long (ms) the aircraft must have looked still before it counts as landed; 0 when it does not look still now.
+  //   * trusted GPS ground speed under landingSpeedMs: landingTimeMs when near the ground (under nearGroundM above the
+  //     landing zone), highMult times that when higher. A paramotor holding station in a strong headwind has a ground
+  //     speed near zero and is level too, so higher up it has to stay still for much longer than a pilot on the ground
+  //     (F10). With highMult 1 it is the old rule.
+  //   * no trusted speed: looksStill() above, for twice landingTimeMs.
+  static uint32_t landingHoldMs(bool speedOk, float speedMs, float landingSpeedMs, bool baroOk, float varioMs, float aglM,
+                                float nearGroundM, uint32_t landingTimeMs, int highMult);
+
   bool takeoffCourseValid() const { return takeoffCourseValid_; }
   float takeoffCourseDeg() const { return takeoffCourseDeg_; }
 

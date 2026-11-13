@@ -49,4 +49,9 @@ void batteryUnitSuite(UnitReport& r);
 void flightUnitSuite(UnitReport& r);
 void baroUnitSuite(UnitReport& r);
 void rpmTrackUnitSuite(UnitReport& r);
+void buttonUnitSuite(UnitReport& r);
+void statusUnitSuite(UnitReport& r);
+void alertsUnitSuite(UnitReport& r);
+void resumeUnitSuite(UnitReport& r);
+void audioUnitSuite(UnitReport& r);
 #endif

@@ -1,0 +1,36 @@
+ParaVario 20261113-001355 (3130155-dirty) at paravario.local, 5 tests
+  FAIL  resume_flight     58.8 s  no log line APP: /Resuming the flight: saved (\d+) s ago/ within 20 s (the flight resumed)
+        APP lines seen: [    6.880] I APP: Takeoff, course 0
+        [    6.880] I APP: Saved flight not resumed: a new takeoff was detected
+        state: uptime 27 s, flying True, agl 51 m, vario -0.01, baro ok True, fix True, wind none 0/0.0, heap 33032 (lowest 14704)
+        sim: {"baro": 0, "alt": 0.0, "vz": 0.0, "gps": "real", "lat": 51.5, "lon": 0.5, "speed": 0.0, "track": 0.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [   25.079] D NAV: baro=1 p=101326 t=20.0 std=-0.0 msl=150.0 agl=50.6 vs=-0.00 fly=1 ft=18
+          [   25.079] D NAV: lz=0 0.000000,0.000000 elev=99.4 wind=none 0/0.0 mode=none/off mute=0 batt=3.89V heap=40872
+          [   25.184] D VOL: noise -60.2 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [   26.126] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.507382 gs=12.0 trk=90 gpsAlt=150.0
+          [   26.126] D NAV: baro=1 p=101325 t=20.0 std=-0.0 msl=150.0 agl=50.6 vs=-0.01 fly=1 ft=19
+          [   26.127] D NAV: lz=0 0.000000,0.000000 elev=99.4 wind=none 0/0.0 mode=none/off mute=0 batt=3.89V heap=31924
+          [   26.780] I WEB: settings saved
+          [   26.984] I SIM: gpsBoot=real
+          [   26.991] D MIC: noise=-61.2 (blk -61.8) dBFS rpm=0 raw=2280 conf=1.4 fs=1930 tone=0 clear=1 ovf=2496
+          [   27.085] I SIM: off=1
+          [   27.152] D FLT: landing candidate: gs 0.0 m/s, agl -0.1 m
+          [   27.152] D ANN: descended through boundary 15.2 m (agl -0.1 m, band 0)
+          [   27.152] D SAY: [normal] n50 feet
+          [   27.153] D RDY: Waiting for satellites
+          [   27.153] D BAT: v=3.891 pct=64 min=229 learned=0
+          [   27.153] D NAV: fix=0 good=0 sat=0 hdop=100.0 51.500000,0.507562 gs=0.0 trk=90 gpsAlt=150.0
+          [   27.153] D NAV: baro=1 p=101935 t=59.2 std=-50.6 msl=99.3 agl=-0.1 vs=-0.03 fly=1 ft=20
+          [   27.154] D NAV: lz=0 0.000000,0.000000 elev=99.4 wind=none 0/0.0 mode=none/off mute=0 batt=3.89V heap=32704
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  memory_events    271.0 s  free 46428 -> [41040, 46512, 41356] B over three rounds, lowest 13352 B, largest block 19444 B, stacks free {'loopTask': 1576, 'audio': 2264, 'mic': 2000}
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  ui_layout         85.6 s  no text cut off, nothing overlapping or off screen in: ground view, flying, 120 km/h, mph and miles, knots and metres, three alerts, 320 px wide, settings and logs tabs (screenshots in results\ui)
+  PASS  ota_guard          6.0 s  refused with a wrong and a missing password; vario kept running
+  PASS  memory            10.7 s  free 45 kB (was 46 kB at the start), lowest since power-on 13 kB, largest block 24 kB
+Cleanup: close the browser, simulation off, flight logic reset, settings restored, 1 leftover test log(s) deleted, leftover test logs.
+
+NOTE: 2 test(s) ran while a phone, browser or BLE client was connected: resume_flight, memory_events
+
+4 passed, 1 failed, 170 log lines missed

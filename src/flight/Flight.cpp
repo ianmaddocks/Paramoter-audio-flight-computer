@@ -24,6 +24,14 @@ bool Flight::looksStill(bool speedOk, float speedMs, float landingSpeedMs, bool 
   return baroOk && fabsf(varioMs) < 0.3f && aglM < maxAglM;
 }
 
+uint32_t Flight::landingHoldMs(bool speedOk, float speedMs, float landingSpeedMs, bool baroOk, float varioMs, float aglM,
+                               float nearGroundM, uint32_t landingTimeMs, int highMult) {
+  if (!looksStill(speedOk, speedMs, landingSpeedMs, baroOk, varioMs, aglM, nearGroundM)) return 0;
+  if (!speedOk) return landingTimeMs * 2;
+  if (highMult < 1) highMult = 1;
+  return aglM < nearGroundM ? landingTimeMs : landingTimeMs * (uint32_t)highMult;
+}
+
 FlightEvent Flight::update(uint32_t now, const Baro& baro, const GpsData& gps, NavState& n) {
   FlightEvent ev = FlightEvent::None;
   float dt = lastMs_ ? (now - lastMs_) / 1000.0f : 0.1f;
@@ -151,9 +159,9 @@ FlightEvent Flight::update(uint32_t now, const Baro& baro, const GpsData& gps, N
   n.aglM = (g_cfg.lzMode == LZ_MANUAL || groundValid_) ? alt - n.lzElevM : 0.0f;
 
   if (flying_ && ev == FlightEvent::None) {
-    bool slow = looksStill(n.speedOk, n.speedMs, g_cfg.landingSpeedMs, n.baroOk, n.varioMs, n.aglM,
-                           g_cfg.landingNoSpeedAglM);
-    uint32_t needMs = (uint32_t)g_cfg.landingTimeS * 1000 * (n.speedOk ? 1 : 2);
+    const uint32_t needMs = landingHoldMs(n.speedOk, n.speedMs, g_cfg.landingSpeedMs, n.baroOk, n.varioMs, n.aglM,
+                                          g_cfg.landingNoSpeedAglM, (uint32_t)g_cfg.landingTimeS * 1000, g_cfg.landingHighMult);
+    const bool slow = needMs != 0;
     if (slow) {
       if (!stillSinceMs_) {
         stillSinceMs_ = now;

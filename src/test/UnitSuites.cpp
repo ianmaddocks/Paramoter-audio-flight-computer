@@ -5,6 +5,11 @@
 //   circuit  - the landing circuit state machine driven by scripted positions (leg order, turn points,
 //              no early or skipped legs, overshoot, wrong way)
 //   baro     - the barometer plausibility checks (impossible pressure, lone outliers, steps, frozen value)
+//   button   - the button decoding (click counts, hold, abandoned hold, bounce)
+//   audio    - what is queued for an utterance (the signal before urgent calls)
+//   resume   - when a flight saved in the air is believed again at power-up
+//   alerts   - what the battery and barometer warnings say
+//   status   - the spoken "tell me" status
 //   rpmtrack - the RPM reading logic: jump confirmation, hold through speech and dropouts
 //   flight   - the landing decision (what counts as standing still on the ground)
 //   battery  - ADC millivolts to volts, smoothing, the percentage curve, the low-battery call
@@ -28,6 +33,10 @@
 #include "sensors/BaroGuard.h"
 #include "sensors/GpsData.h"
 #include "sensors/RpmTrack.h"
+#include "app/Status.h"
+#include "flight/Resume.h"
+#include "input/Button.h"
+#include <string>
 
 namespace {
 
@@ -566,6 +575,100 @@ void circuitUnitSuite(UnitReport& r) {
     }
     audio::testCapture(false);
   }
+
+  // ---- the pilot's turn rate, learned from the first two turns, and the later turns called to suit (right-hand circuit,
+  // no wind, final 250 m, height 150 m on downwind: the base turn corner is at x = -350). A pilot who takes `react` seconds
+  // to start and then turns at `rate` deg/s should be called early by react + 57.3 / rate seconds (a 90 degree turn at rate w
+  // ends 57.3 / w seconds' worth of flight past where it began): written out here, not taken from the code under test.
+  {
+    g_cfg.windManual = true;
+    g_cfg.windSpeedMs = 0;
+    g_cfg.windFromDeg = 0;
+    g_cfg.circuitSide = CS_RIGHT;
+    g_cfg.turnLeadS = 3.0f;
+    const float corner = -350.0f;
+    // a scripted turn, one sample a second from the call: hold, then turn at rate to the new leg, then hold 3 s
+    auto scriptTurn = [&](CircuitRig& c, float fromRel, float toRel, float react, float rate, float x, float y) {
+      const float span = fabsf(toRel - fromRel);
+      const int n = (int)(react + span / rate + 3.0f);
+      for (int k = 1; k <= n; ++k) {
+        float done = k <= react ? 0.0f : fminf(rate * (k - react), span);
+        c.step(x, y, fromRel + (toRel > fromRel ? done : -done), 150);
+      }
+    };
+    // flies a circuit to the base turn with the given first two turns; returns the x where the base turn was called
+    auto circuitTo = [&](CircuitRig& c, float react1, float rate1, float react2, float rate2, bool wrongWayFirst) {
+      c.ap.start(c.nav(xStart - 50, 0, 0, 150), c.wind);
+      c.step(xStart, 0, 0, 150);
+      float x = xStart;
+      for (; x < xCross + 20 && c.ap.phase() != ApPhase::Crosswind; x += 10) c.step(x, 0, 0, 150);
+      if (wrongWayFirst) {  // turns away from the leg first (left), then comes back right: not a sample
+        for (int k = 1; k <= 4; ++k) c.step(x, 0, -20.0f * k, 150);
+        for (int k = 1; k <= 4; ++k) c.step(x, 0, -80.0f + 40.0f * k, 150);
+      } else {
+        scriptTurn(c, 0.0f, 90.0f, react1, rate1, x, 0);
+      }
+      float y = 0;
+      for (; y < 420 && c.ap.phase() != ApPhase::Downwind; y += 10) c.step(xCross, y, 90, 150);
+      scriptTurn(c, 90.0f, 180.0f, react2, rate2, xCross, y);
+      float bx = xCross;
+      for (; bx > -800 && c.ap.phase() != ApPhase::Base; bx -= 10) c.step(bx, 400, 180, 150);
+      return bx + 10;  // the x of the step that made the call
+    };
+    { // 2 s reaction, 10 deg/s: lead 2 + 5.73 = 7.73 s; at 10 m/s the base turn comes 77 m before the corner
+      CircuitRig c(0);
+      float bx = circuitTo(c, 2, 10, 2, 10, false);
+      r.check(c.ap.turnsLearned() == 2, "10 deg/s pilot: %d turns learned, expected 2", c.ap.turnsLearned());
+      r.near(c.ap.leadSeconds(), 7.73f, 0.4f, "lead after two turns at 10 deg/s, 2 s reaction");
+      r.near(bx, corner + 77.3f, 10.5f, "base turn point for a slow pilot (10 deg/s)");
+    }
+    { // 3 s reaction, 4.5 deg/s (20 s for a quarter circle): lead 3 + 12.7 = 15.7 s
+      CircuitRig c(0);
+      float bx = circuitTo(c, 3, 4.5f, 3, 4.5f, false);
+      r.near(c.ap.leadSeconds(), 15.7f, 1.0f, "lead after two 20 s turns");
+      r.near(bx, corner + 157.0f, 12.0f, "base turn point for a 20 s turner");
+    }
+    { // a quick pilot, 20 deg/s with 1 s reaction: about 1 + 2.9 s
+      CircuitRig c(0);
+      circuitTo(c, 1, 20, 1, 20, false);
+      r.check(c.ap.turnsLearned() == 2, "20 deg/s pilot: %d turns learned", c.ap.turnsLearned());
+      r.near(c.ap.leadSeconds(), 4.2f, 1.0f, "lead after two quick turns");
+    }
+    { // the lead is learned, not guessed: the first two turns still use the setting
+      CircuitRig c(0);
+      c.ap.start(c.nav(xStart - 50, 0, 0, 150), c.wind);
+      r.near(c.ap.leadSeconds(), 3.0f, 0.001f, "lead before any turn");
+      r.check(c.ap.turnsLearned() == 0, "turns learned before any turn: %d", c.ap.turnsLearned());
+    }
+    { // a turn that cannot be trusted is not a sample: the wrong way first, then one good turn: only one sample, so the setting stays
+      CircuitRig c(0);
+      float bx = circuitTo(c, 2, 10, 2, 10, true);
+      r.check(c.ap.turnsLearned() == 1, "wrong way first: %d turns learned, expected 1", c.ap.turnsLearned());
+      r.near(c.ap.leadSeconds(), 3.0f, 0.001f, "one sample is not enough: lead stays at the setting");
+      r.near(bx, corner + 30.0f, 10.5f, "base turn point with the setting's lead after a bad first turn");
+    }
+    { // switched off: the setting is used however the pilot turns
+      g_cfg.turnLearn = false;
+      CircuitRig c(0);
+      float bx = circuitTo(c, 3, 4.5f, 3, 4.5f, false);
+      r.check(c.ap.turnsLearned() == 0, "learning switched off: %d turns learned", c.ap.turnsLearned());
+      r.near(bx, corner + 30.0f, 10.5f, "base turn point with learning off");
+      g_cfg.turnLearn = true;
+    }
+    { // the track jumping to the new leg at once (a GPS that only reports the course now and then) is not a measurement
+      CircuitRig c(0);
+      float bx = circuitTo(c, 0, 1000, 0, 1000, false);
+      r.check(c.ap.turnsLearned() == 0, "track jumps: %d turns learned, expected none", c.ap.turnsLearned());
+      r.near(bx, corner + 30.0f, 10.5f, "base turn point when nothing could be measured");
+    }
+    { // a new approach starts again from the setting
+      CircuitRig c(0);
+      circuitTo(c, 2, 10, 2, 10, false);
+      c.ap.cancel(false);
+      c.ap.start(c.nav(xStart - 50, 0, 0, 150), c.wind);
+      r.check(c.ap.turnsLearned() == 0 && c.ap.leadSeconds() == 3.0f, "a new approach kept what the last one learned");
+    }
+  }
   audio::testCapture(false);
 }
 
@@ -656,6 +759,7 @@ void batteryUnitSuite(UnitReport& r) {
     g_cfg.battCriticalV = 3.3f;
     NavState fly, ground;
     fly.flying = true;
+    fly.baroOk = true;  // (a failed barometer in flight is announced too)
     uint32_t tt = 5000000;
     auto runf = [&](float volts, uint32_t seconds, const NavState& nv) {
       for (uint32_t s = 0; s < seconds; ++s) alerts::update(tt += 1000, nv, volts);
@@ -667,7 +771,7 @@ void batteryUnitSuite(UnitReport& r) {
     runf(3.20f, 5, ground);
     r.check(audio::testSaid() == b, "critical battery called before the 5 s hold");
     runf(3.20f, 1, ground);
-    r.check(audio::testSaid() == b + 1 && said(b, 0, "[urgent] battery_low"), "critical battery: %d calls, first '%s'", audio::testSaid() - b, audio::testSaidText(b));
+    r.check(audio::testSaid() == b + 1 && said(b, 0, "[urgent] battery_critical|battery_low"), "critical battery: %d calls, first '%s'", audio::testSaid() - b, audio::testSaidText(b));
     runf(3.20f, 58, ground);
     r.check(audio::testSaid() == b + 1, "critical battery repeated within a minute (%d)", audio::testSaid() - b);
     runf(3.20f, 2, ground);
@@ -710,7 +814,7 @@ void batteryUnitSuite(UnitReport& r) {
     runf(0.0f, 5, fly);
     r.check(audio::testSaid() == b, "reading lost in flight called before the 5 s hold");
     runf(0.0f, 1, fly);
-    r.check(audio::testSaid() == b + 1 && said(b, 0, "[urgent] battery_low"), "reading lost in flight: %d calls, '%s'", audio::testSaid() - b, audio::testSaidText(b));
+    r.check(audio::testSaid() == b + 1 && said(b, 0, "[urgent] battery_lost|battery_low"), "reading lost in flight: %d calls, '%s'", audio::testSaid() - b, audio::testSaidText(b));
     runf(0.0f, 60, fly);
     r.check(audio::testSaid() == b + 2, "reading lost in flight not repeated after a minute (%d)", audio::testSaid() - b);
     runf(3.9f, 20, fly);  // back: quiet, and the clocks start again
@@ -753,6 +857,29 @@ void flightUnitSuite(UnitReport& r) {
   // the limit follows the setting
   r.check(Flight::looksStill(false, 0, kLand, true, 0, 40.0f, 50.0f), "limit 50 m: 40 m not still");
   r.check(!Flight::looksStill(false, 0, kLand, true, 0, 60.0f, 50.0f), "limit 50 m: 60 m is still");
+
+  // F10: how long it must look still. Near the ground the landing time; higher up with a trusted speed, highMult times it
+  // (a paramotor hanging in a headwind is level and almost stopped); no trusted speed, twice the landing time near the
+  // ground only. Expected values written out from the rules.
+  const uint32_t T = 30000;
+  auto hold = [&](bool speedOk, float gs, bool baroOk, float vz, float agl, int mult = 5) {
+    return Flight::landingHoldMs(speedOk, gs, kLand, baroOk, vz, agl, kMaxAgl, T, mult);
+  };
+  r.check(hold(true, 0.5f, true, 0, 3) == T, "trusted speed near the ground: %lu ms, expected 30000", (unsigned long)hold(true, 0.5f, true, 0, 3));
+  r.check(hold(true, 0.5f, true, 0, 14.9f) == T, "just under the near-ground height: %lu", (unsigned long)hold(true, 0.5f, true, 0, 14.9f));
+  r.check(hold(true, 0.5f, true, 0, 15.0f) == 5 * T, "at the near-ground height counts as higher: %lu", (unsigned long)hold(true, 0.5f, true, 0, 15.0f));
+  r.check(hold(true, 0.5f, true, 0, 60) == 5 * T, "trusted speed at 60 m: %lu, expected 150000", (unsigned long)hold(true, 0.5f, true, 0, 60));
+  r.check(hold(true, 0.5f, true, 0, -40) == T, "landed lower than the reference: %lu", (unsigned long)hold(true, 0.5f, true, 0, -40));
+  r.check(hold(true, 3.0f, true, 0, 0) == 0, "moving at 3 m/s on the ground is still");
+  r.check(hold(true, 1.4f, true, 0, 0) == 0, "speed equal to the landing speed counts as moving");
+  r.check(hold(true, 0.5f, true, 0, 60, 1) == T, "multiplier 1 is the old rule at height: %lu", (unsigned long)hold(true, 0.5f, true, 0, 60, 1));
+  r.check(hold(true, 0.5f, true, 0, 60, 0) == T, "multiplier 0 is taken as 1: %lu", (unsigned long)hold(true, 0.5f, true, 0, 60, 0));
+  r.check(hold(true, 0.5f, true, 0, 60, 20) == 20 * T, "multiplier 20: %lu", (unsigned long)hold(true, 0.5f, true, 0, 60, 20));
+  r.check(hold(true, 0.5f, false, 0, 60) == 5 * T, "the trusted speed rule does not need the barometer: %lu", (unsigned long)hold(true, 0.5f, false, 0, 60));
+  r.check(hold(false, 0, true, 0.0f, 3) == 2 * T, "no trusted speed, near the ground, steady: %lu, expected 60000", (unsigned long)hold(false, 0, true, 0.0f, 3));
+  r.check(hold(false, 0, true, 0.0f, 60) == 0, "no trusted speed at 60 m is never still");
+  r.check(hold(false, 0, false, 0.0f, 3) == 0, "no speed and no barometer is never still");
+  r.check(hold(false, 0, true, 0.5f, 3) == 0, "no trusted speed and a 0.5 m/s climb is not still");
 
   // GPS coordinates that cannot be a position are no fix (F5)
   r.check(gpsCoordsValid(51.5, 0.5), "51.5, 0.5 rejected");
@@ -1012,6 +1139,447 @@ void rpmTrackUnitSuite(UnitReport& r) {
     r.near(g.t.rpm(), 2000, 0.5f, "reading after 14 s of speech");
     for (int i = 0; i < 12; ++i) g.feed(0, 0, false);  // to 17 s
     r.near(g.t.rpm(), 0, 0.01f, "reading after 17 s of 'speech'");
+  }
+}
+
+// ---------------------------------------------------------------------------------------------- button
+namespace {
+
+// Scripted presses fed to the decoder every 5 ms; records every event with the time it came.
+struct ButtonScript {
+  ButtonDecoder d;
+  uint32_t t = 1000;
+  struct Ev {
+    ButtonEvent e;
+    uint32_t at;
+  };
+  Ev ev[16];
+  int n = 0;
+  void run(bool pressed, uint32_t ms) {
+    for (uint32_t i = 0; i < ms; i += 5) {
+      t += 5;
+      ButtonEvent e = d.feed(pressed, t);
+      if (e != ButtonEvent::None && n < 16) ev[n++] = {e, t};
+    }
+  }
+  void click(uint32_t on = 100) { run(true, on); }
+  void idle(uint32_t ms) { run(false, ms); }
+  // the events as letters: P press, C hold cue, 1 single, 2 double, 3 triple, H hold
+  void letters(char* out) const {
+    static const char k[] = ".PC123H";
+    for (int i = 0; i < n; ++i) out[i] = k[(int)ev[i].e];
+    out[n] = 0;
+  }
+};
+
+}  // namespace
+
+void buttonUnitSuite(UnitReport& r) {
+  char s[24];
+  const uint32_t kGap = ButtonDecoder::kGapMs;
+  {  // one click: the press, then Single once the gap has passed with no second press
+    ButtonScript b;
+    b.click();
+    b.idle(kGap + 200);
+    b.letters(s);
+    r.check(strcmp(s, "P1") == 0, "one click gave '%s', expected 'P1'", s);
+    const uint32_t release = 1000 + 100 + ButtonDecoder::kDebounceMs;  // about when the release was registered
+    r.check(b.ev[1].at >= release + kGap - 10 && b.ev[1].at <= release + kGap + 40,
+            "Single came at +%lu ms after the click, expected about %lu", (unsigned long)(b.ev[1].at - 1100),
+            (unsigned long)kGap);
+  }
+  {  // two clicks
+    ButtonScript b;
+    b.click();
+    b.idle(150);
+    b.click();
+    b.idle(kGap + 200);
+    b.letters(s);
+    r.check(strcmp(s, "PP2") == 0, "two clicks gave '%s', expected 'PP2'", s);
+  }
+  {  // three clicks: Triple at once on the third release, no waiting
+    ButtonScript b;
+    b.click();
+    b.idle(150);
+    b.click();
+    b.idle(150);
+    b.click();
+    b.idle(40);
+    b.letters(s);
+    r.check(strcmp(s, "PPP3") == 0, "three clicks gave '%s', expected 'PPP3' (Triple on the third release)", s);
+    b.idle(kGap + 300);
+    b.letters(s);
+    r.check(strcmp(s, "PPP3") == 0, "after a Triple more events came: '%s'", s);
+  }
+  {  // clicks further apart than the gap are separate singles
+    ButtonScript b;
+    b.click();
+    b.idle(kGap + 100);
+    b.click();
+    b.idle(kGap + 100);
+    b.letters(s);
+    r.check(strcmp(s, "P1P1") == 0, "two slow clicks gave '%s', expected 'P1P1'", s);
+  }
+  {  // a gloved double click with 500 ms between the clicks is still a double (the gap is 600 ms)
+    ButtonScript b;
+    b.click(120);
+    b.idle(500);
+    b.click(120);
+    b.idle(kGap + 100);
+    b.letters(s);
+    r.check(strcmp(s, "PP2") == 0, "double click with 500 ms between gave '%s', expected 'PP2'", s);
+  }
+  {  // a hold: cue at 0.8 s, Hold at 1.5 s, nothing more on release
+    ButtonScript b;
+    b.run(true, 1700);
+    b.idle(kGap + 300);
+    b.letters(s);
+    r.check(strcmp(s, "PCH") == 0, "a 1.7 s hold gave '%s', expected 'PCH'", s);
+    r.check(b.ev[1].at - 1000 >= 800 && b.ev[1].at - 1000 <= 860, "cue at +%lu ms, expected 800",
+            (unsigned long)(b.ev[1].at - 1000));
+    r.check(b.ev[2].at - 1000 >= 1500 && b.ev[2].at - 1000 <= 1560, "Hold at +%lu ms, expected 1500",
+            (unsigned long)(b.ev[2].at - 1000));
+  }
+  {  // a hold released before 1.5 s is abandoned: the cue was heard, nothing is triggered
+    ButtonScript b;
+    b.run(true, 1100);
+    b.idle(kGap + 500);
+    b.letters(s);
+    r.check(strcmp(s, "PC") == 0, "a 1.1 s press gave '%s', expected 'PC' (abandoned hold)", s);
+  }
+  {  // a slow click (700 ms, under the cue time) is still a click
+    ButtonScript b;
+    b.run(true, 700);
+    b.idle(kGap + 200);
+    b.letters(s);
+    r.check(strcmp(s, "P1") == 0, "a 700 ms press gave '%s', expected 'P1'", s);
+  }
+  {  // a click and then a hold: the click is dropped, only the hold counts
+    ButtonScript b;
+    b.click();
+    b.idle(200);
+    b.run(true, 1700);
+    b.idle(kGap + 300);
+    b.letters(s);
+    r.check(strcmp(s, "PPCH") == 0, "click then hold gave '%s', expected 'PPCH'", s);
+  }
+  {  // contact bounce shorter than the debounce time does nothing
+    ButtonScript b;
+    b.run(true, 10);
+    b.idle(500);
+    b.letters(s);
+    r.check(strcmp(s, "") == 0, "a 10 ms glitch gave '%s'", s);
+  }
+  {  // a held button that never releases fires Hold once, not repeatedly
+    ButtonScript b;
+    b.run(true, 6000);
+    b.letters(s);
+    r.check(strcmp(s, "PCH") == 0, "a 6 s hold gave '%s', expected 'PCH'", s);
+  }
+}
+
+// ---------------------------------------------------------------------------------------------- status ("tell me")
+void statusUnitSuite(UnitReport& r) {
+  CfgGuard guard;
+  audio::testCapture(true);
+  g_cfg.windManual = true;
+  g_cfg.windFromDeg = 90;
+  g_cfg.windSpeedMs = 5;
+  g_cfg.speedUnit = SU_KMH;
+  Wind wind;
+  NavState n;
+  n.fix = n.speedOk = true;
+  n.lat = 51.5;
+  n.lon = 0.5;
+  n.speedMs = 10;
+  n.trackDeg = 0;
+  n.aglM = 150;
+  n.lzValid = true;
+  n.lzLat = 51.5 + 500.0 / geo::kEarthR / geo::kDegToRad;  // 500 m due north
+  n.lzLon = 0.5;
+  auto said = [&](int i) { return std::string(audio::testSaidText(i)); };
+  auto has = [&](int i, const char* w) { return said(i).find(w) != std::string::npos; };
+
+  status::tell(n, wind, 80, 25, true);
+  r.check(audio::testSaid() == 2, "tell me made %d calls, expected 2", audio::testSaid());
+  r.check(said(0).rfind("[high]", 0) == 0 && said(1).rfind("[high]", 0) == 0, "calls are not high priority: %s | %s",
+          said(0).c_str(), said(1).c_str());
+  r.check(has(0, "landing_zone") && has(0, "oclock") && (has(0, "metres") || has(0, "feet")), "first call: %s",
+          said(0).c_str());
+  r.check(said(0).find("landing_zone") < said(0).find("oclock"), "clock position must follow 'landing zone': %s",
+          said(0).c_str());
+  r.check(has(0, "n12 oclock"), "LZ dead ahead should be 12 o'clock: %s", said(0).c_str());
+  r.check(has(1, "wind") && has(1, "kmh") && has(1, "battery") && has(1, "minutes"), "second call: %s", said(1).c_str());
+  r.check(said(1).find("wind") < said(1).find("battery"), "wind comes before the battery: %s", said(1).c_str());
+  r.check(has(1, "n3 oclock"), "wind from 090 relative to track 000 should be 3 o'clock: %s", said(1).c_str());
+
+  audio::testCapture(true);  // units follow the setting
+  g_cfg.speedUnit = SU_KNOTS;
+  status::tell(n, wind, 80, 25, true);
+  r.check(has(1, "knots"), "speed unit knots: %s", said(1).c_str());
+  audio::testCapture(true);
+  g_cfg.speedUnit = SU_MPH;
+  status::tell(n, wind, 80, 25, true);
+  r.check(has(1, "mph"), "speed unit mph: %s", said(1).c_str());
+
+  audio::testCapture(true);  // battery minutes unknown: the percentage
+  status::tell(n, wind, 62, -1, true);
+  r.check(has(1, "percent") && !has(1, "minutes"), "unknown minutes should say percent: %s", said(1).c_str());
+
+  audio::testCapture(true);  // standing still: no clock positions (there is no direction of travel)
+  n.speedMs = 0.5f;
+  status::tell(n, wind, 80, 25, true);
+  r.check(!has(0, "oclock") && has(0, "landing_zone"), "standing still, first call: %s", said(0).c_str());
+  r.check(!has(1, "oclock"), "standing still, wind clock: %s", said(1).c_str());
+  n.speedMs = 10;
+
+  audio::testCapture(true);  // no landing zone
+  n.lzValid = false;
+  status::tell(n, wind, 80, 25, true);
+  r.check(has(0, "no_landing_zone"), "no landing zone: %s", said(0).c_str());
+  n.lzValid = true;
+
+  audio::testCapture(true);  // no fix: height and wind, no landing zone
+  n.fix = false;
+  status::tell(n, wind, 80, 25, true);
+  r.check(!has(0, "landing_zone") && !has(0, "oclock"), "no fix: %s", said(0).c_str());
+  n.fix = true;
+
+  audio::testCapture(true);  // wind unknown: no wind words
+  g_cfg.windManual = false;
+  status::tell(n, wind, 80, 25, true);
+  r.check(!has(1, "wind") && has(1, "battery"), "wind unknown: %s", said(1).c_str());
+  g_cfg.windManual = true;
+
+  audio::testCapture(true);  // a vario with no GPS: height and battery only
+  status::tell(n, wind, 80, 25, false);
+  r.check(!has(0, "landing_zone") && !has(0, "no_landing_zone") && !has(1, "wind") && has(1, "battery"),
+          "no GPS: %s | %s", said(0).c_str(), said(1).c_str());
+  audio::testCapture(false);
+}
+
+// ---------------------------------------------------------------------------------------------- alerts
+// What the battery and barometer warnings say, and when. (When the battery calls are made is in the battery suite.)
+void alertsUnitSuite(UnitReport& r) {
+  CfgGuard guard;
+  g_cfg.gpsMode = GPS_ALWAYS;  // the messages depend on there being a GPS
+  audio::testCapture(true);
+  g_cfg.battLowV = 3.5f;
+  g_cfg.battCriticalV = 3.3f;
+  g_cfg.distUnit = DU_METRES;
+  auto said = [&](int i) { return std::string(audio::testSaidText(i)); };
+  auto has = [&](int i, const char* w) { return said(i).find(w) != std::string::npos; };
+  auto before = [&](int i, const char* a, const char* b) {
+    size_t pa = said(i).find(a), pb = said(i).find(b);
+    return pa != std::string::npos && pb != std::string::npos && pa < pb;
+  };
+  uint32_t t = 7000000;
+  auto run = [&](const NavState& nav, float volts, int minutes, uint32_t seconds) {
+    for (uint32_t s = 0; s < seconds; ++s) alerts::update(t += 1000, nav, volts, minutes);
+  };
+  auto fresh = [&](const NavState& n0) {  // reset; the first fix is announced once: let that pass, count from zero
+    alerts::reset();
+    alerts::update(t += 1000, n0, 3.9f, -1);
+    audio::testCapture(true);
+  };
+  NavState nav;
+  nav.fix = nav.speedOk = true;
+  nav.lat = 51.5;
+  nav.lon = 0.5;
+  nav.lzValid = true;
+  nav.lzLat = 51.5 + 1200.0 / geo::kEarthR / geo::kDegToRad;  // 1200 m north
+  nav.lzLon = 0.5;
+  nav.flying = true;
+  nav.baroOk = true;
+
+  // low battery with everything known: the battery, the minutes, the landing zone and its distance, the advice
+  fresh(nav);
+  run(nav, 3.40f, 25, 11);
+  r.check(audio::testSaid() == 1, "low battery: %d calls, expected 1", audio::testSaid());
+  r.check(said(0).rfind("[normal] battery_low", 0) == 0, "low battery lead: %s", said(0).c_str());
+  r.check(before(0, "battery_low", "approximately") && before(0, "approximately", "minutes") &&
+              before(0, "minutes", "remaining") && before(0, "remaining", "landing_zone") && before(0, "landing_zone", "kilometres") &&
+              before(0, "kilometres", "turn_me_off"),
+          "low battery message in the wrong order or incomplete: %s", said(0).c_str());
+  r.check(has(0, "n20 n5 minutes remaining"), "25 minutes remaining: %s", said(0).c_str());
+  r.check(has(0, "n1 point n2 kilometres"), "1.2 km to the landing zone: %s", said(0).c_str());
+
+  // minutes unknown: no 'approximately', no minutes
+  fresh(nav);
+  run(nav, 3.40f, -1, 11);
+  r.check(!has(0, "approximately") && !has(0, "minutes") && !has(0, "remaining") && has(0, "landing_zone") && has(0, "turn_me_off"),
+          "minutes unknown: %s", said(0).c_str());
+
+  // zero minutes left says nothing useful and is left out
+  fresh(nav);
+  run(nav, 3.40f, 0, 11);
+  r.check(!has(0, "approximately") && !has(0, "remaining") && has(0, "landing_zone"), "0 minutes: %s", said(0).c_str());
+
+  // no fix: the distance cannot be said; the advice still is (the vario keeps its landing zone)
+  NavState nofix = nav;
+  nofix.fix = false;
+  nofix.flying = false;  // (in flight the lost GPS is announced first)
+  fresh(nav);
+  run(nofix, 3.40f, 25, 11);
+  r.check(!has(0, "landing_zone") && has(0, "turn_me_off") && has(0, "approximately"), "no fix: %s", said(0).c_str());
+
+  // no landing zone known: no distance and no advice to switch off (it would be forgotten)
+  NavState nolz = nav;
+  nolz.lzValid = false;
+  fresh(nolz);
+  run(nolz, 3.40f, 25, 11);
+  r.check(!has(0, "landing_zone") && !has(0, "turn_me_off") && has(0, "approximately"), "no landing zone: %s", said(0).c_str());
+
+  // critical: its own lead (falling back to 'battery low' when the clip is not there), urgent, with the details
+  fresh(nav);
+  run(nav, 3.20f, 8, 6);
+  r.check(said(0).rfind("[urgent] battery_critical|battery_low", 0) == 0, "critical lead: %s", said(0).c_str());
+  r.check(has(0, "approximately") && has(0, "n8 minutes remaining") && has(0, "landing_zone") && has(0, "turn_me_off"),
+          "critical details: %s", said(0).c_str());
+
+  // reading lost in flight: its own lead, nothing else to say
+  fresh(nav);
+  run(nav, 3.9f, 25, 5);
+  run(nav, 0.0f, 25, 6);
+  r.check(audio::testSaid() == 1 && said(0) == "[urgent] battery_lost|battery_low", "reading lost: %s", said(0).c_str());
+
+  // a vario with no landing-zone advice is not told to switch off: a lone battery call has no 'turn_me_off' without
+  // the landing zone (covered above); and the vario tone stays out of it
+  // ---- the barometer failing in flight
+  NavState bad = nav;
+  bad.baroOk = false;
+  fresh(nav);
+  run(bad, 3.9f, 25, 2);
+  r.check(audio::testSaid() == 0, "barometer blip of 2 s called");
+  run(nav, 3.9f, 25, 2);  // it came back before 3 s
+  run(bad, 3.9f, 25, 3);
+  r.check(audio::testSaid() == 0, "two short blips added up to a call");
+  run(bad, 3.9f, 25, 2);
+  r.check(audio::testSaid() == 1 && said(0) == "[urgent] baro_failed|~400", "barometer failed call: %d, '%s'", audio::testSaid(), said(0).c_str());
+  run(bad, 3.9f, 25, 55);
+  r.check(audio::testSaid() == 1, "barometer failed repeated within a minute (%d)", audio::testSaid());
+  run(bad, 3.9f, 25, 10);
+  r.check(audio::testSaid() == 2, "barometer failed not repeated after a minute (%d)", audio::testSaid());
+  run(nav, 3.9f, 25, 2);
+  r.check(audio::testSaid() == 2, "'back' said before 3 s");
+  run(nav, 3.9f, 25, 2);
+  r.check(audio::testSaid() == 3 && said(2) == "[normal] baro_back|~800", "barometer back: %d, '%s'", audio::testSaid(), said(2).c_str());
+  run(nav, 3.9f, 25, 30);
+  r.check(audio::testSaid() == 3, "'back' repeated");
+
+  // on the ground the barometer is the ready check's business, not a spoken alert
+  NavState ground = bad;
+  ground.flying = false;
+  fresh(ground);
+  run(ground, 3.9f, 25, 30);
+  r.check(audio::testSaid() == 0, "barometer fault on the ground called: %s", said(0).c_str());
+
+  alerts::reset();
+  audio::testCapture(false);
+}
+
+// ---------------------------------------------------------------------------------------------- resume
+// resumeDecide(): when a flight saved in the air is believed again at power-up. Expectations are written out from the
+// rules, with distances computed here and not by the code under test.
+void resumeUnitSuite(UnitReport& r) {
+  using V = ResumeVerdict;
+  ResumeParams p;
+  p.maxAgeS = 180 * 60;
+  p.minSpeedMs = 5.0f;
+  p.saveIntervalS = 60.0f;
+  p.maxSpeedMs = 40.0f;
+  FlightRecord rec = {};
+  rec.flying = true;
+  rec.savedUtc = 1000000;
+  rec.posValid = true;
+  rec.lastLat = 51.5;
+  rec.lastLon = 0.5;
+  const double kMperDegLat = geo::kEarthR * geo::kDegToRad;  // about 111.2 km
+  auto at = [&](double metresNorth) { return 51.5 + metresNorth / kMperDegLat; };
+  uint32_t age = 0;
+  auto verdict = [&](uint32_t nowUtc, double lat, double lon, float speed) {
+    return resumeDecide(rec, nowUtc, lat, lon, speed, p, &age);
+  };
+
+  r.check(verdict(1000300, at(2000), 0.5, 12) == V::Resume, "5 minutes, 2 km, 12 m/s: not resumed");
+  r.check(age == 300, "age %lu, expected 300", (unsigned long)age);
+  r.check(verdict(1000300, 51.5, 0.5, 5.0f) == V::Resume, "speed at the minimum (5 m/s) not resumed");
+  r.check(verdict(1000300, 51.5, 0.5, 4.9f) == V::OnGround, "4.9 m/s resumed");
+  r.check(verdict(1000300, 51.5, 0.5, 0.0f) == V::OnGround, "standing still resumed (a vario switched on at the launch)");
+
+  rec.flying = false;
+  r.check(verdict(1000300, 51.5, 0.5, 12) == V::NotFlying, "a record that was not flying resumed");
+  rec.flying = true;
+
+  // the time
+  r.check(verdict(0, 51.5, 0.5, 12) == V::NoTime, "no GPS time resumed");
+  rec.savedUtc = 0;
+  r.check(verdict(1000300, 51.5, 0.5, 12) == V::NoTime, "a record with no time resumed");
+  rec.savedUtc = 1000000;
+  r.check(verdict(999000, 51.5, 0.5, 12) == V::NoTime, "a clock that went backwards resumed");
+  r.check(verdict(1000000 + 180 * 60, 51.5, 0.5, 12) == V::Resume, "exactly at the age limit refused");
+  r.check(verdict(1000000 + 180 * 60 + 1, 51.5, 0.5, 12) == V::Stale, "one second over the age limit resumed");
+  r.check(verdict(1000000 + 24 * 3600, 51.5, 0.5, 12) == V::Stale, "a record a day old resumed");
+  p.maxAgeS = 30 * 60;
+  r.check(verdict(1000000 + 1801, 51.5, 0.5, 12) == V::Stale, "the age limit setting is not followed");
+  r.check(verdict(1000000 + 1799, 51.5, 0.5, 12) == V::Resume, "inside a 30 minute limit refused");
+  p.maxAgeS = 180 * 60;
+
+  // the position: 40 m/s for (age + 60 s), plus 1 km
+  r.check(verdict(1000300, at(15000), 0.5, 12) == V::Resume, "15 km after 5 minutes (limit 15.4 km) refused");
+  r.check(verdict(1000300, at(16000), 0.5, 12) == V::Implausible, "16 km after 5 minutes (limit 15.4 km) resumed");
+  r.check(verdict(1000010, at(4500), 0.5, 12) == V::Implausible, "4.5 km after 10 s (limit 3.8 km) resumed");
+  r.check(verdict(1000010, at(3500), 0.5, 12) == V::Resume, "3.5 km after 10 s refused");
+  r.check(verdict(1000300, 51.5, 5.5, 12) == V::Implausible, "300 km east after 5 minutes resumed");
+  r.check(verdict(1000300, -33.9, 151.2, 12) == V::Implausible, "the other side of the world resumed");
+  rec.posValid = false;
+  r.check(verdict(1000300, 51.5, 0.5, 12) == V::Implausible, "a record with no position resumed");
+  rec.posValid = true;
+
+  // the order of the checks: no time is reported before the position, and age before position
+  r.check(verdict(1000000 + 24 * 3600, at(900000), 0.5, 0) == V::Stale, "stale record, far away and still: not 'stale'");
+}
+
+// ---------------------------------------------------------------------------------------------- audio
+// What is queued for an utterance: the signal tone before urgent calls.
+void audioUnitSuite(UnitReport& r) {
+  using audio::Priority;
+  using audio::Utterance;
+  {
+    Utterance u(Priority::Urgent);
+    u.add("no_gps");
+    Utterance q = audio::withSignal(u);
+    r.check(q.count == 2 && strcmp(q.clips[0], "~1000") == 0 && strcmp(q.clips[1], "no_gps") == 0, "urgent call: %d clips, first '%s'", q.count, q.clips[0]);
+    r.check(u.count == 1, "the original utterance was changed");
+  }
+  for (Priority p : {Priority::Low, Priority::Normal, Priority::High}) {
+    Utterance u(p);
+    u.add("landed");
+    Utterance q = audio::withSignal(u);
+    r.check(q.count == 1 && strcmp(q.clips[0], "landed") == 0, "priority %d got a signal", (int)p);
+  }
+  {
+    Utterance u(Priority::Urgent);
+    u.add("~400").add("baro_failed");
+    Utterance q = audio::withSignal(u);
+    r.check(q.count == 2 && strcmp(q.clips[0], "~400") == 0, "an utterance that starts with a tone got another");
+  }
+  {
+    Utterance u(Priority::Urgent);
+    for (int i = 0; i < Utterance::kMaxClips; ++i) u.add("n1");
+    Utterance q = audio::withSignal(u);
+    r.check(q.count == Utterance::kMaxClips && strcmp(q.clips[0], "n1") == 0, "a full utterance was changed (%d clips)", q.count);
+  }
+  {
+    Utterance u(Priority::Urgent);
+    Utterance q = audio::withSignal(u);
+    r.check(q.count == 0, "an empty urgent utterance got a signal");
+  }
+  {  // the cue is recorded, not played, while capturing
+    audio::testCapture(true);
+    audio::cue(1800.0f, 15);
+    r.check(audio::testSaid() == 1 && strcmp(audio::testSaidText(0), "[cue] ~1800") == 0, "cue not recorded: '%s'", audio::testSaidText(0));
+    audio::testCapture(false);
   }
 }
 

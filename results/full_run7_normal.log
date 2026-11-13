@@ -1,0 +1,112 @@
+ParaVario 20261113-001355 (3130155-dirty) at paravario.local, 66 tests
+  PASS  boot               5.1 s  beep 0.26 s at 900 Hz, 'Ready' 1.00 s later (vario answered again after 3 s)
+  PASS  settings           1.2 s  round trip and clamping ok
+  PASS  vario_climb       19.9 s  tone 800 Hz, heard at -33 dBFS (+51 dB on silence)
+  PASS  vario_sink        12.0 s  tone 298 Hz, heard at -27 dBFS (52 dB over floor)
+  PASS  vario_thresholds  74.1 s  climb: silent at 0.25, 731 Hz at 0.35 (expected 735), heard 46 dB over floor; sink: silent at -1.80, 310 Hz at -2.20 (expected 306), heard 54 dB over floor
+  PASS  vario_logic        1.5 s  43 cases passed: thresholds exact (>= climb, <= sink), formulas and limits, all silencing conditions
+  PASS  mute              17.6 s  muted climb silent, tone back after unmute
+  PASS  auto_volume       22.5 s  -60 dBFS -> 20/40%, -40 dBFS -> 60/70%, -20 dBFS -> 100/100%
+  PASS  rpm_logic          1.2 s  22 cases passed: speeds 1500..8000 rpm within 1.5 %, pulses per revolution, noise and silence give no RPM
+  PASS  rpm               83.8 s  stopped: 0; idle 2000 found in 0.6 s, steady 1961..2002; up 2000->5000 followed in steps; down 5000->2000 followed in steps; rapid 2000/4000 alternation: 30 readings, none outside 1800..4400 (0 zero); noise: engine kept at 2000 under noise; loud noise alone gives 0; input lost -> 0 after 2.1 s; recovered in 0.9 s
+  PASS  rpm_speech        37.9 s  3 announcements of about 6 s: RPM held at 2500 (+-6 %) throughout, 21 readings each; change to 3500 during speech followed within 5.9 s
+  PASS  rpm_glitch        19.3 s  5 single bad windows (4000, 1000, 6000, 3000, 4000 rpm): reading stayed within 60 rpm of 2000 over 34 readings; a real change to 3600 followed in 0.9 s
+  PASS  geo_logic          0.7 s  39 cases passed: wrap, distance (incl. date line), bearings, local offsets, vector bearing, clock positions
+  PASS  wind_logic         2.5 s  82 cases passed: fit accuracy, turn direction, 0/360, noise, no-fit and refused cases, averaging, ground glide
+  PASS  circuit_logic      4.4 s  74 cases passed: leg order, turn points, base turn from height, overshoot, wrong way, refusals
+  PASS  battery_logic      0.8 s  49 cases passed: conversion, smoothing, curve, low-battery timing and exceptions
+  PASS  flight_logic       0.8 s  46 cases passed: speed rule unchanged, no landing from a missing or weak GPS at height, limits exact
+  PASS  button_logic       0.8 s  15 cases passed: single/double/triple clicks, gloved gaps, hold with cue, abandoned hold, bounce
+  PASS  status_logic       0.7 s  17 cases passed: height, landing zone with clock and distance, wind, battery, units, what is left out
+  PASS  alerts_logic       0.8 s  21 cases passed: low/critical/lost battery messages, barometer failed and back
+  PASS  resume_logic       0.8 s  22 cases passed: age, reach, flying speed, missing time/position
+  PASS  audio_logic        0.8 s  9 cases passed: urgent calls get the signal tone, nothing else does
+  PASS  rpmtrack_logic     0.7 s  35 cases passed: smoothing, jump confirmation, dropout hold, speech hold
+  PASS  baro_logic         3.7 s  29 cases passed: impossible values, lone outliers, steps, rate limit, frozen reading, recovery
+  PASS  wind             237.1 s  takeoff run: from 270, source takeoff; head, tail and cross winds give the right ground speed and drift; straight flight leaves the estimate; wind from 270 at 5 m/s, right turns -> from 270 at 5.0; wind from 355 at 7 m/s, left turns (0/360 wrap) -> from 321 at 4.5; wind from 5 at 3 m/s, right turns -> from 339 at 3.5; wind from 180 at 8 m/s, left turns -> from 195 at 2.5; no wind -> from 195 at 1.2; wind from 225 at 6 m/s -> from 220 at 3.5; steady wind: error 2.49 -> 0.00 -> 0.00 -> 0.00 m/s over successive fits
+  PASS  wind_faults      326.3 s  baseline from 270 at 5.0; straight flight: no fit; half circle: no fit; 2.5 deg/s turn (150 degrees in the 60 s window): no fit; a 16 m/s wind at 20 m/s airspeed (a wind above the 15 m/s limit; a wind over the airspeed gives no circle at all): rejected, estimate kept; 4 m/s airspeed: rejected, estimate kept; GPS silent / no fix for 7 s in a circle: no fit from the gap, correct again after; manual wind used and kept while circling
+  PASS  wind_change      132.6 s  wind A from 270 at 5 -> from 270 at 5.0; first fit after the change: 0.00 m/s from the expected mean; second fit in the new wind: 0.00 m/s from the true wind; third fit stays on it
+  PASS  circuit_right    267.4 s  crosswind turn at x=225 (expected 225); downwind turn at y=375 (expected 371); base turn at x=-235 for 168 m (expected -230; final 273 m); final turn at y=82, 84 m up; touchdown 19 m from the field; no steering call during any called turn
+  PASS  circuit_slow_pilot 456.9 s  measured (6.0, 1.3, 3.0) and (9.0, 2.3, 9.5); lead 9.5 s; base turn 93 m earlier than the setting would call it
+  FAIL  circuit_left_wind 979.3 s  vario not reachable (/api/sim?turn=0&fly=0&speed=0&vz=0&gps=silent): <urlopen error [Errno 11001] getaddrinfo failed>
+        state: uptime 2721 s, flying True, agl -648 m, vario +0.00, baro ok False, fix True, wind manual 100/3.0, heap 44268 (lowest 9788)
+        sim: {"baro": 1, "alt": -1378.62, "vz": -2.11, "gps": "fix", "lat": 51.519319, "lon": 0.347116, "speed": 13.56, "track": 279.3, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 279.2}
+        last log lines:
+          [ 2718.861] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=manual 100/3.0 mode=none/off mute=0 batt=4.18V heap=47292
+          [ 2718.970] D MIC: noise=-62.2 (blk -62.1) dBFS rpm=0 raw=1432 conf=1.7 fs=2006 tone=0 clear=1 ovf=337007
+          [ 2719.865] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.519283,0.347465 gs=13.6 trk=279 gpsAlt=-499.6
+          [ 2719.866] D NAV: baro=0 p=110000 t=20.0 std=-698.3 msl=-548.1 agl=-648.1 vs=+0.00 fly=1 ft=969
+          [ 2719.866] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=manual 100/3.0 mode=none/off mute=0 batt=4.18V heap=47500
+          [ 2719.965] D VOL: noise -62.2 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [ 2720.367] D BAT: v=4.178 pct=100 min=360 learned=0
+          [ 2720.867] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.519303,0.347271 gs=13.6 trk=279 gpsAlt=-499.6
+          [ 2720.868] D NAV: baro=0 p=110000 t=20.0 std=-698.3 msl=-548.1 agl=-648.1 vs=+0.00 fly=1 ft=970
+          [ 2720.868] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=manual 100/3.0 mode=none/off mute=0 batt=4.18V heap=47672
+          [ 2721.015] D MIC: noise=-62.2 (blk -62.1) dBFS rpm=0 raw=2315 conf=1.5 fs=2006 tone=0 clear=1 ovf=337263
+          [ 2721.871] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.519323,0.347078 gs=13.6 trk=279 gpsAlt=-499.6
+          [ 2721.872] D NAV: baro=0 p=110000 t=20.0 std=-698.3 msl=-548.1 agl=-648.1 vs=+0.00 fly=1 ft=971
+          [ 2721.872] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=manual 100/3.0 mode=none/off mute=0 batt=4.18V heap=47052
+          [ 2722.373] D BAT: v=4.178 pct=100 min=360 learned=0
+          [ 2722.915] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.519342,0.346883 gs=13.6 trk=279 gpsAlt=-499.6
+          [ 2722.916] D NAV: baro=0 p=110000 t=20.0 std=-698.3 msl=-548.1 agl=-648.1 vs=+0.00 fly=1 ft=972
+          [ 2722.916] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=manual 100/3.0 mode=none/off mute=0 batt=4.18V heap=46428
+  PASS  circuit_events   314.1 s  crosswind turn at x=226 (expected 225); downwind turn at y=372 (expected 370); base turn at x=-229 for 167 m (expected -226; final 270 m); final turn at y=39, 79 m up; touchdown 1 m from the field; 1 steering calls (a turn was ignored on purpose); start point called 4 times while flying away, no leg change during the 6 s GPS loss, 1 steer right calls while the turn was ignored
+  PASS  fault_baro       243.6 s  dead: detected, banner, silent, recovered; range: detected, banner, silent, recovered; NaN pressure: detected, silent, recovered; frozen value: detected after 5 s, banner, silent, recovered; one 30 m wild sample: held back, no tone, vario unmoved; -30 m and +12 m single samples: held back too; two wild samples in a row: accepted as a step, no tone; a 25 m step that stays: accepted as a step, no tone; intermittent: 1.2 s dropouts ignored, 3 s dropouts detected and recovered x3; 0.4 m noise: vario reads within +-0.16 m/s
+  PASS  fault_gps         95.2 s  position 0, 0 on the ground: no fix, back after; dropout: announced after 5 s, flight kept, approach refused, fix back without reboot; 3 satellites: no fix; back with 10; weak fix (4 satellites, hdop 4.2) for 14 s in flight: flight kept; latitude 95 / -91 and longitude 200: no fix each time, flight kept, fix back
+  PASS  fault_battery     72.9 s  flickering 3.4/3.6 V: 0 call(s) in 40 s; 0.0 V: 0 %, no call; 6.0 V: 100 %, no call
+  PASS  landing_gps_quality 667.0 s  weak fix, +0.0 m/s at about 200 m, 29 s; weak fix, +0.2 m/s at about 200 m, 29 s; weak fix, -0.2 m/s at about 200 m, 29 s; no GPS for 70 s at 200 m; landing with no GPS found 12 s after touchdown; landing with a weak fix found (13 cases kept the flight)
+  PASS  landing_hover    187.6 s  hovering at 60 m for 16 s: still flying; declared landed after about 25 s (landingHighMult 5); multiplier 1: landed after the normal time, as before; near the ground: landed 6 s after stopping
+  PASS  button_actions    25.4 s  click and hold cues; single: tell me, starts nothing; double: approach on and off; a single never cancels; hold: emergency on and off; a single never cancels; triple: mute and unmute; no GPS: single tells height and battery, double/hold mute
+  PASS  alerts_flight    121.9 s  barometer failed / back spoken in flight; routine height calls: 2+ in 26 s normally, none during the approach
+  PASS  resume_flight    486.3 s  30 min off at flying speed: resumed, same LZ, 50 m, flight time 1821 s; resumed flight lands normally; too old (4 h): not resumed; on the ground: not resumed; impossible place: not resumed; resume switched off: not resumed; no GPS within 3 minutes: dropped; reset by the pilot: flight ended, nothing resumed after a restart
+  PASS  battery_flight   146.7 s  3.40 V: ordinary call; 3.20 V: urgent call after 7 s; reading lost in flight (0 V): urgent call; recovered: silent; 0 V on the ground: silent (USB power)
+  PASS  memory_events    247.0 s  free 46332 -> [41260, 41112, 41256] B over three rounds, lowest 12016 B, largest block 20468 B, stacks free {'loopTask': 1592, 'audio': 2264, 'mic': 2000}
+  PASS  soak             744.4 s  10 min flown, free memory 41308 -> 41288 B (trend -1 B/min), lowest 11244 B, wind estimate from 270 at 4.0, no log lines dropped
+  PASS  gps_states        27.0 s  not responding / waiting / weak fix ignored / good fix ready
+  PASS  flight           116.8 s  93 IGC records, 12 s before takeoff, alt 100..166 m, 8 without fix
+  PASS  baro_only        124.3 s  slow rise ignored, takeoff at 2 m/s and landing without GPS, agl reads 60.3 m at a true 60 m
+  PASS  guidance          71.9 s  refusals, emergency 6 o'clock + on course, approach start and cancel
+  PASS  battery           34.8 s  curve ok, minutes [360, 354, 288, 180, 43, 0], real battery back at 4.188 V
+  PASS  battery_learner    2.7 s  4 h run -> 234.2 min at 4.10 V, pace-scaled 59 min, blended 199.4, charging unknown
+  PASS  speech            21.9 s  clip sequence ok, speech peaks +30 dB over the quiet room
+  PASS  volume_ramp       15.0 s  10 -> 100 %: 25 % within 1 s, 49 % at 1.5 s, 100 % by 4.5 s; never faster or slower than 30 %/s; falls gradually too
+  PASS  glide             84.6 s  6.7 : 1 now, 6.7 : 1 over 20 s (true 6.7)
+  PASS  variant_no_gps   109.2 s  ready, takeoff, 40.1 m and landing on the barometer; 53 settings listed, no log
+  PASS  variant_no_mic    24.4 s  volume back to the set 40/20 % at -20 dBFS noise, 86 settings listed, no spectrum
+  PASS  gps_detect        32.2 s  unknown -> not fitted after 10 s -> found when it starts sending -> kept when silent; set by hand both ways; page followed
+  PASS  ui_flight         32.5 s  banner, 11 tiles, height graph and layout correct; speed, vario, battery and GPS changes followed
+  PASS  ui_pilot          48.2 s  ground: setup card shown, no alerts, GPS tile says strong; flight: the ground card is gone, the in-flight card holds Landing support, Emergency support, Update me and Mute; Update me speaks; alert strip: low and critical battery, barometer, no GPS; each clears; battery tile '~3h 54m'; noise tile only on request; Quick settings first, same settings as their groups, saved; Reset flight state button ends the flight and brings the ground Actions card back
+  PASS  ui_layout         80.6 s  no text cut off, nothing overlapping or off screen in: ground view, flying, 120 km/h, mph and miles, knots and metres, three alerts, 320 px wide, settings and logs tabs (screenshots in results\ui)
+  PASS  ui_actions        31.7 s  mute, test voice, Set LZ here (refused and accepted), LZ = takeoff
+  FAIL  ui_guidance       63.2 s  web page: banner hidden after cancel (not within 5 s)
+        state: uptime 2082 s, flying True, agl 100 m, vario -0.00, baro ok True, fix True, wind takeoff 90/0.0, heap 41260 (lowest 8956)
+        sim: {"baro": 1, "alt": 200.0, "vz": 0.0, "gps": "fix", "lat": 51.5, "lon": 0.505296, "speed": 8.0, "track": 90.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [ 2078.685] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.17V heap=38496
+          [ 2079.684] D VOL: noise -60.8 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [ 2079.685] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.504942 gs=8.0 trk=90 gpsAlt=200.0
+          [ 2079.685] D NAV: baro=1 p=100726 t=20.0 std=50.0 msl=199.9 agl=99.9 vs=-0.02 fly=1 ft=39
+          [ 2079.685] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.17V heap=38496
+          [ 2080.184] D BAT: v=4.174 pct=100 min=360 learned=0
+          [ 2080.211] D MIC: noise=-61.6 (blk -62.2) dBFS rpm=0 raw=7236 conf=1.4 fs=2003 tone=0 clear=1 ovf=255053
+          [ 2080.684] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.505057 gs=8.0 trk=90 gpsAlt=200.0
+          [ 2080.685] D NAV: baro=1 p=100725 t=20.0 std=50.0 msl=200.0 agl=100.0 vs=+0.02 fly=1 ft=40
+          [ 2080.685] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.17V heap=39080
+          [ 2081.689] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.505173 gs=8.0 trk=90 gpsAlt=200.0
+          [ 2081.690] D NAV: baro=1 p=100726 t=20.0 std=50.0 msl=200.0 agl=100.0 vs=+0.00 fly=1 ft=41
+          [ 2081.690] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.17V heap=44344
+          [ 2082.191] D BAT: v=4.174 pct=100 min=360 learned=0
+          [ 2082.229] D MIC: noise=-62.3 (blk -60.3) dBFS rpm=0 raw=3951 conf=1.5 fs=1957 tone=0 clear=1 ovf=255309
+          [ 2082.697] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.505289 gs=8.0 trk=90 gpsAlt=200.0
+          [ 2082.697] D NAV: baro=1 p=100725 t=20.0 std=50.0 msl=199.9 agl=99.9 vs=-0.01 fly=1 ft=42
+          [ 2082.698] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.17V heap=44224
+  PASS  ui_settings       16.0 s  16 groups, 96 settings; number, feet, list, checkbox gate, unit switch, text
+  PASS  ui_spectrum       25.0 s  3.7 updates/s, tone mark and peak at 290 Hz, pause and floor ok
+  PASS  spectrum_setting  14.6 s  tab removed when off, back when on (default is off: True)
+  PASS  ui_system         15.7 s  5 tabs switch, debug log live/pause/clear, firmware box guarded, version and system line
+  PASS  ui_help           28.0 s  13 links on the Help tab, 18 settings groups linked, guides rendered in the page; the guide for a vario without a GPS is offered then
+  PASS  ota_guard          3.2 s  refused with a wrong and a missing password; vario kept running
+  PASS  memory            13.1 s  free 45 kB (was 45 kB at the start), lowest since power-on 8 kB, largest block 24 kB
+Cleanup: close the browser, simulation off, flight logic reset, settings restored, 5 leftover test log(s) deleted, leftover test logs.
+
+64 passed, 2 failed, 5101 log lines missed

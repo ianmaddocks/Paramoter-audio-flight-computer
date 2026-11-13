@@ -21,6 +21,8 @@
 #include "Settings.h"
 #include "Version.h"
 #include "app/Alerts.h"
+#include "app/Status.h"
+#include "flight/Resume.h"
 #include "app/Trace.h"
 #include "app/VarioSound.h"
 #include "audio/Audio.h"
@@ -39,7 +41,7 @@ namespace {
 constexpr uint32_t kTickMs = 100;       // flight logic
 constexpr uint32_t kSoundTickMs = 20;   // volume and vario tone: short, for a responsive vario
 constexpr uint32_t kSaveIntervalMs = 60000;
-constexpr uint32_t kStaleRecordS = 15 * 60;
+constexpr uint32_t kResumeWindowMs = 180000;  // a saved flight not resumed or refused within this long after power-up is dropped
 // Restarts the vario if the main loop stops running for this long (a blocked network call, a
 // stuck file operation): better a restart than an instrument that is silent until power-cycled.
 constexpr uint32_t kLoopWatchdogS = 30;
@@ -47,8 +49,9 @@ constexpr uint32_t kLoopWatchdogS = 30;
 uint32_t lastTickMs = 0;
 uint32_t lastSoundMs = 0;
 uint32_t lastSaveMs = 0;
-bool resumeUnverified = false;
-uint32_t resumeSavedUtc = 0;
+bool resumePending = false;  // a flight saved as "flying" is waiting for the first trusted GPS fix to be judged
+FlightRecord resumeRec = {};
+uint32_t resumeDeadlineMs = 0;
 
 // ---------- flight state kept across a restart in the air ----------
 
@@ -57,46 +60,62 @@ void saveFlightState() {
   app.flight.exportState(rec);
   app.wind.exportState(rec);
   rec.savedUtc = app.gpsData.utcEpoch;
+  rec.posValid = app.nav.fix && gpsCoordsValid(app.nav.lat, app.nav.lon);
+  rec.lastLat = rec.posValid ? app.nav.lat : 0.0;
+  rec.lastLon = rec.posValid ? app.nav.lon : 0.0;
   flightstore::save(rec);
   lastSaveMs = millis();
 }
 
-// Not called at present: resuming a saved flight at power-on is switched off (see appSetup).
-[[maybe_unused]] void restoreFlightState() {
+// A flight saved as "flying" (a restart in the air, or the vario switched off and on again: see the battery advice) is
+// loaded at power-up but NOT believed. The vario stays on the ground state until the first trusted GPS fix with a time,
+// where resumeDecide() (flight/Resume.h) judges it once: recent enough, in a possible place, and moving at flying
+// speed right now. Only then is the flight resumed (LZ, ground reference, wind, flight time). Otherwise the record is
+// dropped, so the vario can never come up convinced it is flying when it is not.
+void loadResume() {
+  resumePending = false;
   FlightRecord rec;
-  if (!flightstore::load(rec)) return;
-  app.flight.importState(rec, millis());
-  if (!rec.flying) return;
-  app.wind.importState(rec);
-  resumeUnverified = true;
-  resumeSavedUtc = rec.savedUtc;
-  LOGI("APP", "Restored in-flight state: %lu s flown, LZ %.6f,%.6f", (unsigned long)rec.flightTimeS, rec.lzLat,
-       rec.lzLon);
+  if (g_cfg.resumeMaxMin <= 0 || !flightstore::load(rec) || !rec.flying) return;
+  resumeRec = rec;
+  resumePending = true;
+  resumeDeadlineMs = millis() + kResumeWindowMs;
+  LOGI("APP", "A flight saved in the air is waiting to be resumed (%lu s flown, LZ %.6f,%.6f)", (unsigned long)rec.flightTimeS,
+       rec.lzLat, rec.lzLon);
 }
 
-// A restored flight is checked against GPS time once available: a stale record (device
-// switched off in the air state and powered up much later) is dropped; otherwise the time
-// spent rebooting is added to the flight time.
-void verifyResume() {
-  if (!resumeUnverified || !app.nav.flying) {
-    resumeUnverified = false;
+void dropResume(const char* why) {
+  resumePending = false;
+  LOGI("APP", "Saved flight not resumed: %s", why);
+  saveFlightState();  // writes the current (not flying) state over the old record
+}
+
+void updateResume(uint32_t now) {
+  if (!resumePending) return;
+  if (app.nav.flying) {  // took off normally meanwhile: the record is stale
+    dropResume("a new takeoff was detected");
     return;
   }
-  const uint32_t nowUtc = app.gpsData.utcEpoch;
-  if (!nowUtc) return;
-  resumeUnverified = false;
-  if (!resumeSavedUtc) return;
-  const uint32_t gap = nowUtc >= resumeSavedUtc ? nowUtc - resumeSavedUtc : UINT32_MAX;
-  if (gap > kStaleRecordS) {
-    LOGI("APP", "Saved flight is stale (%lu s old), discarding", (unsigned long)gap);
-    app.flight.abandonFlight();
-    app.approach.cancel(false);
-    app.emergency.cancel(false);
-    app.logger.stop();
-    saveFlightState();
-  } else {
-    app.flight.addFlightTime(gap);
+  if ((int32_t)(now - resumeDeadlineMs) >= 0) {
+    dropResume("no GPS position and time within 3 minutes of power-up");
+    return;
   }
+  if (!app.gpsData.fix || !app.nav.speedOk || !app.gpsData.utcEpoch) return;  // not yet: judged at the first trusted fix
+  ResumeParams p;
+  p.maxAgeS = (uint32_t)g_cfg.resumeMaxMin * 60;
+  p.minSpeedMs = fmaxf(g_cfg.takeoffSpeedMs, 5.0f);
+  p.saveIntervalS = kSaveIntervalMs / 1000.0f;
+  uint32_t age = 0;
+  const ResumeVerdict v = resumeDecide(resumeRec, app.gpsData.utcEpoch, app.nav.lat, app.nav.lon, app.nav.speedMs, p, &age);
+  if (v != ResumeVerdict::Resume) {
+    dropResume(resumeVerdictName(v));
+    return;
+  }
+  resumePending = false;
+  app.flight.importState(resumeRec, now);
+  app.wind.importState(resumeRec);
+  app.flight.addFlightTime(age);  // the time it was off counts as flown
+  LOGI("APP", "Resuming the flight: saved %lu s ago, %lu s flown, LZ %.6f,%.6f", (unsigned long)age,
+       (unsigned long)resumeRec.flightTimeS, resumeRec.lzLat, resumeRec.lzLon);
 }
 
 // ---------- events ----------
@@ -126,14 +145,38 @@ void handleFlightEvent(FlightEvent ev) {
   }
 }
 
-// With a GPS: single press = landing approach, double = emergency glide, long = mute.
-// Without one there is no guidance to start, so every press mutes or unmutes the vario.
+// The button. A click tone confirms every press and a rising cue says "keep holding". A single click only ever
+// TELLS (status): it never starts or cancels guidance, so an accidental touch cannot do any harm. Starting and
+// cancelling guidance are the deliberate gestures.
+//
+//   with a GPS     single = tell me (height, landing zone, wind, battery)
+//                  double = landing approach, start or cancel
+//                  hold 1.5 s = emergency glide, start or cancel
+//                  triple = mute or unmute the vario
+//   without a GPS  single = tell me (height, battery); double, triple or hold = mute or unmute
 void handleButton(ButtonEvent ev) {
   if (ev == ButtonEvent::None) return;
-  LOGD("BTN", "%s press", ev == ButtonEvent::Single ? "single" : ev == ButtonEvent::Double ? "double" : "long");
-  if (!hw::hasGps() || ev == ButtonEvent::Long) actionToggleMute();
-  else if (ev == ButtonEvent::Single) actionToggleApproach();
-  else if (ev == ButtonEvent::Double) actionToggleEmergency();
+  if (ev == ButtonEvent::Press) {
+    LOGD("BTN", "click");
+    audio::cue(1800.0f, 15);
+    return;
+  }
+  if (ev == ButtonEvent::HoldCue) {
+    LOGD("BTN", "hold cue");
+    audio::cue(1200.0f, 120);
+    return;
+  }
+  LOGD("BTN", "%s", ev == ButtonEvent::Single ? "single" : ev == ButtonEvent::Double ? "double"
+                                                     : ev == ButtonEvent::Triple ? "triple" : "hold");
+  if (ev == ButtonEvent::Single) {
+    actionTellMe();
+  } else if (!hw::hasGps() || ev == ButtonEvent::Triple) {
+    actionToggleMute();
+  } else if (ev == ButtonEvent::Double) {
+    actionToggleApproach();
+  } else if (ev == ButtonEvent::Hold) {
+    actionToggleEmergency();
+  }
 }
 
 void readSensors(uint32_t now) {
@@ -152,12 +195,12 @@ void flightTick(uint32_t now) {
     app.approach.update(app.nav, app.wind);
     app.emergency.update(app.nav, app.wind);
     app.logger.update(app.nav, app.gpsData);
-    verifyResume();
+    updateResume(now);
   }
   app.announcer.update(app.nav, app.approach.active() || app.emergency.active());
   app.glide.update(now, app.nav);
   app.heightHistory.update(now, app.nav.aglM);
-  alerts::update(now, app.nav, app.battery.volts());
+  alerts::update(now, app.nav, app.battery.volts(), app.battery.minutesLeftOrUnknown());
   if (app.nav.flying && now - lastSaveMs >= kSaveIntervalMs) saveFlightState();
   trace::update(now);
 }
@@ -180,6 +223,22 @@ void actionToggleEmergency() {
     app.approach.cancel(false);
     app.emergency.start(app.nav, app.wind);
   }
+}
+
+void actionTellMe() {
+  status::tell(app.nav, app.wind, app.battery.percent(), app.battery.minutesLeftOrUnknown(), hw::hasGps());
+}
+
+// The way out of a vario that thinks it is flying when it is not (also available as a button on the Logs & system tab):
+// forget the flight, any guidance, any saved flight waiting to resume, and write that down.
+void actionResetFlight() {
+  resumePending = false;
+  app.flight.abandonFlight();
+  app.approach.cancel(false);
+  app.emergency.cancel(false);
+  app.logger.stop();
+  saveFlightState();
+  LOGI("APP", "Flight state reset by the pilot");
 }
 
 void actionToggleMute() {
@@ -249,7 +308,7 @@ void appSetup() {
   app.button.begin(pins::BUTTON);
   app.ble.begin();
   webui::begin();
-  // Resuming a flight saved before a restart is switched off: restoreFlightState() is not called.
+  loadResume();  // judged later, at the first trusted GPS fix (updateResume)
 
   esp_task_wdt_init(kLoopWatchdogS, true);  // true: restart when it trips
   esp_task_wdt_add(nullptr);                // watch this (the loop) task
@@ -263,6 +322,9 @@ void appLoop() {
 
   readSensors(now);
   handleButton(app.button.update(now));
+#if PV_TEST
+  handleButton((ButtonEvent)sim::takeButton());  // a press injected by a test (button=single|double|triple|hold|press|holdcue)
+#endif
 
   if (now - lastSoundMs >= kSoundTickMs) {
     lastSoundMs = now;

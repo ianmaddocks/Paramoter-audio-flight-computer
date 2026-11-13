@@ -1,0 +1,20 @@
+ParaVario 20261113-001355 (3130155-dirty) at paravario.local, 6 tests
+  PASS  circuit_events   333.2 s  crosswind turn at x=225 (expected 225); downwind turn at y=371 (expected 370); base turn at x=-203 for 159 m (expected -202; final 245 m); final turn at y=29, 72 m up; touchdown 1 m from the field; 1 steering calls (a turn was ignored on purpose); start point called 4 times while flying away, no leg change during the 6 s GPS loss, 1 steer right calls while the turn was ignored
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  FAIL  resume_flight    177.8 s  vario not reachable (/api/settings): <urlopen error [Errno 11001] getaddrinfo failed>
+        state: could not read the status (vario not reachable (/api/status): <urlopen error [Errno 11001] getaddrinfo failed>)
+        sim: could not read (vario not reachable (/api/sim): <urlopen error [Errno 11001] getaddrinfo failed>)
+        log: could not read (vario not reachable (/api/debuglog?since=2529): <urlopen error [Errno 11001] getaddrinfo failed>)
+  FAIL  memory_events    could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_layout        could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ota_guard        could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  memory           could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+Cleanup: ;
+WARNING: cleanup step 'simulation off' failed: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+WARNING: cleanup step 'flight logic reset' failed: vario not reachable (/api/sim?reset=1): <urlopen error [Errno 11001] getaddrinfo failed>
+WARNING: cleanup step 'settings restored' failed: vario not reachable (/api/settings): <urlopen error [Errno 11001] getaddrinfo failed>
+WARNING: cleanup step 'leftover test logs' failed: vario not reachable (/api/logs): <urlopen error [Errno 11001] getaddrinfo failed>
+
+NOTE: 1 test(s) ran while a phone, browser or BLE client was connected: circuit_events
+
+1 passed, 5 failed

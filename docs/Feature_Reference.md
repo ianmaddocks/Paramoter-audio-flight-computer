@@ -65,19 +65,19 @@ Takeoff and landing are detected automatically (see *Takeoff and landing* settin
 ### Battery
 How full the battery is, and roughly how long it will last.
 
-For example, `74%`, and under it `3.96 V · ~3 h 20 min`. When the vario is on USB power the tile says `USB`.
+For example, `~3 h 20 min`, and under it `3.96 V · 74%`. The minutes left are the main value whenever the vario has an estimate (from the discharge it has learned, or the *Runtime on a full battery* setting until then); otherwise the percentage. When the vario is on USB power the tile says `USB`.
 
 The percentage comes from the battery voltage. After the vario has once been run until the battery was flat, it learns the real discharge curve of your battery and the percentage and minutes left become more accurate. See the *Battery* settings.
 
 ### Engine RPM
 The engine speed, worked out from the sound the microphone hears.
 
-For example, `5400 rpm`. It says `off` when no engine sound is recognised. Under it, `est 5400 · conf 6.2` is the raw estimate and how sure the vario is of it.
+For example, `5400 rpm`. It says `off` when no engine sound is recognised. A reading is only taken when two analysis windows in a row agree (a lone bad window never shows) and it is held while the vario speaks, so it does not drop out during announcements. With *Show background noise and RPM confidence on the flight tab* on, `est 5400 · conf 6.2` appears under it: the raw estimate and how sure the vario is of it.
 
 The microphone hears the engine's firing frequency and its harmonics, and the vario finds the pattern. If the *conf* number is low the reading is not shown. Tune it in the Engine RPM settings. The same group has *Show the Spectrum tab* (default: off).
 
 ### Background noise
-How loud it is around the vario, as heard by the microphone.
+How loud it is around the vario, as heard by the microphone. This tile is tuning data and is **hidden** unless *Show background noise and RPM confidence on the flight tab* is on (Engine RPM, in Advanced settings).
 
 For example, `-38 dBFS` with `vario vol 72%` under it: that is the noise level and the volume the vario beeps are currently played at. Use these numbers to set *Noise for set volume* and *Noise for full volume*.
 
@@ -99,9 +99,14 @@ A Basic vario is ready as soon as the barometer works and has settled. (An Advan
 ### Push button
 The one button on the vario.
 
-On a Basic vario **any press** switches the vario beeps off or on again. You hear "Vario muted" or "Vario on" to confirm.
+On a Basic vario a **single press** tells you the height and the battery ("Update me"), and a **double press, triple press or a hold** switches the vario beeps off or on again. You hear "Vario muted" or "Vario on" to confirm. Every press gives a short click; 0.8 s into a hold a rising tone says "keep holding" (a hold counts at 1.5 s; let go earlier and nothing happens).
 
 Spoken calls are never muted, only the beeps. (On an Advanced vario the button does more; see Part 2.)
+
+### Update me (page button)
+The same as a single press of the button.
+
+Speaks your height and the battery: the minutes left when the vario has learned them, otherwise the percentage.
 
 ### Mute vario (page button)
 The same as the push button.
@@ -111,9 +116,14 @@ Tap it to silence the beeps while you chat or hold the vario; tap again (it read
 ### Full screen
 Hides the browser's bars so the page fills the phone screen.
 
-Tap **Full screen** at the bottom of the Actions and the address bar and the phone's own bars disappear, much as they would in an installed app. The button then reads **Exit full screen**; you can also swipe down from the top edge. You have to tap it each time you open the page, because a browser only allows full screen after a tap. If the browser does not support full screen the button is not shown. That is the case on an iPhone, where Safari does not allow it; there, add the page to the Home Screen instead (Share, then **Add to Home Screen**) and open the vario from its icon: the page then opens without Safari's bars, and the Full screen button is not needed (it is hidden when the page runs that way).
+Tap **Full screen**, below the Actions card, and the address bar and the phone's own bars disappear, much as they would in an installed app. The button then reads **Exit full screen**; you can also swipe down from the top edge. You have to tap it each time you open the page, because a browser only allows full screen after a tap. If the browser does not support full screen the button is not shown. That is the case on an iPhone, where Safari does not allow it; there, add the page to the Home Screen instead (Share, then **Add to Home Screen**) and open the vario from its icon: the page then opens without Safari's bars, and the Full screen button is not needed (it is hidden when the page runs that way).
 
-### Test voice
+### Actions (card)
+The page shows one card of buttons, headed **Actions**, and which one depends on whether you are flying, so only what is useful then is on the screen.
+
+**On the ground:** *Audio test*, *Mute vario* and, on an Advanced vario, *Set LZ manually* and *LZ = takeoff*. **In flight:** *Update me*, *Mute vario* and, on an Advanced vario, *Landing support* and *Emergency support*. *Full screen* sits below the card in both phases.
+
+### Audio test
 Plays a sample announcement so you can check the speaker and the volume.
 
 Tap it on the ground and listen. It says "System ready, 500 feet, 3 o'clock, 1.3 kilometres". If it is too loud or quiet, change *Speech volume*.
@@ -160,7 +170,7 @@ It is spoken as "Flight time 1 hour 5 minutes", by default every 5 minutes.
 ### Battery low
 A warning when the battery is getting flat.
 
-You hear "Battery low" when the voltage falls below *Low battery warning*. It repeats every 5 minutes until you land and charge. Below *Critical battery warning* it is an urgent call every minute, and so is a battery reading that disappears in flight.
+You hear "Battery low" when the voltage falls below *Low battery warning*, and it repeats every 5 minutes until you land and charge. It carries what you need to decide: "Battery low. Approximately 25 minutes remaining. Landing zone 1.2 kilometres. Turn me off until you need help landing." The minutes are said when the vario has learned them, the distance when it has a fix and a landing zone, and the advice to switch off only on an Advanced vario that has a landing zone (it remembers the flight and the landing zone when switched on again; see the advanced guide). Below *Critical battery warning* it says "Battery critical" with the same details, urgently, every minute. A battery reading that disappears in flight is "Battery reading lost", urgent, every minute. If your vario's voice clips have not been updated, the new words are skipped and you hear "Battery low" (the critical and lost calls fall back to it too).
 
 <a id="basic-spectrum"></a>
 ## Spectrum tab
@@ -185,7 +195,7 @@ Choose what you are used to. Everything shown on the page and every height spoke
 ### Speech volume
 How loud the spoken calls are.
 
-The scale runs from 0 (silent) to 100 (as loud as it goes). Use *Test voice* while adjusting. Default: 5 %.
+The scale runs from 0 (silent) to 100 (as loud as it goes). Use *Audio test* while adjusting. Default: 5 %.
 
 ### Vario volume
 How loud the beeps are.
@@ -364,16 +374,21 @@ Without this, the zero would creep upwards with a slow climb and the takeoff wou
 ### Landed after
 How long you must be still before the vario decides you have landed.
 
-With a good GPS speed, "still" means your ground speed is below *Landed by ground speed* for this long. Without one (a Basic vario, no GPS fix, or a weak fix) the vario cannot tell from speed, so it needs the barometer to read a steady height **and** your height to be close to the ground (see *Landed without GPS speed: only below*), for twice this time: with 30 s, 60 s of steady height on the ground is declared a landing and you hear "Landed, flight time ...". Default: 30 s.
+With a good GPS speed, "still" means your ground speed is below *Landed by ground speed* for this long, **near the ground** (under *Counts as near the ground below*). Higher up it has to last *Landed above that height: wait this many times longer* times as long (default 5, so 150 s), because a paramotor holding station in a strong headwind has a ground speed near zero and is level too. Without one (a Basic vario, no GPS fix, or a weak fix) the vario cannot tell from speed, so it needs the barometer to read a steady height **and** your height to be close to the ground (see *Counts as near the ground below*), for twice this time: with 30 s, 60 s of steady height on the ground is declared a landing and you hear "Landed, flight time ...". Default: 30 s.
 
 Flying level in the air is never taken for a landing without a GPS speed, however long it lasts, and neither is a lost or weak GPS fix. After a landing the vario needs another climb of the takeoff height gain before it notices you are flying again.
 
-### Landed without GPS speed: only below
-How close to the ground you must be, for a landing to be declared when the GPS speed cannot be trusted.
+### Counts as near the ground below
+How close to the landing zone's height counts as "near the ground" when deciding that you have landed. Default: 50 ft (15 m).
 
-With no GPS, no fix or a weak fix the vario does not know your speed. A steady height alone could be level flight, so it also needs your height above the landing zone to be under this. Default: 50 ft (15 m).
+Two things depend on it. With no GPS, no fix or a weak fix the vario does not know your speed and a steady height alone could be level flight, so it needs your height above the landing zone to be under this before it will declare a landing. With a good GPS speed, a landing near the ground is declared after *Landed after*, but a landing higher than this takes longer (see the next setting).
 
 If you land on a hillside more than this above where you took off (or above the landing zone you set) and the GPS is not working, the landing will not be noticed until the GPS recovers: raise it for that. Setting it too high lets very level flight low over the ground be taken for a landing.
+
+### Landed above that height: wait this many times longer
+How much longer a still aircraft above the near-ground height must stay still before it counts as landed. Default: 5 (so 150 s with the default *Landed after* of 30 s). 1 gives the old rule (the same time at any height).
+
+This is for a strong headwind: the vario can hold station with a ground speed near zero, level, high above the ground. That is not a landing, and it can last a minute or two, but a pilot who lands on a hillside above the landing zone is still found, just later. Raise it if you fly in strong wind; lower it if you often land well above the landing zone.
 
 <a id="basic-settings-bluetooth"></a>
 ## Settings: Bluetooth
@@ -433,12 +448,17 @@ The voltage at which "Battery low" is spoken.
 
 For example, at 3.5 V you get the warning with some capacity still in reserve. Raise it for more notice. Default: 3.5 V.
 
+### Show background noise and RPM confidence on the flight tab
+Shows the tuning data on the flight tab.
+
+Off by default: the *Background noise* tile and the RPM confidence under the Engine RPM tile are for setting up the microphone and are in the way in flight. Turn it on while you set *Noise for set volume*, *Noise for full volume* and the RPM confidence. Needs a microphone.
+
 ### Critical battery warning
 The voltage at which the battery warning becomes urgent and repeats every minute.
 
-Below this "Battery low" is spoken as an urgent call after 5 seconds and repeated every minute, instead of the ordinary call every 5 minutes. Default: 3.3 V. If it is set above *Low battery warning*, the low warning voltage is used.
+Below this "Battery critical" is spoken as an urgent call after 5 seconds and repeated every minute, instead of the ordinary call every 5 minutes. Default: 3.3 V. If it is set above *Low battery warning*, the low warning voltage is used.
 
-A reading under 2.5 V is not a battery measurement: with nothing seen before it just means USB power or no battery, and nothing is said. But if the vario has seen a real reading since it was switched on and the reading then vanishes **in flight**, you hear the same urgent call every minute: the vario cannot say how much battery is left.
+A reading under 2.5 V is not a battery measurement: with nothing seen before it just means USB power or no battery, and nothing is said. But if the vario has seen a real reading since it was switched on and the reading then vanishes **in flight**, you hear "Battery reading lost" urgently every minute: the vario cannot say how much battery is left.
 
 ### Voltage shown as 100%
 The voltage you treat as "full".
@@ -513,7 +533,7 @@ How fast you are moving over the ground, as measured by the GPS.
 
 For example, `43 km/h` with `track 90°` under it, which means you are travelling due east. Change the unit in Settings (km/h, mph or knots).
 
-While you are moving, an arrow at the right shows your direction of travel against **absolute north**: the small **N** above it is north, so an arrow pointing straight up under the N means you are heading north, pointing right means east. (The Wind and Landing zone arrows are different: they are relative to your direction of travel.) The arrow is smoothed so it does not jump about, and is hidden when you are standing still.
+While you are moving, a small **compass** at the right shows your direction of travel against **absolute north**: a ring with the letters **N, E, S and W** on it (the N in red, at the top) and an arrow inside that turns to your track. The arrow pointing at the N means you are heading north, at the E east, between the S and the W south-west. (The Wind and Landing zone arrows are different: they are relative to your direction of travel.) The arrow is smoothed so it does not jump about, and is hidden when you are standing still.
 
 With a weak GPS signal the speed is unreliable (it can show 40 km/h while standing still), so below 6 satellites or with poor accuracy the tile shows 0 rather than a false number.
 
@@ -533,14 +553,14 @@ How far away the landing zone (LZ) is, and which way to turn to it.
 
 For example, `620 m` with `330 ft MSL` under it and a large arrow at the right: the LZ is 620 metres away and 330 feet above sea level. The arrow points to the LZ relative to the way you are travelling: straight up means it is dead ahead, pointing right means it is off to your right, pointing down means it is behind you. The arrow is smoothed so it does not jump about, and appears once you are moving (at walking pace or more). Until a landing zone is set it says `not set`.
 
-By default the LZ is the spot where you stood before taking off. You can pick a different one (see *Set LZ here*).
+By default the LZ is the spot where you stood before taking off. You can pick a different one (see *Set LZ manually*).
 
 ### Wind
 *GPS Module*
 
 Where the wind comes from and how strong it is.
 
-While you are moving, a large arrow at the right shows where the wind is going, relative to the way you are travelling (up = a tailwind pushing you straight ahead, down = a headwind), smoothed so it does not jump about. Under it: `from 270° · 18 km/h · takeoff`, a west wind. Standing still there is no direction of travel, so the tile shows `270°` instead of an arrow. The word after the dot says how it was worked out: *takeoff*, *circling* or *manual*. Before any estimate it says `unknown`.
+While you are moving, a **windsock** at the right shows the wind as it would stream from a pole: the sock points the way the wind is blowing, relative to the way you are travelling (up = a tailwind pushing you straight ahead, down = a headwind, right = wind from your left), smoothed so it does not swing about. Under it: `from 270° · 18 km/h · takeoff`, a west wind. Standing still there is no direction of travel, so the tile shows `270°` instead of the sock. The word after the dot says how it was worked out: *takeoff*, *circling* or *manual*. Before any estimate it says `unknown`.
 
 The vario has no wind sensor. It first assumes you took off into the wind (your takeoff run direction), then improves the estimate whenever you turn through about 270° by watching how your ground speed changes around the circle. If you know better, set the wind by hand in the Wind settings.
 
@@ -549,7 +569,7 @@ The vario has no wind sensor. It first assumes you took off into the wind (your 
 
 How many satellites the GPS can see and how good the signal is.
 
-For example, `10 sats` with `Fix · signal strong`. `Searching` means no position yet; `no data` means the GPS is not talking to the vario. Signal reads strong, good, ok or poor.
+For example, `strong` with `10 satellites · fix` under it. The big word is the signal quality (strong, good, ok, poor or none), because that is what matters; the satellite count is underneath. `searching` means no position yet; `no data` means the GPS is not talking to the vario.
 
 More satellites and a lower HDOP (a measure of how spread-out they are) mean better accuracy. See *Ready to fly: minimum satellites*.
 
@@ -576,20 +596,20 @@ Blue `Approach` with the current circuit leg, or red `Emergency` with your glide
 ### Push button (with GPS)
 *GPS Module*
 
-One button, three kinds of press.
+One button, four gestures, with a click on every press.
 
-*Single press*: start landing approach (press again to cancel). *Double press*: start emergency glide (double press again to cancel). *Long press* (hold about a second): mute or unmute the beeps.
+*Single press*: **Update me**: your height, the landing zone (clock position and distance), the wind and the battery. It never starts or cancels anything. *Double press*: start landing approach (double press again to cancel). *Hold* for 1.5 s: start emergency glide (hold again to cancel); a rising tone at 0.8 s says "keep holding", and letting go before 1.5 s does nothing. *Triple press*: mute or unmute the beeps.
 
-A single press takes effect about half a second after you let go, because the vario waits to see if a second press follows. A press while emergency guidance is running does nothing for approach; starting an emergency cancels any approach.
+Starting guidance is the deliberate gesture so that an accidental touch can only ever tell you something. (Earlier versions used a single press for the approach, a double press for the emergency and a long press to mute.) A single press is spoken about 0.6 s after you let go, the time the vario waits for a second press; the gap between the clicks of a double or triple press can be up to 0.6 s. An approach press while emergency guidance is running does nothing; starting an emergency cancels any approach.
 
-### Landing approach / Emergency glide (page buttons)
+### Landing support / Emergency support (page buttons)
 *GPS Module*
 
-The same as the single and double press.
+The same as the double press and the hold.
 
 Tap to start, tap again to stop. The button lights up while active.
 
-### Set LZ here
+### Set LZ manually
 *GPS Module*
 
 Makes the spot where you are standing the landing zone.
@@ -613,7 +633,7 @@ Tap it after a trip to a different field, to make the next takeoff point the LZ 
 
 Talks you around a landing circuit to the landing zone.
 
-Press once near the end of your flight. You hear "Landing approach, circuit start, 2 o'clock, 600 metres". Head that way. At each corner you hear "Turn crosswind now", "Turn left now" and so on. On final you hear "Too high" or "Too low" against the path to the LZ. If you drift off the leg you hear "Steer left" / "Steer right". Pressing the button again cancels it.
+Double press the button (or tap **Landing support**) near the end of your flight. You hear "Landing approach, circuit start, 2 o'clock, 600 metres". Head that way. At each corner you hear "Turn crosswind now", "Turn left now" and so on. On final you hear "Too high" or "Too low" against the path to the LZ. If you drift off the leg you hear "Steer left" / "Steer right". Double pressing again cancels it.
 
 The circuit is built around the LZ: upwind and final are flown into the wind along the same line, upwind passing over the LZ.
 
@@ -638,7 +658,7 @@ Stages: (1) to circuit start, with clock-position updates (12 o'clock is straigh
 
 Tells you whether you can glide to the landing zone, and steers you there.
 
-Double press if the engine stops. You hear your glide range, the LZ as a clock position and distance, and "Cannot reach landing zone" if it is beyond your range. Then "On course" once you point at the LZ, or "Landing zone, 10 o'clock" if you wander off, and the distance every 30 seconds.
+Hold the button for 1.5 seconds (or tap **Emergency support**) if the engine stops. You hear your glide range, the LZ as a clock position and distance, and "Cannot reach landing zone" if it is beyond your range. Then "On course" once you point at the LZ, or "Landing zone, 10 o'clock" if you wander off, and the distance every 30 seconds.
 
 The range comes from your height, the *Glide ratio (engine off)*, and the *Trim airspeed*, adjusted for the estimated wind (a headwind shortens it).
 
@@ -706,7 +726,7 @@ The ground speed below which you count as stopped, so you have landed.
 
 For example, at 5 km/h, walking pace or slower. Default: 5 km/h.
 
-With a good GPS fix, landing is declared when your ground speed stays below this for *Landed after* seconds (shown in Part 1; it is half the time needed without a GPS speed). A weak fix (few satellites or poor accuracy) is not used for the speed: the vario falls back on the barometer and your height, as with no GPS (see *Landed without GPS speed: only below*), so a weak fix in flight no longer ends the flight.
+With a good GPS fix, landing is declared when your ground speed stays below this for *Landed after* seconds (shown in Part 1; it is half the time needed without a GPS speed). A weak fix (few satellites or poor accuracy) is not used for the speed: the vario falls back on the barometer and your height, as with no GPS (see *Counts as near the ground below*), so a weak fix in flight no longer ends the flight.
 
 <a id="adv-settings-glide"></a>
 ## Settings: Glide
@@ -745,7 +765,7 @@ Where the landing zone comes from: your takeoff point, or a place you set.
 ### Latitude / Longitude / Elevation
 The stored position and height of the manual landing zone.
 
-Easiest is to stand on the field and tap *Set LZ here*, which fills all three in. Typing them is only needed if you know the coordinates.
+Easiest is to stand on the field and tap *Set LZ manually*, which fills all three in. Typing them is only needed if you know the coordinates.
 
 <a id="adv-settings-landing-approach"></a>
 ## Settings: Landing approach
@@ -788,6 +808,11 @@ For example, at 80 m, once you are within 80 m of the circuit start the vario mo
 Warns you of a turn a moment before the corner.
 
 For example, at 3 s you hear "Turn left now" 3 seconds before you reach the corner, giving time to react and start the turn. Default: 3 s.
+
+This is the lead used for the first two turns of a landing support circuit. If *Learn how fast I turn* (below) is on, the vario then replaces it with what it has measured of you.
+
+### Learn how fast I turn from the first two turns
+Landing support times the first two turns of the circuit (from "Turn now" until your track is within 20° of the new leg) and works out how long you take to start turning and how fast you turn. A pilot who takes 2 s to react and turns a quarter circle in 6 s needs about 2 + 57.3 ÷ 15 = 6 s of warning; one who takes 20 s needs about 3 + 57.3 ÷ 4.5 = 16 s. From the third turn (the base turn) on, the turns are called early by that learned time instead of *Call turns early by*. The learned time is limited to 2 to 25 s, is forgotten when landing support is cancelled, and each turn that cannot be trusted (turned the wrong way, under 60°, not completed within a minute, a GPS track that jumped to the new leg at once, or one too quick to be measured) is simply not used; with fewer than two good measurements the setting is used. Default: on. Switch it off to always use *Call turns early by*.
 
 ### Off-heading warning
 How far off a leg's heading you may drift before being told.
@@ -833,6 +858,13 @@ The wind you enter when manual wind is on.
 ## Settings: GPS
 
 *GPS Module*
+
+### Resume the flight if switched back on within (0 = never)
+*GPS Module*
+
+How long the vario may be switched off in flight and still carry the flight on when it is switched on again. Default: 3 hours.
+
+At power-up the vario does not take a saved flight on trust. At the first good GPS fix it checks that the saved flight is recent enough (this setting), that you are where the flight could have got to in that time, and that you are **moving at flying speed right now**. Only then it resumes ("Flight resumed"): the landing zone, the heights, the wind and the flight time (counting the time it was off). Otherwise the record is dropped, including when no GPS position and time arrive within 3 minutes, so the vario cannot come up believing it is flying when it is not. 0 switches resuming off. If the vario ever thinks it is flying when it is not, use **Reset flight state** on the Logs & system tab.
 
 ### GPS module
 Whether the vario has a GPS module: found automatically, or set by hand.

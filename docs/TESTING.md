@@ -68,11 +68,14 @@ A failure prints the vario's state, the simulator state and the last log lines.
   follow from heading, airspeed and wind, so the true wind and the flown path are known), **barometer faults**
   (`baroFault=dead|range|stuck|noise|nan`, `baroNoise`, `baroSpike` with `baroSpikeN` samples, `baroStep` a persistent
   offset, `baroDropMs` a dropout timed by the vario itself), `rpmGlitch=<rpm>` (one analysis window reports that RPM) and
-  `windflush=1` (forget the wind samples so far). The simulated barometer always carries about 3 cm of noise, as a real sensor does
+  `windflush=1` (forget the wind samples so far), `button=press|holdcue|single|double|triple|hold` (inject a decoded button
+  event: the decoding of real presses is the `button_logic` unit suite) and `utcBase=<seconds>` (added to the simulated GPS clock, which
+  starts at 12:00:00 at power-on and runs with the uptime: a test sets it right after a restart to make a saved flight any age it likes). The simulated barometer always carries about 3 cm of noise, as a real sensor does
   (without it a still simulated sensor would repeat one value for ever and look frozen).
+  The voice clips for the pilot-interface messages are not needed by the tests: they judge the log (the clip names), not the sound.
   The test build is compiled at the release optimisation level (the debug level made the image too big for the OTA slot).
 - **Unit suites on the vario.** There is no host compiler for this project, so software-level tests of production
-  functions run on the vario: `GET /api/sim?unit=<rpm|geo|wind|circuit|battery|flight|baro|rpmtrack>` runs a suite (src/test/UnitSuites.cpp,
+  functions run on the vario: `GET /api/sim?unit=<rpm|geo|wind|circuit|battery|flight|baro|rpmtrack|button|status|alerts|resume|audio>` runs a suite (src/test/UnitSuites.cpp,
   RpmTest.cpp) on inputs of its own and returns `{"pass":n,"fail":m,"failures":[...]}`; `tonetest=1` is the vario tone
   decision. The HIL tests `*_logic` call them. The unit tests prove the maths; the HIL tests prove the whole system
   behaves: the two are meant to complement each other, e.g. `circuit_logic` drives the circuit state machine with
@@ -95,6 +98,13 @@ A failure prints the vario's state, the simulator state and the last log lines.
 | `settings` | settings API round trip and limits |
 | `vario_climb`, `vario_sink` | tone pitch in the log, and heard by the microphone |
 | `vario_thresholds` | climb and sink tones off just under their thresholds, on just over them at the calculated pitch, and off again (log, and the microphone unless `--no-audio`); speeds are well either side of each threshold |
+| `button_logic`, `status_logic`, `alerts_logic`, `resume_logic`, `audio_logic` | unit suites for the pilot interface: button decoding (click counts, 0.6 s gap, triple at once, hold cue at 0.8 s and hold at 1.5 s, abandoned hold, bounce); the spoken "update me" (order, clock position, units, what is left out); the battery messages (minutes, landing zone distance, advice to switch off, critical and lost leads) and the barometer failed / back calls; when a saved flight is resumed (age, reach, speed, missing time or position); the signal tone before urgent calls only |
+| `button_actions` | every gesture injected: click and hold cues, single = update me and never starts or cancels guidance, double = approach on/off, hold = emergency on/off, triple = mute, and the no-GPS mapping |
+| `alerts_flight` | "Barometer failed" / "Barometer back" spoken in flight; routine height calls silent while an approach guides |
+| `resume_flight` | **restarts the vario in simulated flight** (about 8 minutes): resumed after 30 min at flying speed (same LZ, heights, flight time, then lands normally); not resumed when too old, standing still, in an impossible place, switched off by setting, or with no GPS time within 3 minutes; a pilot reset ends a flight and nothing resumes after it |
+| `ui_layout` | **what a look at the screen would show**, on a 360 px wide phone (the user's) and a 320 px one: no text cut off ("39 k..."), nothing drawn over anything else, nothing off the edge, in the ground view, flying, at 120 km/h, in mph and miles and in knots and metres, with a landing zone 55 km away, with three alerts at once, and on the Settings and Logs tabs. Saves a screenshot of each to `results/ui/` (the harness's browser emulates a 360 px, 2x phone for every page test) |
+| `landing_hover` | F10: hovering in a headwind at height with a good GPS is not a landing as quickly as on the ground (multiplier 5), multiplier 1 is the old rule, a landing near the ground is not slowed |
+| `ui_pilot` | the flight tab by phase (setup card on the ground only), the alert strip (low and critical battery, barometer, no GPS, each clearing), GPS and battery tile wording, the noise tile only on request, Quick settings first and in step with their groups, Update me and Reset flight state buttons |
 | `rpm_logic`, `geo_logic`, `wind_logic`, `circuit_logic`, `battery_logic`, `flight_logic`, `baro_logic`, `rpmtrack_logic` | the unit suites above: RPM from synthetic spectra (speeds, pulses per rev, noise, silence, range limits); angles, distance, bearings, clock positions; the wind fit (accuracy, either turn, 0/360, noise, refusals, averaging, stale samples before a wind change, convergence after one) and glide over the ground; circuit leg order and turn points, base turn from height, overshoot, wrong way, and when "steer" may be called (not during a called turn; called for a missed, stalled or wrong-way turn); battery conversion, curve, low, critical and lost-reading calls; the landing decision (trusted speed, weak or lost GPS, height and vertical-speed limits) and GPS coordinate validity; the barometer plausibility checks (impossible and NaN pressure, lone outliers, steps, rate limit, frozen reading, recovery); the RPM reading logic (jump confirmation, hold through speech and dropouts) |
 | `rpm` | synthetic engine through the real microphone path: stopped, idle, up, down, rapid alternation, noise, dead input, recovery |
 | `rpm_speech`, `rpm_glitch` | RPM held through three 6 s announcements and a real change straight after; single bad windows (4000, 1000, 6000, 3000, 4000 rpm) never reach the reading while a real change is followed |
@@ -122,7 +132,7 @@ A failure prints the vario's state, the simulator state and the last log lines.
 | `variant_no_gps` | vario with no GPS: ready, takeoff, height, landing, no GPS calls or log, page and settings trimmed |
 | `variant_no_mic` | vario without a microphone: set volume used, battery still read, page and settings trimmed |
 | `ui_flight` | banner and every tile on the flight tab |
-| `ui_actions` | mute, test voice and landing-zone buttons |
+| `ui_actions` | on the ground: Mute vario, Audio test and the two landing-zone buttons (Set LZ manually, LZ = takeoff) |
 | `ui_guidance` | flying display, emergency/approach banners, log list and delete |
 | `ui_settings` | every setting shown; editing, units, greyed-out boxes, restart marks |
 | `ui_spectrum` | spectrum graph, tone marker, pause (skipped on a build made with `-DPV_HAS_SPECTRUM=0`) |

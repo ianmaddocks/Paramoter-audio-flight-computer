@@ -1,0 +1,16 @@
+ParaVario 20261112-153020 (3130155-dirty) at paravario.local, 11 tests
+  PASS  battery_logic      0.8 s  49 cases passed: conversion, smoothing, curve, low-battery timing and exceptions
+  PASS  flight_logic       1.0 s  31 cases passed: speed rule unchanged, no landing from a missing or weak GPS at height, limits exact
+  PASS  circuit_right    272.9 s  crosswind turn at x=226 (expected 225); downwind turn at y=372 (expected 371); base turn at x=-227 for 166 m (expected -223; final 267 m); final turn at y=49, 79 m up; touchdown 1 m from the field; no steering call during any called turn
+  PASS  fault_battery     68.8 s  flickering 3.4/3.6 V: 0 call(s) in 40 s; 0.0 V: 12 %, no call; 6.0 V: 100 %, no call
+  PASS  alerts_flight    114.5 s  barometer failed / back spoken in flight; routine height calls: 2+ in 26 s normally, none during the approach
+  PASS  resume_flight    481.3 s  30 min off at flying speed: resumed, same LZ, 50 m, flight time 1818 s; resumed flight lands normally; too old (4 h): not resumed; on the ground: not resumed; impossible place: not resumed; resume switched off: not resumed; no GPS within 3 minutes: dropped; reset by the pilot: flight ended, nothing resumed after a restart
+  PASS  battery_flight   146.0 s  3.40 V: ordinary call; 3.20 V: urgent call after 7 s; reading lost in flight (0 V): urgent call; recovered: silent; 0 V on the ground: silent (USB power)
+  PASS  flight           120.3 s  94 IGC records, 9 s before takeoff, alt 100..167 m, 9 without fix
+  PASS  guidance          67.1 s  refusals, emergency 6 o'clock + on course, approach start and cancel
+  PASS  battery           37.5 s  curve ok, minutes [360, 354, 288, 180, 43, 0], real battery back at 4.160 V
+  PASS  battery_learner    7.6 s  4 h run -> 234.2 min at 4.10 V, pace-scaled 59 min, blended 199.4, charging unknown
+Cleanup: simulation off, flight logic reset, settings restored, 8 leftover test log(s) deleted, leftover test logs.
+
+11 passed, 0 failed
+exit 0

@@ -35,10 +35,30 @@ div.page[hidden]{display:none}
 .vrow span{overflow:hidden;text-overflow:ellipsis}
 .arr{width:46px;height:46px;flex:none;color:var(--acc);transition:transform .9s linear}
 .arr[hidden]{display:none}
-.cmp{position:relative;width:46px;height:46px;flex:none}
+.alerts{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.alerts:empty{display:none}
+.alert{border-radius:12px;padding:10px 14px;font-size:15px;font-weight:600;color:#fff}
+.alert.warn{background:var(--warn)}.alert.bad{background:var(--bad)}
+body.flying .groundonly{display:none}
+body:not(.flying) .flightonly{display:none}
+#t-winds{white-space:normal}
+.windrow{height:92px}
+.sockw{flex:none;width:92px;height:92px}
+.sockw[hidden]{display:none}
+.sockg{transform-origin:42px 42px;transition:transform .9s linear}
+.so{fill:#E8590C;stroke:#7A2E00;stroke-width:.7}
+.sw{fill:#fff;stroke:#7A2E00;stroke-width:.7}
+.sring{fill:none;stroke:var(--mut);stroke-width:1.6}
+.spole{fill:var(--mut)}
+.srow{display:flex;align-items:center;justify-content:space-between;min-height:58px;overflow:visible}
+.cmp{flex:none;width:56px;height:56px}
 .cmp[hidden]{display:none}
-.cmp::before{content:'N';position:absolute;top:0;left:50%;transform:translateX(-50%);font-size:11px;line-height:11px;font-weight:700;color:var(--mut)}
-.cmp .arr{position:absolute;left:4px;bottom:0;width:38px;height:38px}
+.cring{fill:var(--bg);stroke:var(--mut);stroke-width:1.5}
+.cmparrow{fill:var(--acc);transform-origin:42px 42px;transition:transform .9s linear}
+.cb{fill:var(--card);stroke:var(--card);stroke-width:1}
+.cl,.cn{font:500 15px system-ui,sans-serif;text-anchor:middle}
+.cl{fill:var(--mut)}
+.cn{fill:var(--bad);font-size:17px}
 .tile .v{font-size:22px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tile .s{font-size:12px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tile.big{grid-column:span 2}.tile.big .v{font-size:40px}
@@ -127,30 +147,35 @@ R"HTML(
 </nav>
 <div id="flightPage" class="page" role="tabpanel">
 <div id="ready" class="ready wait"><b id="ready-t">Checking…</b><span id="ready-s"></span></div>
+<div id="alerts" class="alerts" role="alert" aria-live="assertive"></div>
 <section class="tiles" id="tilesMain">
 <div class="tile" id="tile-height"><div class="k">Height AGL</div><div class="v" id="t-agl">–</div><div class="s" id="t-msl"></div></div>
 <div class="tile graph" id="tile-hgraph"><div class="k">Height · last 10 min</div><canvas id="hgCv"></canvas></div>
 <div class="tile" id="tile-vario"><div class="k">Vario</div><div class="v" id="t-vario">–</div><div class="s" id="t-mute"></div></div>
-<div class="tile needgps"><div class="k">Ground speed</div><div class="v vrow" id="t-speed"><span id="t-speedv">–</span><span class="cmp" hidden><svg id="a-track" class="arr" viewBox="-20 -20 40 40" aria-hidden="true"><path d="M0 -19 L12 -4 L4.5 -4 L4.5 19 L-4.5 19 L-4.5 -4 L-12 -4 Z" fill="currentColor"/></svg></span></div><div class="s" id="t-track"></div></div>
+<div class="tile needgps" id="tile-speed"><div class="k">Ground speed</div><div class="v" id="t-speed"><span id="t-speedv">–</span></div><div class="s srow"><span id="t-track"></span><span class="cmp" hidden><svg viewBox="0 0 84 84" width="56" height="56" aria-hidden="true"><circle class="cring" cx="42" cy="42" r="33"/><g id="a-track" class="cmparrow"><path d="M42 26 L50 41 L45 41 L45 58 L39 58 L39 41 L34 41 Z"/></g><rect class="cb" x="31" y="1" width="22" height="22" rx="6"/><text class="cn" x="42" y="18">N</text><rect class="cb" x="61" y="31" width="22" height="22" rx="6"/><text class="cl" x="72" y="47">E</text><rect class="cb" x="31" y="61" width="22" height="22" rx="6"/><text class="cl" x="42" y="77">S</text><rect class="cb" x="1" y="31" width="22" height="22" rx="6"/><text class="cl" x="12" y="47">W</text></svg></span></div></div>
 <div class="tile needgps"><div class="k">Glide ratio</div><div class="v" id="t-glide">–</div><div class="s" id="t-glides"></div></div>
 <div class="tile"><div class="k">Flight time</div><div class="v" id="t-flight">–</div><div class="s" id="t-ftime"></div></div>
 <div class="tile needgps"><div class="k">Landing zone</div><div class="v vrow" id="t-lz"><span id="t-lzv">–</span><svg id="a-lz" class="arr" viewBox="-20 -20 40 40" aria-hidden="true" hidden><path d="M0 -19 L12 -4 L4.5 -4 L4.5 19 L-4.5 19 L-4.5 -4 L-12 -4 Z" fill="currentColor"/></svg></div><div class="s" id="t-lzs"></div></div>
-<div class="tile needgps"><div class="k">Wind</div><div class="v vrow" id="t-wind"><span id="t-windv">–</span><svg id="a-wind" class="arr" viewBox="-20 -20 40 40" aria-hidden="true" hidden><path d="M0 -19 L12 -4 L4.5 -4 L4.5 19 L-4.5 19 L-4.5 -4 L-12 -4 Z" fill="currentColor"/></svg></div><div class="s" id="t-winds"></div></div>
+<div class="tile needgps" id="tile-wind"><div class="k">Wind</div><div class="v vrow windrow" id="t-wind"><span id="t-windv">–</span><span class="sockw" hidden><svg viewBox="0 0 84 84" width="92" height="92" aria-hidden="true"><g id="a-wind" class="sockg"><polygon class="so" points="24,78 60,78 56,60 28,60"/><polygon class="sw" points="28,60 56,60 53,42 31,42"/><polygon class="so" points="31,42 53,42 50,24 34,24"/><polygon class="sw" points="34,24 50,24 47,6 37,6"/><line class="sring" x1="22" y1="78" x2="62" y2="78"/></g></svg></span></div><div class="s" id="t-winds"></div></div>
 </section>
-<section class="card"><h2>Actions</h2><div class="btns">
-<button data-a="approach" id="b-approach" class="needgps">Landing approach</button>
-<button data-a="emergency" id="b-emergency" class="dng needgps">Emergency glide</button>
-<button data-a="mute" id="b-mute">Mute vario</button>
-<button data-a="test_voice">Test voice</button>
-<button data-a="lz_here" class="needgps">Set LZ here</button>
-<button data-a="lz_takeoff" class="needgps">LZ = takeoff</button>
-<button type="button" id="b-fs" class="wide" hidden>Full screen</button>
+<section class="card flightonly" id="flightActions"><h2>Actions</h2><div class="btns">
+<button data-a="approach" id="b-approach" class="needgps">Landing support</button>
+<button data-a="emergency" id="b-emergency" class="dng needgps">Emergency support</button>
+<button data-a="tell_me" id="b-tell">Update me</button>
+<button data-a="mute" id="b-mute" class="b-mute">Mute vario</button>
 </div></section>
+<section class="card groundonly" id="groundActions"><h2>Actions</h2><div class="btns">
+<button data-a="test_voice">Audio test</button>
+<button data-a="mute" id="b-mute-g" class="b-mute">Mute vario</button>
+<button data-a="lz_here" class="needgps">Set LZ manually</button>
+<button data-a="lz_takeoff" class="needgps">LZ = takeoff</button>
+</div></section>
+<div class="btns"><button type="button" id="b-fs" class="wide" hidden>Full screen</button></div>
 <section class="tiles more" id="tilesMore">
 <div class="tile needgps"><div class="k">GPS</div><div class="v" id="t-gps">–</div><div class="s" id="t-gpss"></div></div>
 <div class="tile"><div class="k">Battery</div><div class="v" id="t-batt">–</div><div class="s" id="t-batts"></div></div>
 <div class="tile needmic"><div class="k">Engine RPM</div><div class="v" id="t-rpm">–</div><div class="s" id="t-rpms"></div></div>
-<div class="tile needmic"><div class="k">Background noise</div><div class="v" id="t-noise">–</div><div class="s" id="t-noises"></div></div>
+<div class="tile needmic" id="tile-noise" hidden><div class="k">Background noise</div><div class="v" id="t-noise">–</div><div class="s" id="t-noises"></div></div>
 </section>
  </div>
 <div id="settingsPage" class="page" role="tabpanel" hidden>
@@ -183,6 +208,7 @@ R"HTML(
 </section>
 <section class="card"><h2>System</h2><div class="btns">
 <button data-a="restart">Restart</button>
+<button data-a="reset_flight">Reset flight state</button>
 <button data-a="defaults" class="dng">Factory defaults</button>
 </div><p class="mut" id="sys"></p></section>
 </div>
@@ -196,6 +222,14 @@ R"HTML(
 <footer id="hver"></footer>
 <div id="toast"></div>
 <script>
+// The vario's web server answers one request at a time, every request is a new connection, and the connections' buffers
+// come out of a very small memory. So this page's own requests go one after another (the next starts when the last has
+// its answer) instead of a burst of six at load time, and none can wait for ever. Requests to other sites (the help
+// guides) are left alone.
+(()=>{const raw=window.fetch.bind(window);let chain=Promise.resolve();
+  window.fetch=(u,o)=>{if(typeof u!=='string'||u[0]!=='/')return raw(u,o);
+    const opt=Object.assign({},o||{});if(!opt.signal&&window.AbortSignal&&AbortSignal.timeout)opt.signal=AbortSignal.timeout(20000);
+    const go=()=>raw(u,opt),r=chain.then(go,go);chain=r.then(()=>0,()=>0);return r}})();
 const $=s=>document.querySelector(s);
 const FT=3.28084;
 let schema=[],cfg={},openGroups=new Set();
@@ -225,12 +259,12 @@ function txt(id,v){const e=document.getElementById(id);if(e.textContent!==v)e.te
 // course noise does not make it jump, kept unwrapped so it never spins the long way round at 0/360, and the
 // CSS transition moves it between readings. null hides it.
 const arrowAng={};
-function setArrow(id,deg){const e=document.getElementById(id),w=e.parentNode.classList.contains('cmp')?e.parentNode:null;
-  if(deg==null||isNaN(deg)){e.hidden=true;if(w)w.hidden=true;delete arrowAng[id];return}
+function setArrow(id,deg){const e=document.getElementById(id),w=e.closest('.cmp,.sockw');
+  if(deg==null||isNaN(deg)){e.toggleAttribute('hidden',true);if(w)w.hidden=true;delete arrowAng[id];return}
   if(w)w.hidden=false;
   let a=arrowAng[id];
-  if(a==null){a=deg;e.style.transition='none';e.style.transform='rotate('+a.toFixed(1)+'deg)';void e.offsetWidth;e.style.transition='';e.hidden=false}
-  else{a+=(((deg-a)%360+540)%360-180)*0.35;e.hidden=false;e.style.transform='rotate('+a.toFixed(1)+'deg)'}
+  if(a==null){a=deg;e.style.transition='none';e.style.transform='rotate('+a.toFixed(1)+'deg)';e.getBoundingClientRect();e.style.transition='';e.toggleAttribute('hidden',false)}
+  else{a+=(((deg-a)%360+540)%360-180)*0.35;e.toggleAttribute('hidden',false);e.style.transform='rotate('+a.toFixed(1)+'deg)'}
   arrowAng[id]=a}
 
 // Tile layout. Hidden tiles (hardware not fitted) do not count.
@@ -293,8 +327,8 @@ function buildHelp(){
   const adv=hwNow.gps,el=$('#helpBody');el.innerHTML='';
   // What the one push button does, right at the top.
   const bp=document.createElement('p');bp.className='hbtn';
-  bp.innerHTML=adv?'<b>Push button.</b> One press starts the landing approach (press again to cancel). Two quick presses start the emergency glide. Hold for about a second to mute or unmute the beeps.'
-    :'<b>Push button.</b> Any press switches the vario beeps off or on.';
+  bp.innerHTML=adv?'<b>Push button.</b> One press updates you (height, landing zone, wind, battery). Two quick presses start landing support (again to cancel). Hold for 1.5 seconds for emergency support (again to cancel). Three presses mute or unmute the beeps.'
+    :'<b>Push button.</b> One press updates you (height, battery). Two or three presses, or a hold, switch the vario beeps off or on.';
   el.appendChild(bp);
   const doc=(t,sub,file)=>{const a=mkLink(t,file,'','doc'),s=document.createElement('small');s.textContent=sub;a.appendChild(s);el.appendChild(a)};
   doc('User guide','How to use this vario, from switching on to landing',adv?DOCS.adv:DOCS.basic);
@@ -414,6 +448,24 @@ function drawHeight(){
 }
 setInterval(pollHeight,3000);addEventListener('resize',drawHeight);
 
+let engShown=false;
+// The alert strip: what the pilot must know in flight whichever tab or tile is showing, from the status alone.
+function setAlerts(s,G,hw,bm){
+  const al=[];
+  if(s.flying&&!s.baro.ok)al.push(['bad','Barometer failed: vario tones are off']);
+  if(s.flying&&hw.gps&&!G.fix)al.push(['warn','No GPS fix']);
+  const bv=s.batt.v;
+  if(bv>=2.5&&cfg.battLowV!=null){
+    const crit=Math.min(cfg.battCriticalV!=null?cfg.battCriticalV:3.3,cfg.battLowV);
+    const adv=(bm?' · about '+bm+' remaining':'')+(s.lz.valid&&s.lz.dist!=null?' · LZ '+fD(s.lz.dist):'');
+    const off=hw.gps&&s.lz.valid?' · you can switch me off until you need help landing':'';
+    if(bv<crit)al.push(['bad','Battery critical'+adv+off]);else if(bv<cfg.battLowV)al.push(['warn','Battery low'+adv+off]);
+  }
+  const key=JSON.stringify(al),el=$('#alerts');
+  if(el.dataset.k===key)return;
+  el.dataset.k=key;el.innerHTML='';
+  al.forEach(a=>{const d=document.createElement('div');d.className='alert '+a[0];d.textContent=a[1];el.appendChild(d)});
+}
 async function poll(){
   try{
     const r=await fetch('/api/status',{cache:'no-store'});const s=await r.json();
@@ -423,6 +475,8 @@ async function poll(){
     hwNow=hw;
     const k=hw.gps+'/'+hw.mic;if(k!==layKey){layKey=k;layout();buildHelp();addGroupHelp()}
     if(schemaKey&&k!==schemaKey&&!saveInFlight&&!settingsBusy){settingsBusy=true;loadSettings().catch(()=>{}).finally(()=>{settingsBusy=false})}
+    document.body.classList.toggle('flying',!!s.flying);
+    {const e=!!cfg.showEngTiles;if(e!==engShown){engShown=e;$('#tile-noise').hidden=!e;layout()}}
     txt('t-agl',fH(s.agl));txt('t-msl',fH(s.altMsl)+' MSL');
     txt('t-vario',(s.vario>=0?'+':'')+s.vario.toFixed(1)+' m/s');txt('t-mute',s.muted?'muted':'');
     txt('t-speedv',G.fix?fS(G.speed):'–');
@@ -432,21 +486,21 @@ async function poll(){
     txt('t-flight',s.flying?fT(s.flightTime):'Grounded');
     txt('t-ftime',s.flying?'Flying'+(s.logging?' · logging':''):s.flightTime?'last flight '+fT(s.flightTime):'');
     $('#b-approach').classList.toggle('on',s.mode=='approach');$('#b-emergency').classList.toggle('on',s.mode=='emergency');
-    $('#b-mute').textContent=s.muted?'Unmute vario':'Mute vario';
+    document.querySelectorAll('.b-mute').forEach(b=>{b.textContent=s.muted?'Unmute vario':'Mute vario'});
     // Directions are arrows relative to the way the pilot is travelling (up = straight ahead) once the GPS
     // gives a direction of travel; the compass degrees move to the line under the value. Standing still
     // there is no direction of travel: the degrees stay as the value.
     const moving=!!G.fix&&G.speed>=1.5;
-    setArrow('a-track',moving?G.track:null);  // ground speed tile: the track against absolute north (the N marks it)
+    setArrow('a-track',moving?G.track:null);  // ground speed tile: a compass; the arrow shows the track against absolute north (N at the top of the ring)
     txt('t-lzv',!s.lz.valid?'not set':s.lz.dist!=null?fD(s.lz.dist):'set');
     setArrow('a-lz',s.lz.valid&&s.lz.dist!=null&&moving&&s.lz.brg!=null?s.lz.brg-G.track:null);
     txt('t-lzs',s.lz.valid?fH(s.lz.elev)+' MSL':'');
     if(!s.wind.valid){txt('t-windv','unknown');setArrow('a-wind',null);txt('t-winds','')}
     else if(moving){txt('t-windv','');setArrow('a-wind',s.wind.from+180-G.track);txt('t-winds','from '+Math.round(s.wind.from)+'° · '+fS(s.wind.speed)+' · '+s.wind.src)}
     else{txt('t-windv',Math.round(s.wind.from)+'°');setArrow('a-wind',null);txt('t-winds',fS(s.wind.speed)+' · '+s.wind.src)}
-    txt('t-gps',!G.link?'no data':G.sats+' sats');
-    const h=G.hdop,gq=!G.fix||!(h<=20)?'none':h<=2?'strong':h<=5?'good':h<=10?'ok':'poor';
-    txt('t-gpss',(G.fix?'Fix':'Searching')+' · signal '+gq);
+    {const h=G.hdop,gq=!G.fix||!(h<=20)?'none':h<=2?'strong':h<=5?'good':h<=10?'ok':'poor';
+    txt('t-gps',!G.link?'no data':gq);
+    txt('t-gpss',G.link?G.sats+' satellites · '+(G.fix?'fix':'searching'):'')}
     // The banner doubles as the guidance-mode indicator: Emergency / Approach take it over
     // (even in flight, when the ready banner is normally hidden).
     const rd=$('#ready');
@@ -460,10 +514,13 @@ async function poll(){
       txt('ready-t',s.ready?'Ready to fly':s.notReady);
       txt('ready-s',hw.gps?G.sats+' / '+s.minSats+' satellites':'');
     }
-    txt('t-batt',s.batt.v<2.5?'USB':s.batt.pct+'%');txt('t-batts',s.batt.v.toFixed(2)+' V'+(s.batt.min!=null?' · ~'+(s.batt.min>=60?Math.floor(s.batt.min/60)+' h ':'')+(s.batt.min%60)+' min':''));
+    const bm=s.batt.min!=null&&s.batt.min>0?(s.batt.min>=60?Math.floor(s.batt.min/60)+' h ':'')+(s.batt.min%60)+' min':null;
+    const bs=s.batt.min!=null?(s.batt.min>=60?Math.floor(s.batt.min/60)+'h ':'')+(s.batt.min%60)+'m':null;  // short form for the tile: it must fit a 320 px wide phone
+    txt('t-batt',s.batt.v<2.5?'USB':bs?'~'+bs:s.batt.pct+'%');txt('t-batts',s.batt.v<2.5?'':s.batt.v.toFixed(2)+' V · '+s.batt.pct+'%');
+    setAlerts(s,G,hw,bm);
     if(s.mic){
       txt('t-rpm',!s.mic.ok?'no mic':s.mic.rpm>0?Math.round(s.mic.rpm)+' rpm':'off');
-      txt('t-rpms',s.mic.ok?'est '+Math.round(s.mic.raw)+' · conf '+s.mic.conf.toFixed(1):'');
+      txt('t-rpms',s.mic.ok&&cfg.showEngTiles?'est '+Math.round(s.mic.raw)+' · conf '+s.mic.conf.toFixed(1):'');
       txt('t-noise',s.mic.noise!=null?s.mic.noise.toFixed(0)+' dBFS':'–');
       txt('t-noises',s.mic.ok?'vario vol '+s.vol.vario+'%':'');
     }
@@ -474,9 +531,15 @@ async function poll(){
   }catch(e){}
 }
 
+function syncInputs(f){
+  const c=conv(f.u);
+  document.querySelectorAll('[data-key="'+f.k+'"]').forEach(i=>{if(i===document.activeElement)return;
+    if(f.t==='bool')i.checked=!!cfg[f.k];else if(f.t==='enum'||f.t==='str')i.value=cfg[f.k];
+    else if(f.t!=='list')i.value=rnd(cfg[f.k]*c.f,f.t==='double'?7:f.t==='int'?0:c.d)});
+}
 function setVal(f,v){
   if(cfg[f.k]===v)return;
-  cfg[f.k]=v;saveRevision++;txt('saveState','Unsaved changes');
+  cfg[f.k]=v;saveRevision++;txt('saveState','Unsaved changes');syncInputs(f);
   clearTimeout(saveTimer);saveTimer=setTimeout(saveSettings,650);
 }
 // Text boxes that are greyed out while their "Announce" checkbox is off.
@@ -499,6 +562,7 @@ function field(f){
   else{i=document.createElement('input');i.type='number';i.step='any';i.inputMode='decimal';
     const d=f.t==='double'?7:f.t==='int'?0:c.d;i.value=rnd(cfg[f.k]*c.f,d);
     i.onchange=()=>{const v=parseFloat(i.value);if(!isNaN(v))setVal(f,v/c.f)}}
+  i.dataset.key=f.k;
   row.append(sp,i);return row;
 }
 // Settings that most pilots never need to change sit in one collapsed "Advanced settings" section at the
@@ -514,6 +578,16 @@ function render(){
     if(g==='Wi-Fi')d.insertAdjacentHTML('beforeend','<div class="row"><span>Vario network</span><b id="w-ap">–</b></div>'+
       '<div class="row"><span>Server network</span><b id="w-server">–</b></div><div class="row"><span>Server IP address</span><b id="w-server-ip">–</b></div>');
     groups[g].forEach(f=>d.appendChild(field(f)));parent.appendChild(d);return d};
+  // Quick settings: the few a pilot changes most, first. They are the same settings as in their groups below (the
+  // two copies follow each other).
+  const QUICK=['varioVolume','speechVolume','heightUnit','distUnit','speedUnit','circuitSide','glideRatio','trimAirspeedMs'];
+  const qf=QUICK.map(k=>schema.find(f=>f.k===k)).filter(Boolean);
+  if(qf.length){
+    const q=document.createElement('details');q.className='card';q.id='quickSettings';q.open=!openGroups.has('~quick closed');
+    q.ontoggle=()=>q.open?openGroups.delete('~quick closed'):openGroups.add('~quick closed');
+    const s=document.createElement('summary');s.textContent='Quick settings';q.appendChild(s);
+    qf.forEach(f=>q.appendChild(field(f)));root.appendChild(q);
+  }
   for(const g in groups)if(!ADV_GROUPS.includes(g))group(g,root,'card');
   const adv=ADV_GROUPS.filter(g=>groups[g]);
   if(adv.length){
@@ -623,6 +697,7 @@ document.querySelectorAll('button[data-tab]').forEach(b=>b.onclick=()=>selectTab
 
 async function act(a){
   if(a==='defaults'&&!confirm('Reset all settings to defaults?'))return;
+  if(a==='reset_flight'&&!confirm('Forget the current flight? Use this if the vario thinks it is flying when it is not.'))return;
   try{const r=await fetch('/api/action?do='+a,{method:'POST'});const j=await r.json();if(!r.ok)throw j.error;
     toast(a==='restart'||a==='defaults'?'Restarting…':'Done');
     if(a.startsWith('lz_'))loadSettings();
@@ -643,7 +718,7 @@ async function loadLogs(){
       del.onclick=async()=>{if(!confirm('Delete '+f.n+'?'))return;await fetch('/api/log?name='+encodeURIComponent(f.n),{method:'DELETE'});loadLogs()};
       row.append(a,sz,del);el.appendChild(row);
     }
-    const p=document.createElement('p');p.className='mut';p.textContent=Math.round(j.free/1024)+' kB free of '+Math.round(j.total/1024)+' kB';el.appendChild(p);
+    const p=document.createElement('p');p.className='mut';p.textContent=Math.round(j.free/1024)+' kB free';el.appendChild(p);
   }catch(e){$('#logs').textContent='Could not load logs'}
 }
 

@@ -54,6 +54,8 @@ void appLoop();
 void actionToggleApproach();
 void actionToggleEmergency();
 void actionToggleMute();
+void actionTellMe();
+void actionResetFlight();
 
 // First unmet pre-flight condition as text for the pilot, or nullptr when ready to fly.
 const char* appNotReadyReason();
