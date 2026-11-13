@@ -132,6 +132,9 @@ const Field kFields[] = {
     BR(gpsLed, "GPS", "GPS module LED (time-pulse output)"),
     I(readyMinSats, "GPS", "Ready to fly: minimum satellites", "", 4, 20),
     FL(readyMaxHdop, "GPS", "Ready to fly: maximum HDOP", "", 0.5f, 10.0f),
+    FL(moveShowMs, "GPS", "Show the direction arrows above", "speed", 0.5f, 10.0f),
+    FL(moveHideMs, "GPS", "Hide the direction arrows below", "speed", 0.2f, 10.0f),
+    I(moveHoldS, "GPS", "Arrows: speed must hold for", "s", 0, 30),
     I(gpsFixHoldS, "GPS", "Announce \"GPS fix\" after the fix has held for", "s", 0, 60),
 
     SR(bleName, "Bluetooth", "Device name (default ParaVario-XXXX, with the unit code)"),

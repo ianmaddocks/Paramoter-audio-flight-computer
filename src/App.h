@@ -6,6 +6,7 @@
 #include "flight/Flight.h"
 #include "flight/Glide.h"
 #include "flight/HeightHistory.h"
+#include "nav/Moving.h"
 #include "flight/Wind.h"
 #include "input/Button.h"
 #include "logging/IgcLogger.h"
@@ -32,6 +33,7 @@ struct App {
   Flight flight;
   Glide glide;                  // glide ratio tile
   HeightHistory heightHistory;  // rolling height graph
+  MovingState moving;           // there is a direction of travel to show (arrows), with hysteresis
   Wind wind;
   Announcer announcer;
   Approach approach;

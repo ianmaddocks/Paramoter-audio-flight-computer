@@ -11,7 +11,6 @@
 namespace uievents {
 namespace {
 
-constexpr float kMovingMs = 1.5f;  // the page's test for "there is a direction of travel" (WebPage.h: moving)
 constexpr uint32_t kWindowMs = 60000;
 constexpr int kMaxPerWindow = 30;  // a tile flickering many times a minute is logged, then summarised
 
@@ -50,7 +49,7 @@ void reset() { init = false; }
 void update(uint32_t now) {
   const NavState& n = app.nav;
   const bool gps = hw::hasGps();
-  const bool moving = gps && n.fix && n.speedMs >= kMovingMs;
+  const bool moving = app.moving.on();  // the status tells the page this too (gps.moving)
   const bool lzArrow = moving && n.lzValid;
   const bool windsock = moving && app.wind.valid();
   const char* cls = gpsClass(n.fix, n.hdop);
@@ -83,11 +82,11 @@ void update(uint32_t now) {
     lastMoving = moving;
     if (allowed(now)) {
       if (moving)
-        LOGI("UI", "compass arrow shown (direction of travel): fix, ground speed %.2f m/s >= %.1f, track %.0f, %u satellites, hdop %.1f",
-             n.speedMs, kMovingMs, n.trackDeg, (unsigned)n.sats, n.hdop);
+        LOGI("UI", "compass arrow shown (direction of travel): fix, ground speed %.2f m/s held at or above %.1f for %d s, track %.0f, %u satellites, hdop %.1f",
+             n.speedMs, (double)g_cfg.moveShowMs, (int)g_cfg.moveHoldS, n.trackDeg, (unsigned)n.sats, n.hdop);
       else
         LOGI("UI", "compass arrow hidden: %s (ground speed %.2f m/s, %u satellites, hdop %.1f)",
-             !gps ? "no GPS" : !n.fix ? "no fix" : "ground speed under 1.5 m/s", n.speedMs, (unsigned)n.sats, n.hdop);
+             !gps ? "no GPS" : !n.fix ? "no fix" : "ground speed held under the hide limit", n.speedMs, (unsigned)n.sats, n.hdop);
     }
   }
   if (lzArrow != lastLzArrow) {

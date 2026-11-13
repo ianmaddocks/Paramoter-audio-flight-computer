@@ -495,7 +495,7 @@ async function poll(){
     // Directions are arrows relative to the way the pilot is travelling (up = straight ahead) once the GPS
     // gives a direction of travel; the compass degrees move to the line under the value. Standing still
     // there is no direction of travel: the degrees stay as the value.
-    const moving=!!G.fix&&G.speed>=1.5;
+    const moving=!!G.moving;  // the vario decides (speed above the show limit for a while, below the hide limit for a while)
     setArrow('a-track',moving?G.track:null);  // ground speed tile: a compass; the arrow shows the track against absolute north (N at the top of the ring)
     txt('t-lzv',!s.lz.valid?'not set':s.lz.dist!=null?fD(s.lz.dist):'set');
     setArrow('a-lz',s.lz.valid&&s.lz.dist!=null&&moving&&s.lz.brg!=null?s.lz.brg-G.track:null);

@@ -38,6 +38,7 @@
 #include "input/Button.h"
 #include "input/FactoryReset.h"
 #include "flight/HeightHistory.h"
+#include "nav/Moving.h"
 #include <string>
 
 namespace {
@@ -1426,6 +1427,61 @@ void heightUnitSuite(UnitReport& r) {
   HeightHistory k;
   for (int i = 0; i < 400; ++i) k.update(2000u * (uint32_t)(i + 1), 10.0f + (i % 5), true);
   r.check(k.copy(out) == HeightHistory::kSamples, "ring holds %d samples, expected %d", k.copy(out), HeightHistory::kSamples);
+}
+
+// ---------------------------------------------------------------------------------------------- direction arrows
+void movingUnitSuite(UnitReport& r) {
+  const float show = 2.0f, hide = 1.0f;
+  const uint32_t hold = 3000;
+  MovingState m;
+  uint32_t t = 10000;
+  auto run = [&](float speed, int seconds, bool fix = true) {
+    for (int i = 0; i < seconds * 10; ++i) {
+      t += 100;
+      m.update(t, fix, speed, show, hide, hold);
+    }
+  };
+  run(0.0f, 5);
+  r.check(!m.on(), "on while standing");
+  run(1.9f, 30);
+  r.check(!m.on(), "on at 1.9 m/s, under the show limit of 2.0");
+  run(2.5f, 2);
+  r.check(!m.on(), "on after 2 s above the limit (the hold is 3 s)");
+  run(2.5f, 2);
+  r.check(m.on(), "not on after 4 s above the limit");
+  run(1.5f, 30);
+  r.check(m.on(), "went off at 1.5 m/s: between the limits nothing changes");
+  run(0.8f, 2);
+  r.check(m.on(), "went off after 2 s under the hide limit (hold 3 s)");
+  run(0.8f, 2);
+  r.check(!m.on(), "still on after 4 s under the hide limit");
+  // noise around the show limit that never holds 3 s: never on
+  m.reset();
+  for (int i = 0; i < 20; ++i) {
+    run(2.4f, 2);
+    run(1.6f, 1);
+  }
+  r.check(!m.on(), "flickering speed around the limit turned the arrows on");
+  // a dip under the hide limit that does not hold 3 s while on: stays on
+  m.reset();
+  run(3.0f, 4);
+  r.check(m.on(), "not on at 3 m/s after 4 s");
+  for (int i = 0; i < 20; ++i) {
+    run(0.5f, 2);
+    run(1.5f, 1);
+  }
+  r.check(m.on(), "short dips under the hide limit turned the arrows off");
+  run(3.0f, 1, false);  // the fix is lost: off at once
+  r.check(!m.on(), "still on with no fix");
+  // a hold of 0 changes at once; hide above show is clamped to show
+  MovingState z;
+  z.update(1000, true, 3.0f, 2.0f, 1.0f, 0);
+  r.check(z.on(), "hold 0: not on at once");
+  z.update(1100, true, 0.5f, 2.0f, 1.0f, 0);
+  r.check(!z.on(), "hold 0: not off at once");
+  MovingState c;
+  c.update(1000, true, 2.5f, 2.0f, 3.0f, 0);
+  r.check(c.on(), "hide limit above the show limit: arrows not on at 2.5 with show 2.0");
 }
 
 // ---------------------------------------------------------------------------------------------- status ("tell me")
