@@ -22,6 +22,10 @@ class Approach {
   const char* phaseName() const;
 
   bool start(const NavState& nav, const Wind& wind);
+
+  // How fast the pilot turns, learned from the first turns of the circuit (see Approach.cpp). Exposed for the tests.
+  int turnsLearned() const { return learned_; }
+  float leadSeconds() const;  // the lead time in use now: what was learned, or the setting until two turns are measured
   void cancel(bool announce);
   void update(const NavState& nav, const Wind& wind);
 
@@ -39,7 +43,10 @@ class Approach {
   void setPhase(ApPhase p, uint32_t now);
   void steerTo(const NavState& nav, float desiredDeg);
   void followLeg(const NavState& nav, XY pos, float px, float py, float relDeg);
-  void turnCall(bool right);
+  // "turn right now", then the leg that is starting. targetHdgDeg: the track the turn is to end on (starts measuring the turn).
+  void turnCall(bool right, const char* leg, const NavState& nav, float targetHdgDeg);
+  void beginTrial(const NavState& nav, float targetHdgDeg);
+  void updateTrial(const NavState& nav);
   void callStartPoint(const NavState& nav, XY pos, bool first);
 
   ApPhase phase_ = ApPhase::Off;
@@ -51,6 +58,16 @@ class Approach {
   uint32_t offSinceMs_ = 0;
   // Steering calls wait while a turn is being made (F6): graceUntilMs_ covers the pilot's reaction after a
   // turn call; progressUntilMs_ is pushed on while the heading error is shrinking.
+  // The turn being measured (from the turn call until the track is within 20 degrees of the new leg), and what the
+  // first two measured turns have said: the turn rate (degrees/s) and the time the pilot took to start turning.
+  struct Trial {
+    bool active = false, started = false;
+    uint32_t callMs = 0, startMs = 0;
+    float track0 = 0, target = 0, want = 0;
+    int samples = 0;
+  } trial_;
+  float rateSum_ = 0, reactSum_ = 0;
+  int learned_ = 0;
   uint32_t graceUntilMs_ = 0;
   uint32_t progressUntilMs_ = 0;
   uint32_t prevDiffMs_ = 0;

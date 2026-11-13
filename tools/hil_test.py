@@ -392,6 +392,7 @@ class Browser:
                 time.sleep(1.5)
             except Fail:
                 pass
+            self.phone()  # every page test looks at the page as it is on the user's phone (360 CSS pixels wide)
             self.cmd("Network.enable")
             self.cmd("Network.setExtraHTTPHeaders", headers={"X-HIL": "1"})  # the harness's browser is not 'somebody else'
             self.cmd("Page.navigate", url=url)
@@ -441,6 +442,27 @@ class Browser:
         self.click(f'button[data-tab="{name}"]')
         self.wait(f"!document.getElementById('{name}Page').hidden", 3, f"{name} tab shown")
 
+    def inspect(self, where):
+        """What a look at the screen would catch: text cut off ("39 k..."), things drawn over each other, anything off the
+        edge of the screen. Looks at the page that is showing."""
+        bad = self.js(INSPECT_JS)
+        if bad:
+            raise Fail(f"web page: {where}: " + "; ".join(bad[:6]))
+
+    def screenshot(self, name):
+        """Saves what the page looks like now (PNG, results/ui/<name>.png) so that it can be looked at after the run."""
+        import base64
+        os.makedirs(SHOT_DIR, exist_ok=True)
+        r = self.cmd("Page.captureScreenshot", format="png")
+        path = os.path.join(SHOT_DIR, name + ".png")
+        with open(path, "wb") as f:
+            f.write(base64.b64decode(r["data"]))
+        return path
+
+    def phone(self, width=360, height=800):
+        """Makes the page believe it is on a phone of this width (CSS pixels, 2x pixel density): the user's phone is 360."""
+        self.cmd("Emulation.setDeviceMetricsOverride", width=width, height=height, deviceScaleFactor=2, mobile=True)
+
     def check_fits(self, where):
         if self.js("document.documentElement.scrollWidth > window.innerWidth + 1"):
             raise Fail(f"web page: {where} is wider than a phone screen (scrolls sideways)")
@@ -457,6 +479,22 @@ class Browser:
             pass
         shutil.rmtree(self.dir, ignore_errors=True)
 
+
+SHOT_DIR = os.path.join("results", "ui")
+INSPECT_JS = r"""(()=>{const bad=[];
+const vis=e=>{const r=e.getBoundingClientRect(),cs=getComputedStyle(e);return r.width>0&&r.height>0&&cs.visibility!=='hidden'&&cs.display!=='none'};
+const name=e=>e.id||(typeof e.className==='string'&&e.className)||e.tagName;
+const shown='.page:not([hidden]) ';
+document.querySelectorAll(shown+'.v:not(.vrow),'+shown+'.s:not(.srow),'+shown+'.vrow span,'+shown+'.srow span,'+shown+'.k,'+shown+'button,'+shown+'.alert,#ready,'+shown+'summary').forEach(e=>{
+  if(!vis(e)||e.closest('svg'))return;const cs=getComputedStyle(e);
+  if(e.scrollWidth>e.clientWidth+1&&(cs.overflow!=='visible'||cs.textOverflow==='ellipsis'))bad.push('text cut off in '+name(e)+': "'+e.textContent.trim().slice(0,40)+'"')});
+document.querySelectorAll(shown+'.vrow,'+shown+'.srow,'+shown+'.btns').forEach(row=>{
+  const k=[...row.children].filter(vis);
+  for(let i=0;i<k.length;i++)for(let j=i+1;j<k.length;j++){const a=k[i].getBoundingClientRect(),b=k[j].getBoundingClientRect();
+    if(a.left<b.right-1&&b.left<a.right-1&&a.top<b.bottom-1&&b.top<a.bottom-1)bad.push('overlap in '+name(row)+': '+name(k[i])+' and '+name(k[j]))}});
+document.querySelectorAll(shown+'*').forEach(e=>{if(!vis(e)||e.closest('svg')&&e.tagName!=='svg')return;const r=e.getBoundingClientRect();
+  if(r.right>innerWidth+1||r.left<-1)bad.push('off screen: '+name(e))});
+return [...new Set(bad)]})()"""
 
 # Helpers injected into the page: find a setting's input by its key, set it like a user would.
 PAGE_HELPERS = """
@@ -1010,9 +1048,10 @@ def t_rpm_glitch(v, a):
 
 
 def t_flight_logic(v, a):
-    """Software-level unit test of the landing decision (flight/Flight.cpp, Flight::looksStill): trusted ground
-    speed, weak or lost GPS, the height and vertical-speed limits, and no evidence at all (F1, F8)."""
-    n = unit_suite(v, "flight", 18)
+    """Software-level unit test of the landing decision (flight/Flight.cpp, looksStill and landingHoldMs): trusted ground
+    speed, weak or lost GPS, the height and vertical-speed limits, no evidence at all (F1, F8), and how much longer
+    a still aircraft has to wait at height than near the ground (F10)."""
+    n = unit_suite(v, "flight", 40)
     return f"{n} cases passed: speed rule unchanged, no landing from a missing or weak GPS at height, limits exact"
 
 
@@ -1403,6 +1442,8 @@ class Pilot:
         self.S = cfg["crosswindLegM"]
         self.legs = []     # (phase from, phase to, x, y, agl, ground speed at the time)
         self.calls = []    # (kind, x, y) of each turn call
+        self.call_legs = []  # the leg named after each turn call ("turn right now, downwind"), None when there was none
+        self.learned = []
         self.says = []     # (time, text) of everything spoken
         self.steer = []    # steering calls
         self.phase_t = []  # device time of each leg change
@@ -1422,14 +1463,18 @@ class Pilot:
         for l in new:
             if l.tag == "SAY":
                 self.says.append((l.t, l.msg))
-                mm = re.search(r"(turn_(right|left)_now|turn_crosswind_now)", l.msg)
+                mm = re.search(r"(turn_(right|left)_now|turn_crosswind_now)(?: (upwind|crosswind|downwind|base|final))?", l.msg)
                 if mm:
                     self.calls.append((mm.group(1), self.pos[0], self.pos[1]))
+                    self.call_legs.append(mm.group(3))
                     out.append(("call", mm.group(1)))
                 if re.search(r"steer_(right|left)", l.msg):
                     self.steer.append((l.t, l.msg, self.pos))
                     out.append(("steer", l.msg))
             elif l.tag == "APR":
+                ml = re.match(r"Pilot's turn (\d): (\d+) deg/s, reaction ([\d.]+) s; lead now ([\d.]+) s", l.msg)
+                if ml:
+                    self.learned.append((int(ml.group(1)), float(ml.group(2)), float(ml.group(3)), float(ml.group(4))))
                 mm = re.match(r"(.+) -> (.+) at x=(-?\d+) y=(-?\d+) agl=(-?\d+) side=(-?\d)", l.msg)
                 if mm:
                     self.phase_t.append(l.t)
@@ -1466,14 +1511,14 @@ class Pilot:
 
 
 def run_circuit(v, cfg, up, wspd, side, sink, h0, events=None, wind_change=None, ignore_first_call_s=0.0,
-                wrong_way_s=0.0, gps_gap=None, label=""):
+                wrong_way_s=0.0, gps_gap=None, label="", turn_rate=25):
     """Flies one circuit. Returns the Pilot with everything it recorded. `events` is unused hook space."""
     S, ld_s = cfg["crosswindLegM"], cfg["turnLeadS"]
     pl = Pilot(v, cfg, up, wspd, side, sink)
     wfrom = up
     # takeoff into wind, climb, level at h0; the circuit starts back downwind of the field, with the tailwind
     airborne(v, hdg=up, air=AIR_MS, wfrom=up, wspd=wspd, climb=h0, vz=5.0)
-    v.sim(turnRate=25)
+    v.sim(turnRate=turn_rate)
     pl.mark = v.mark()
     pl.seen = pl.mark
     pl.step(wfrom, wspd)
@@ -1577,6 +1622,9 @@ def check_circuit(pl, cfg, up, wfrom, wspd, side, label, allow_steer=False, x_to
             raise Fail(f"{label}turn calls {turns}: expected only {want_dir} for a {'right' if side > 0 else 'left'}-hand circuit")
     if len(turns) < 4:
         raise Fail(f"{label}only {len(turns)} turn calls in a whole circuit: {kinds}")
+    # each turn call names the leg that starts ("turn right now, downwind"): the last four are the circuit's four turns
+    if pl.call_legs[-4:] != ["crosswind", "downwind", "base", "final"]:
+        raise Fail(f"{label}the leg named with each turn call: {pl.call_legs}, expected the last four to be crosswind, downwind, base, final")
     g = pl.geom
     # upwind -> crosswind
     _, _, x, y, agl, gs = pl.legs[1]
@@ -1635,7 +1683,7 @@ def circuit_settings(v, up, wspd, side):
 def circuit_restore(v):
     v.sim(turn=0, fly=0, speed=0, vz=0, gps="silent")
     v.set(lzMode=TEST_SETTINGS["lzMode"], lzLat=0.0, lzLon=0.0, lzElevM=0.0, windManual=False, windFromDeg=0.0,
-          windSpeedMs=0.0, circuitSide=0)
+          windSpeedMs=0.0, circuitSide=0, turnLearn=True)
 
 
 def t_circuit_right(v, a):
@@ -1646,6 +1694,40 @@ def t_circuit_right(v, a):
         circuit_settings(v, up, wspd, side)
         pl = run_circuit(v, v.settings(), up, wspd, side, sink=0.5, h0=280.0, label="right-hand: ")
         return check_circuit(pl, v.settings(), up, up, wspd, side, "right-hand: ")
+    finally:
+        circuit_restore(v)
+
+
+def t_circuit_slow_pilot(v, a):
+    """A pilot who turns at 6 deg/s (15 s for a quarter circle): the vario measures the first two turns, says so in its log,
+    and calls the base turn earlier than the setting's 3 s would (the later turns are called to suit the pilot)."""
+    up, wspd, side = 250.0, 4.0, 1
+    try:
+        circuit_settings(v, up, wspd, side)
+        cfg = v.settings()
+        pl = run_circuit(v, cfg, up, wspd, side, sink=0.5, h0=300.0, label="slow pilot: ", turn_rate=6)
+        order = ["to start->upwind", "upwind->crosswind", "crosswind->downwind", "downwind->base", "base->final"]
+        legs = [l for l in pl.legs if l[0] != "off"]
+        got = [f"{a_}->{b}" for a_, b, *_ in legs]
+        if got != order:
+            raise Fail(f"slow pilot: legs came as {got}, expected {order}")
+        if len(pl.learned) < 2:
+            raise Fail(f"slow pilot: the vario measured {len(pl.learned)} turns, expected 2 (log lines: {pl.learned})")
+        rates = [x[1] for x in pl.learned[:2]]
+        if not all(3.5 <= x <= 9.0 for x in rates):
+            raise Fail(f"slow pilot: measured turn rates {rates} deg/s for a 6 deg/s pilot")
+        lead_s = pl.learned[1][3]
+        if lead_s < 8.0:
+            raise Fail(f"slow pilot: learned lead {lead_s} s, expected at least 8 s for a 15 s quarter turn")
+        # base turn point against what the setting's lead would give
+        _, _, x, y, agl, gs = legs[3]
+        gg_base = ground_glide(cfg, up, up, wspd, (up - 90 * side) % 360)
+        gg_up = ground_glide(cfg, up, up, wspd, up)
+        xb = max((agl - cfg["crosswindLegM"] / gg_base) * gg_up, cfg["minFinalM"])
+        early = x - (-xb + max(gs, 5.0) * cfg["turnLeadS"])  # the leg runs towards -x, so a turn called earlier is at a larger x
+        if early < 20:
+            raise Fail(f"slow pilot: base turn called at x={x}, only {early:.0f} m earlier than with the setting's lead")
+        return f"measured {pl.learned[0][1:]} and {pl.learned[1][1:]}; lead {lead_s:.1f} s; base turn {early:.0f} m earlier than the setting would call it"
     finally:
         circuit_restore(v)
 
@@ -1672,6 +1754,7 @@ def t_circuit_events(v, a):
     up, wspd, side = 250.0, 4.0, 1
     try:
         circuit_settings(v, up, wspd, side)
+        v.set(turnLearn=False)  # this pilot ignores the first call on purpose: a learned lead would shift the later turns
         pl = run_circuit(v, v.settings(), up, wspd, side, sink=0.5, h0=300.0, wrong_way_s=14.0, gps_gap=6.0,
                          ignore_first_call_s=12.0, label="events: ")
         notes = check_circuit(pl, v.settings(), up, up, wspd, side, "events: ", allow_steer=True, x_tol=250)
@@ -1995,6 +2078,50 @@ def t_landing_gps_quality(v, a):
     return "; ".join(notes[-6:]) + f" ({len(notes)} cases kept the flight)"
 
 
+def t_landing_hover(v, a):
+    """F10: a paramotor holding station in a strong headwind has a good GPS and a ground speed of about zero, level, at
+    height. That must not be taken for a landing as quickly as a pilot standing still on the ground: near the ground
+    the landing time (5 s in the tests) is enough, higher up it has to last landingHighMult (5) times as long (25 s).
+    Flown here as a headwind that cancels the airspeed. With the multiplier at 1 it lands after 5 s (the old rule);
+    and a real landing near the ground is still found after the normal time."""
+    notes = []
+    land_s = TEST_SETTINGS["landingTimeS"]
+    try:
+        airborne(v, hdg=90, air=10, wfrom=90, wspd=0, climb=60.0)
+        m = v.mark()
+        v.sim(air=4, windSpd=4)  # headwind equal to the airspeed: ground speed about 0, level, at 60 m
+        v.wait_nav(lambda n: float(n["gs"]) < 0.5, 8, "ground speed down to about zero")
+        time.sleep(land_s * 3 + 1)  # three times the old limit
+        if not v.status()["flying"] or v.find("APP", r"Landed after", m):
+            raise Fail("hovering in a headwind at 60 m with a good GPS was taken for a landing after the short time (F10)")
+        notes.append(f"hovering at 60 m for {land_s * 3 + 1} s: still flying")
+        v.expect("APP", r"Landed after", m, timeout=land_s * 5 + 12, what="landing declared after the long time at height")
+        notes.append(f"declared landed after about {land_s * 5} s (landingHighMult 5)")
+
+        # the multiplier is a setting: at 1 the old rule
+        v.set(landingHighMult=1)
+        airborne(v, hdg=90, air=10, wfrom=90, wspd=0, climb=60.0)
+        m = v.mark()
+        v.sim(air=4, windSpd=4)
+        v.expect("APP", r"Landed after", m, timeout=land_s + 14, what="landing at height with the multiplier at 1")
+        notes.append("multiplier 1: landed after the normal time, as before")
+        v.set(landingHighMult=TEST_SETTINGS.get("landingHighMult", 5))
+
+        # a landing near the ground is not slowed
+        airborne(v, hdg=90, air=10, wfrom=270, wspd=0, climb=60.0)
+        v.sim(vz=-4.0, to=GROUND_M + 2)
+        m = v.mark()
+        v.expect("SIM", r"reached target altitude", m, timeout=60, what="down to the ground")
+        v.sim(fly=0, speed=0)
+        t0 = time.time()
+        v.expect("APP", r"Landed after", m, timeout=land_s + 10, what="landing near the ground")
+        notes.append(f"near the ground: landed {time.time() - t0:.0f} s after stopping")
+    finally:
+        v.set(landingHighMult=5)
+        v.sim(air=10, windSpd=0, fly=0, speed=0)
+    return "; ".join(notes)
+
+
 def t_fault_battery(v, a):
     """Battery faults: a zero or impossible voltage, a flickering reading. Designed behaviour above; the
     low-battery call is made once however the reading flickers, and the vario copes with 0 V and 6 V."""
@@ -2048,13 +2175,13 @@ def t_battery_flight(v, a):
         # low: normal priority, after 10 s
         m = v.mark()
         v.sim(batt=3.40)
-        v.expect("SAY", r"\[normal\] battery_low$", m, timeout=16, what="low battery call")
+        v.expect("SAY", r"\[normal\] battery_low( |$)", m, timeout=16, what="low battery call")
         notes.append("3.40 V: ordinary call")
         # critical: urgent after 5 s
         m = v.mark()
         t0 = time.time()
         v.sim(batt=3.20)
-        v.expect("SAY", r"\[urgent\] battery_low$", m, timeout=12, what="critical battery call")
+        v.expect("SAY", r"\[urgent\] battery_critical\|battery_low( |$)", m, timeout=12, what="critical battery call")
         notes.append(f"3.20 V: urgent call after {time.time() - t0:.0f} s")
         # a recovered reading is silent, and a lost one in flight is called
         m = v.mark()
@@ -2062,7 +2189,7 @@ def t_battery_flight(v, a):
         v.never("SAY", r"battery_low", m, 8)
         m = v.mark()
         v.sim(batt=0.0)
-        v.expect("SAY", r"\[urgent\] battery_low$", m, timeout=14, what="battery reading lost in flight")
+        v.expect("SAY", r"\[urgent\] battery_lost\|battery_low$", m, timeout=14, what="battery reading lost in flight")
         notes.append("reading lost in flight (0 V): urgent call")
         m = v.mark()
         v.sim(batt=3.9)
@@ -2080,6 +2207,302 @@ def t_battery_flight(v, a):
         notes.append("0 V on the ground: silent (USB power)")
     finally:
         v.sim(batt="off")
+    return "; ".join(notes)
+
+
+# ---- pilot interface: button, spoken status, in-flight alerts, resuming a flight ---------------------------------
+# Designed behaviour (docs/User_Guide_(advanced).md, "The button"):
+#   with a GPS     single = tell me (height, landing zone, wind, battery); double = landing approach start/cancel;
+#                  hold 1.5 s = emergency glide start/cancel; triple = mute/unmute
+#   without a GPS  single = tell me (height, battery); double, triple, hold = mute/unmute
+#   every press gives a click cue; 0.8 s into a hold a "keep holding" cue
+# The simulator injects decoded button events (button=press|holdcue|single|double|triple|hold); the decoding of
+# real presses is checked by the `button_logic` unit suite.
+
+def t_button_logic(v, a):
+    """Software-level unit test of the button decoding (input/Button.cpp, ButtonDecoder): click counts, gap, triple at
+    once, hold cue at 0.8 s and hold at 1.5 s, abandoned holds do nothing, click then hold, contact bounce."""
+    n = unit_suite(v, "button", 14)
+    return f"{n} cases passed: single/double/triple clicks, gloved gaps, hold with cue, abandoned hold, bounce"
+
+
+def t_status_logic(v, a):
+    """Software-level unit test of the spoken status (app/Status.cpp): order and content of the two calls, clock
+    positions, units, battery minutes or percent, and what is left out without a fix, a landing zone, wind or GPS."""
+    n = unit_suite(v, "status", 15)
+    return f"{n} cases passed: height, landing zone with clock and distance, wind, battery, units, what is left out"
+
+
+def t_alerts_logic(v, a):
+    """Software-level unit test of what the battery and barometer warnings say: the low-battery message with minutes,
+    landing zone distance and the advice to switch off, the critical and lost-reading leads, and the barometer failed /
+    back calls in flight."""
+    n = unit_suite(v, "alerts", 15)
+    return f"{n} cases passed: low/critical/lost battery messages, barometer failed and back"
+
+
+def t_resume_logic(v, a):
+    """Software-level unit test of when a flight saved in the air is resumed (flight/Resume.h): age limit, position
+    reach, speed, missing time or position, order of the checks."""
+    n = unit_suite(v, "resume", 20)
+    return f"{n} cases passed: age, reach, flying speed, missing time/position"
+
+
+def t_audio_logic(v, a):
+    """Software-level unit test of what is queued for an utterance: the signal tone before urgent calls only."""
+    n = unit_suite(v, "audio", 8)
+    return f"{n} cases passed: urgent calls get the signal tone, nothing else does"
+
+
+def t_button_actions(v, a):
+    """Every button gesture, injected as decoded events: click and hold cues, single = tell me (and never starts or
+    cancels guidance), double = approach on/off, hold = emergency on/off, triple = mute/unmute; and the same on a vario
+    with no GPS (single tells height and battery, double mutes)."""
+    notes = []
+    try:
+        on_ground_with_fix(v)
+        v.set(windManual=True, windFromDeg=270, windSpeedMs=3.0)
+        m = v.mark()
+        v.sim(button="press")
+        v.expect("BTN", r"click", m, timeout=4, what="click cue on a press")
+        v.sim(button="holdcue")
+        v.expect("BTN", r"hold cue", m, timeout=4, what="hold cue")
+        notes.append("click and hold cues")
+
+        m = v.mark()
+        v.sim(button="single")
+        v.expect("SAY", r"^\[high\] .*landing_zone", m, timeout=4, what="single press: height and landing zone")
+        v.expect("SAY", r"^\[high\] wind .*battery", m, timeout=4, what="single press: wind and battery")
+        if v.status()["mode"] != "none":
+            raise Fail("a single press started guidance")
+        notes.append("single: tell me, starts nothing")
+
+        m = v.mark()
+        v.sim(button="double")
+        v.expect("SAY", r"approach_on circuit_start", m, timeout=4, what="double press starts the approach")
+        if v.status()["mode"] != "approach":
+            raise Fail("double press did not start the approach")
+        m = v.mark()
+        v.sim(button="single")
+        v.expect("SAY", r"^\[high\] .*landing_zone", m, timeout=4, what="single press during the approach still tells")
+        time.sleep(1.5)
+        if v.status()["mode"] != "approach":
+            raise Fail("a single press cancelled the approach")
+        m = v.mark()
+        v.sim(button="double")
+        v.expect("SAY", r"approach_off", m, timeout=4, what="double press cancels the approach")
+        if v.status()["mode"] != "none":
+            raise Fail("approach still on after the cancelling double press")
+        notes.append("double: approach on and off; a single never cancels")
+
+        m = v.mark()
+        v.sim(button="hold")
+        v.expect("SAY", r"emergency glide_range", m, timeout=4, what="hold starts the emergency glide")
+        if v.status()["mode"] != "emergency":
+            raise Fail("hold did not start the emergency glide")
+        v.sim(button="single")
+        time.sleep(1.5)
+        if v.status()["mode"] != "emergency":
+            raise Fail("a single press cancelled the emergency glide")
+        m = v.mark()
+        v.sim(button="hold")
+        v.expect("SAY", r"emergency_off", m, timeout=4, what="hold cancels the emergency glide")
+        notes.append("hold: emergency on and off; a single never cancels")
+
+        m = v.mark()
+        v.sim(button="triple")
+        v.expect("SAY", r"vario_muted", m, timeout=4, what="triple press mutes")
+        if not v.status()["muted"]:
+            raise Fail("triple press did not mute")
+        m = v.mark()
+        v.sim(button="triple")
+        v.expect("SAY", r"vario_on", m, timeout=4, what="triple press unmutes")
+        notes.append("triple: mute and unmute")
+
+        # a vario with no GPS: single tells, double mutes
+        v.sim(hasGps=0)
+        time.sleep(1.5)
+        m = v.mark()
+        v.sim(button="single")
+        v.expect("SAY", r"^\[high\] ", m, timeout=4, what="single press without a GPS tells")
+        v.expect("SAY", r"^\[high\] battery", m, timeout=4, what="single press without a GPS: battery")
+        if v.find("SAY", r"landing_zone|wind", m):
+            raise Fail("without a GPS the status spoke of the landing zone or the wind")
+        m = v.mark()
+        v.sim(button="double")
+        v.expect("SAY", r"vario_muted", m, timeout=4, what="double press without a GPS mutes")
+        m = v.mark()
+        v.sim(button="hold")
+        v.expect("SAY", r"vario_on", m, timeout=4, what="hold without a GPS unmutes")
+        notes.append("no GPS: single tells height and battery, double/hold mute")
+    finally:
+        v.sim(hasGps=1)
+        v.set(windManual=TEST_SETTINGS["windManual"])
+        try:
+            if v.status()["muted"]:
+                v.sim(button="triple")
+        except Fail:
+            pass
+    return "; ".join(notes)
+
+
+def t_alerts_flight(v, a):
+    """In flight: a failed barometer is spoken ("Barometer failed", urgent, then "Barometer back" when it reads again);
+    and the routine height calls keep quiet while a landing approach is guiding."""
+    notes = []
+    try:
+        airborne(v, hdg=90, air=10, wfrom=270, wspd=0, climb=60.0)
+        m = v.mark()
+        v.sim(baroFault="dead")
+        v.expect("SAY", r"^\[urgent\] baro_failed\|~400$", m, timeout=14, what="barometer failure spoken in flight")
+        m = v.mark()
+        v.sim(baroFault="none")
+        v.expect("SAY", r"^\[normal\] baro_back\|~800$", m, timeout=20, what="barometer back spoken")
+        notes.append("barometer failed / back spoken in flight")
+
+        # routine height calls: spoken every 10 s normally, none while the approach is on
+        v.set(heightIntervalS=10, windManual=True, windFromDeg=270, windSpeedMs=3.0)
+        v.sim(vz=0)
+        time.sleep(3)
+        m = v.mark()
+        time.sleep(26)
+        v.poll()
+        calls = [l for l in v.lines[m:] if l.tag == "SAY" and l.msg.startswith("[low] ")]
+        if len(calls) < 2:
+            raise Fail(f"routine height calls every 10 s: only {len(calls)} in 26 s")
+        v.action("approach")
+        v.expect("SAY", r"approach_on", m, timeout=6, what="approach started")
+        m = v.mark()
+        time.sleep(26)
+        v.poll()
+        calls = [l for l in v.lines[m:] if l.tag == "SAY" and l.msg.startswith("[low] ")]
+        if calls:
+            raise Fail(f"routine height call during the approach: {[c.msg for c in calls]}")
+        notes.append("routine height calls: 2+ in 26 s normally, none during the approach")
+    finally:
+        v.action("approach") if v.status()["mode"] == "approach" else None
+        v.sim(baroFault="none", vz=0)
+        v.set(heightIntervalS=TEST_SETTINGS.get("heightIntervalS", 0), windManual=TEST_SETTINGS["windManual"])
+    return "; ".join(notes)
+
+
+def restart_vario(v, what):
+    """Restarts the vario and waits until it answers again; returns its uptime then."""
+    before = v.status()["uptime"]
+    v.action("restart")
+    time.sleep(4)
+    end = time.time() + 90
+    while True:
+        try:
+            st = json.loads(v._open("/api/status", tries=1)[1])
+            if st["uptime"] < before or st["uptime"] < 30:
+                return st["uptime"]
+        except Fail:
+            pass
+        if time.time() > end:
+            raise Fail(f"{what}: the vario did not come back after the restart")
+        time.sleep(2)
+
+
+def resume_case(v, what, age_s, speed=12.0, dlat=0.0, hold_s=0, expect_resume=True, set_max=None, no_pending=False):
+    """One restart in simulated flight: flies, restarts the vario, then brings the simulated sensors back `age_s` seconds
+    (of GPS time) after the flight was last saved, at the same place (moved north by dlat degrees), at `speed` m/s."""
+    airborne(v, hdg=90, air=10, wfrom=270, wspd=3, climb=50.0, vz=4.0)
+    st = v.status()
+    lat, lon, lz_before = st["gps"]["lat"], st["gps"]["lon"], st["lz"]
+    t_save = st["uptime"]
+    if set_max is not None:
+        v.set(resumeMaxMin=set_max)
+    up = restart_vario(v, what)
+    m = v.mark()
+    if hold_s:
+        time.sleep(hold_s)  # no GPS yet
+        up = v.status()["uptime"]
+    base = max(0, int(t_save + age_s - up))
+    v.sim(baro=1, alt=GROUND_M + 50, baroOffset=150, gps="fix", sats=10, hdop=0.9, lat=lat + dlat, lon=lon, speed=speed,
+          track=90, utcBase=base)
+    return m, lat, lon, lz_before
+
+
+def t_resume_flight(v, a):
+    """A flight saved in the air is resumed only on evidence that it is still in the air, and the vario can always get
+    out of a false 'flying': switched off and on again in flight 30 minutes later at flying speed = resumed (same
+    landing zone and flight time, heights right, 'Flight resumed') and then lands normally; too old, on the ground, in
+    an impossible place, no GPS within 3 minutes, resume switched off, or the flight reset by the pilot = not resumed;
+    and the manual reset gets a flying vario out of the state."""
+    notes = []
+    saved_cfg = v.settings()
+    v.sim(gpsBoot="silent")  # after each restart the (real) GPS on the bench must not decide before this test has set up its flight
+    # The simulated barometer jumps up 50 m a moment before the simulated GPS fix is trusted; with the setting's 'takeoff without
+    # GPS' height gain that is a barometer-only takeoff, which (correctly) drops a saved flight. A real power-up in flight starts
+    # from the pressure it finds, so there is no such climb: take it out of this test.
+    v.set(baroTakeoffGainM=200)
+    try:
+        # resumed after 30 minutes at flying speed
+        m, lat, lon, lz0 = resume_case(v, "resume", 1800)
+        v.expect("APP", r"Resuming the flight: saved (\d+) s ago", m, timeout=20, what="the flight resumed")
+        v.expect("SAY", r"flight_resumed", m, timeout=6, what="'Flight resumed' spoken")
+        st = v.wait_nav(lambda n: n["fly"] == "1", 6, "flying after the resume")
+        s2 = v.status()
+        if not s2["flying"] or not s2["lz"]["valid"]:
+            raise Fail(f"after the resume: flying {s2['flying']}, landing zone {s2['lz']}")
+        if abs(s2["lz"]["lat"] - lz0["lat"]) > 1e-5 or abs(s2["lz"]["lon"] - lz0["lon"]) > 1e-5:
+            raise Fail(f"the landing zone changed across the restart: {lz0} -> {s2['lz']}")
+        if not 40 <= s2["agl"] <= 60:
+            raise Fail(f"height after the resume is {s2['agl']} m, expected about 50 (the ground reference was restored)")
+        if s2["flightTime"] < 1700:
+            raise Fail(f"flight time after the resume is {s2['flightTime']} s, expected the time before plus the 30 minutes off")
+        notes.append(f"30 min off at flying speed: resumed, same LZ, {s2['agl']:.0f} m, flight time {s2['flightTime']} s")
+        # ... and a resumed flight lands normally: standing still ends it
+        m = v.mark()
+        v.sim(speed=0, vz=-4.0, to=GROUND_M + 2)
+        v.expect("APP", r"Landed after", m, timeout=60, what="a resumed flight lands normally")
+        notes.append("resumed flight lands normally")
+
+        cases = (
+            ("too old (4 h)", dict(age_s=4 * 3600), "the record is too old"),
+            ("on the ground", dict(age_s=600, speed=0.0), "the aircraft is not moving at flying speed"),
+            ("impossible place", dict(age_s=300, dlat=1.0), "the position is not where the flight could have got to"),
+            ("resume switched off", dict(age_s=300, set_max=0), None),
+        )
+        for name, kw, why in cases:
+            m, *_ = resume_case(v, name, **kw)
+            if why:
+                v.expect("APP", r"Saved flight not resumed: " + re.escape(why), m, timeout=20, what=f"{name}: refused")
+            time.sleep(6)
+            # (not "flying": the simulated aircraft is flying, so a normal takeoff follows within seconds; a resumed flight
+            # has the time it was off added to its flight time, which a fresh takeoff does not)
+            if v.find("APP", r"Resuming the flight", m) or v.status()["flightTime"] > 120:
+                raise Fail(f"{name}: the flight was resumed")
+            if name == "resume switched off":
+                v.set(resumeMaxMin=saved_cfg["resumeMaxMin"])
+            notes.append(f"{name}: not resumed")
+
+        # no GPS position and time within 3 minutes: the record is dropped, and a later fix does not bring it back
+        m, *_ = resume_case(v, "no GPS", age_s=300, hold_s=190)
+        v.expect("APP", r"Saved flight not resumed: no GPS position and time within 3 minutes", m, timeout=30, what="gave up waiting")
+        time.sleep(5)
+        if v.status()["flightTime"] > 120:
+            raise Fail("a flight was resumed after the 3 minutes had passed")
+        notes.append("no GPS within 3 minutes: dropped")
+
+        # the pilot's reset: a flying vario is brought down, and nothing is resumed afterwards
+        airborne(v, hdg=90, air=10, wfrom=270, wspd=3, climb=50.0, vz=4.0)
+        m = v.mark()
+        v.action("reset_flight")
+        v.expect("APP", r"Flight state reset by the pilot", m, timeout=6, what="reset")
+        st = v.wait_nav(lambda n: n["fly"] == "0", 6, "not flying after the reset")
+        up = restart_vario(v, "after the reset")
+        m = v.mark()
+        v.sim(baro=1, alt=GROUND_M + 50, baroOffset=150, gps="fix", sats=10, hdop=0.9, speed=12.0, track=90)
+        time.sleep(8)
+        if v.find("APP", r"waiting to be resumed|Resuming the flight", m) or v.status()["flightTime"] > 120:
+            raise Fail("a flight reset by the pilot was resumed after a restart")
+        notes.append("reset by the pilot: flight ended, nothing resumed after a restart")
+    finally:
+        v.set(resumeMaxMin=saved_cfg["resumeMaxMin"], baroTakeoffGainM=saved_cfg["baroTakeoffGainM"])
+        v.sim(gpsBoot="real")
+        v.sim(off=1)
     return "; ".join(notes)
 
 
@@ -2456,7 +2879,7 @@ def t_battery(v, a):
     v.sim(batt=3.40)
     m = v.mark()
     v.never("SAY", r"battery_low", m, 6)
-    v.expect("SAY", r"\[normal\] battery_low$", m, timeout=10, what="low battery called after 10 s")
+    v.expect("SAY", r"\[normal\] battery_low( |$)", m, timeout=10, what="low battery called after 10 s")
     v.sim(batt="off")
     m = v.mark()
     _, mm = v.expect("BAT", r"v=(\d\.\d+)", m, timeout=6)
@@ -2719,7 +3142,7 @@ def t_variant_no_mic(v, a):
             shown = p.js("['t-noise','t-rpm'].filter(i=>document.getElementById(i).offsetParent!==null)")
             if shown or p.js("document.querySelector('button[data-tab=spectrum]').offsetParent!==null"):
                 raise Fail(f"web page: still shown without a microphone: {shown or 'Spectrum tab'}")
-            p.wait_text("t-batt", r"^(\d+%|USB)$", 6)
+            p.wait_text("t-batt", r"^(~.+|\d+%|USB)$", 6)
             check_tile_layout(p, gps=True, mic=False)
             p.check_fits("flight tab without microphone")
         return f"volume back to the set 40/20 % at -20 dBFS noise, {len(keys)} settings listed, no spectrum"
@@ -2728,7 +3151,7 @@ def t_variant_no_mic(v, a):
         v.set(autoVolume=False, speechVolume=a.volume, varioVolume=a.volume)
 
 
-def check_tile_layout(p, gps, mic):
+def check_tile_layout(p, gps, mic, eng=False):
     """Flight tab: tiles in their groups, graph beside Height, a lone last tile full width."""
     info = p.js("""(()=>{const vis=e=>getComputedStyle(e).display!=='none';
       const ids=s=>[...document.getElementById(s).children].filter(vis).map(e=>e.querySelector('.v')?e.querySelector('.v').id:'graph');
@@ -2744,7 +3167,7 @@ def check_tile_layout(p, gps, mic):
                 (["t-lz", "t-wind"] if gps else [])
     if info["main"] != want_main:
         raise Fail(f"web page: top tiles are {info['main']}, expected {want_main}")
-    want_more = (["t-gps"] if gps else []) + ["t-batt"] + (["t-rpm", "t-noise"] if mic else [])
+    want_more = (["t-gps"] if gps else []) + ["t-batt"] + (["t-rpm"] + (["t-noise"] if eng else []) if mic else [])
     if info["more"] != want_more:
         raise Fail(f"web page: lower tile group is {info['more']}, expected {want_more}")
     if info["heightBig"] or info["graphAfter"] != "tile-height":
@@ -2833,7 +3256,7 @@ def t_ui_help(v, a):
     p.wait("document.querySelectorAll('#settings summary .help a').length>0", 8, "group help links")
     groups = p.js("[...document.querySelectorAll('#settings summary')].map(s=>({g:s.firstChild.textContent,"
                   "l:[...s.querySelectorAll('.help a')].map(a=>({t:a.textContent,h:a.href}))}))")
-    bare = [g["g"] for g in groups if not g["l"] and g["g"] != "Advanced settings"]
+    bare = [g["g"] for g in groups if not g["l"] and g["g"] not in ("Advanced settings", "Quick settings")]
     if bare:
         raise Fail(f"web page: settings groups with no help link: {bare}")
     for g in groups:
@@ -3037,7 +3460,7 @@ def t_ui_flight(v, a):
     st = v.status()
     p = v.page()
     p.tab("flight")
-    p.wait_text("t-gps", r"^10 sats$", 8)
+    p.wait_text("t-gps", r"^strong$", 8)
     p.wait_text("ready-t", r"^Ready to fly$", 8)
     if p.js("document.getElementById('ready').className") != "ready ok":
         raise Fail("web page: ready banner is not green")
@@ -3045,16 +3468,16 @@ def t_ui_flight(v, a):
     agl = p.wait_text("t-agl", r"^-?[0-7] ft$", 20, "Height AGL tile about 0 ft on the ground")
     near(p.wait_text("t-msl", r"^\d+ ft MSL$").split()[0], 328, 8, "MSL under the height tile (ft)")
     p.wait_text("t-vario", r"^[+-]0\.[01] m/s$")
-    p.wait_text("t-speed", r"^0 km/h$")
+    p.wait_text("t-speedv", r"^0 km/h$")
     p.wait_text("t-track", r"^track \d+°$")
     p.wait_text("t-flight", r"^Grounded$")
     near(p.wait_text("t-lz", r"^\d+ m$", what="distance to the landing zone").split()[0], 0, 6, "LZ distance")
     p.wait_text("t-lzs", r"ft MSL$")
     p.wait_text("t-wind", r"^unknown$")
-    p.wait_text("t-gpss", r"^Fix · signal strong$")
-    p.wait_text("t-batts", r"^4\.00 V")
+    p.wait_text("t-gpss", r"^10 satellites · fix$")
+    p.wait_text("t-batts", r"^4\.00 V · \d+%$")
     if not st["batt"]["learned"]:
-        p.wait_text("t-batt", r"^80%$")
+        p.wait_text("t-batts", r"^4\.00 V · 80%$")
     p.wait_text("t-noise", r"^-60 dBFS$")
     p.wait_text("t-noises", rf"^vario vol {a.volume}%$")
     p.wait_text("t-rpm", r"^(off|\d+ rpm)$")
@@ -3073,23 +3496,23 @@ def t_ui_flight(v, a):
         raise Fail("web page: the Full screen button did not ask the browser for full screen")
 
     v.sim(speed=12)
-    p.wait_text("t-speed", r"^43 km/h$", 8, "12 m/s shown in km/h")
+    p.wait_text("t-speedv", r"^43 km/h$", 8, "12 m/s shown in km/h")
     v.sim(speed=0, vz=1.5)  # not both at once: speed plus climb would be a takeoff
     p.wait_text("t-vario", r"^\+1\.[3-6] m/s$", 20)
     v.sim(vz=0, batt=3.30)
-    p.wait_text("t-batt", r"^0%$")
+    p.wait_text("t-batts", r"^3\.30 V · 0%$")
     v.sim(gps="silent")
     p.wait_text("t-gps", r"^no data$")
     p.wait_text("ready-t", r"^GPS not responding$")
-    p.wait_text("t-speed", r"^–$", 8, "no speed without a fix")
+    p.wait_text("t-speedv", r"^–$", 8, "no speed without a fix")
     if p.js("document.getElementById('ready').className") != "ready wait":
         raise Fail("web page: banner should be amber while not ready")
     v.sim(gps="fix", sats=4, hdop=4.2)
-    p.wait_text("t-gps", r"^4 sats$", 8)
-    p.wait_text("t-gpss", r"^Fix · signal good$")
+    p.wait_text("t-gps", r"^good$", 8)
+    p.wait_text("t-gpss", r"^4 satellites · fix$")
     p.wait_text("ready-t", r"^Waiting for satellites$")
     p.wait_text("ready-s", r"^4 / 6 satellites$")
-    p.wait_text("t-speed", r"^0 km/h$", 8, "weak-fix speed shown as 0")
+    p.wait_text("t-speedv", r"^0 km/h$", 8, "weak-fix speed shown as 0")
     return "banner, 11 tiles, height graph and layout correct; speed, vario, battery and GPS changes followed"
 
 
@@ -3105,15 +3528,15 @@ def t_ui_actions(v, a):
 
 def ui_actions_body(v, a, p, m):
     p.tab("flight")
-    p.click("#b-mute")
+    p.click("#b-mute-g")
     v.expect("SAY", r"\[urgent\] vario_muted$", m, timeout=4, what="Mute button")
-    p.wait_text("b-mute", r"^Unmute vario$")
+    p.wait_text("b-mute-g", r"^Unmute vario$")
     p.wait_text("t-mute", r"^muted$")
     p.wait_text("toast", r"^Done$")
     m2 = v.mark()
-    p.click("#b-mute")
+    p.click("#b-mute-g")
     v.expect("SAY", r"\[urgent\] vario_on$", m2, timeout=4, what="Unmute button")
-    p.wait_text("b-mute", r"^Mute vario$")
+    p.wait_text("b-mute-g", r"^Mute vario$")
     p.click('button[data-a="test_voice"]')
     v.expect("SAY", r"\[urgent\] system_ready ", m2, timeout=4, what="Test voice button")
     time.sleep(4)
@@ -3140,6 +3563,216 @@ def ui_actions_body(v, a, p, m):
     return "mute, test voice, Set LZ here (refused and accepted), LZ = takeoff"
 
 
+def t_ui_pilot(v, a):
+    """The flight tab follows the phase and puts the pilot first: on the ground the setup card (Test voice, Set LZ here,
+    LZ = takeoff) is shown and in flight it is gone, leaving Landing approach, Emergency glide, Tell me and Mute; the
+    alert strip shows a low or critical battery (with minutes and landing zone distance), a failed barometer and a lost
+    GPS in flight and clears when they recover; the GPS tile says good / weak / none, the Battery tile minutes left; the
+    Background noise tile is hidden unless asked for; Quick settings come first on the Settings tab and follow their
+    groups; Tell me and Reset flight state buttons work."""
+    notes = []
+    try:
+        m = reset(v, baro="on", alt=GROUND_M, vz=0, baroOffset=150, gps="fix", sats=10, hdop=0.9, speed=0, track=90,
+                  lat=51.5, lon=0.5, batt=4.0)
+        v.expect("RDY", r"^ready$", m, timeout=25)
+        p = v.page()
+        p.tab("flight")
+        p.wait("document.getElementById('groundActions').offsetParent!==null", 8, "the ground Actions card shown on the ground")
+        if p.js("document.getElementById('flightActions').offsetParent!==null"):
+            raise Fail("web page: the in-flight Actions card is shown on the ground")
+        heads = p.js("[...document.querySelectorAll('#groundActions h2, #flightActions h2')].map(h=>h.textContent)")
+        if heads != ["Actions", "Actions"]:
+            raise Fail(f"web page: the action cards are headed {heads}, expected Actions on both")
+        ground = p.js("[...document.querySelectorAll('#groundActions button')].map(b=>b.textContent)")
+        if sorted(ground) != ["Audio test", "LZ = takeoff", "Mute vario", "Set LZ manually"]:
+            raise Fail(f"web page: the ground Actions card holds {ground}")
+        if p.js("document.getElementById('alerts').children.length") != 0:
+            raise Fail("web page: an alert shown on the ground with a good battery")
+        p.wait_text("t-gps", r"^strong$", 8, "GPS tile: signal quality as the value")
+        p.wait_text("t-gpss", r"^10 satellites · fix$")
+        if p.js("document.getElementById('tile-noise').offsetParent!==null"):
+            raise Fail("web page: the Background noise tile is shown without being asked for")
+        notes.append("ground: setup card shown, no alerts, GPS tile says strong")
+
+        # in flight
+        take_off(v, climb_to=GROUND_M + 60, vz=4.0)
+        p.wait("document.body.classList.contains('flying')", 20, "the page knows it is flying")
+        if p.js("document.getElementById('groundActions').offsetParent!==null"):
+            raise Fail("web page: the ground Actions card is still shown in flight")
+        flight = p.js("[...document.querySelectorAll('#flightActions button')].map(b=>b.textContent)")
+        if flight != ["Landing support", "Emergency support", "Update me", "Mute vario"]:
+            raise Fail(f"web page: the in-flight Actions card holds {flight}")
+        if p.js("document.getElementById('flightActions').offsetParent===null"):
+            raise Fail("web page: the in-flight Actions card is not shown in flight")
+        m = v.mark()
+        p.click("#b-tell")
+        v.expect("SAY", r"^\[high\] .*landing_zone", m, timeout=5, what="the Update me button")
+        v.expect("SAY", r"^\[high\] .*battery", m, timeout=5, what="the Update me button: battery")
+        notes.append("flight: the ground card is gone, the in-flight card holds Landing support, Emergency support, Update me and Mute; Update me speaks")
+
+        def strip():
+            return p.js("[...document.querySelectorAll('#alerts .alert')].map(e=>e.className+'|'+e.textContent)")
+
+        v.sim(batt=3.40)
+        p.wait("document.querySelectorAll('#alerts .alert.warn').length===1", 8, "low battery alert")
+        s = strip()[0]
+        if "Battery low" not in s or "LZ" not in s:
+            raise Fail(f"web page: low battery alert reads {s!r}")
+        v.sim(batt=3.20)
+        p.wait("document.querySelectorAll('#alerts .alert.bad').length===1", 8, "critical battery alert")
+        s = strip()[0]
+        if "Battery critical" not in s or "switch me off" not in s:
+            raise Fail(f"web page: critical battery alert reads {s!r}")
+        v.sim(batt=3.9)
+        p.wait("document.querySelectorAll('#alerts .alert').length===0", 8, "alert cleared with the battery")
+        v.sim(baroFault="dead")
+        p.wait("[...document.querySelectorAll('#alerts .alert.bad')].some(e=>/Barometer failed/.test(e.textContent))", 12, "barometer alert")
+        v.sim(baroFault="none")
+        p.wait("document.querySelectorAll('#alerts .alert').length===0", 20, "barometer alert cleared")
+        v.sim(gps="silent")
+        p.wait("[...document.querySelectorAll('#alerts .alert.warn')].some(e=>/No GPS/.test(e.textContent))", 10, "no GPS alert")
+        v.sim(gps="fix")
+        p.wait("document.querySelectorAll('#alerts .alert').length===0", 15, "no GPS alert cleared")
+        notes.append("alert strip: low and critical battery, barometer, no GPS; each clears")
+
+        # battery tile: minutes left
+        txt = p.text("t-batt")
+        if not re.search(r"^(~.+m|\d+%)$", txt):
+            raise Fail(f"web page: battery tile reads {txt!r}")
+        p.wait_text("t-batts", r"^\d\.\d\d V · \d+%$", 6)
+        notes.append(f"battery tile {txt!r}")
+
+        # the Background noise tile on request
+        p.tab("settings")
+        p.js("tSet('showEngTiles', true)")  # the page's own copy of the settings follows its own changes
+        p.tab("flight")
+        p.wait("document.getElementById('tile-noise').offsetParent!==null", 12, "noise tile shown once asked for")
+        p.tab("settings")
+        p.js("tSet('showEngTiles', false)")
+        p.tab("flight")
+        p.wait("document.getElementById('tile-noise').offsetParent===null", 12, "noise tile hidden again")
+        notes.append("noise tile only on request")
+
+        # quick settings first, and in step with the group copy
+        p.tab("settings")
+        p.wait("document.querySelector('#settings > details') && document.querySelector('#settings > details').id==='quickSettings'", 10,
+               "Quick settings is the first card")
+        keys = p.js("[...document.querySelectorAll('#quickSettings [data-key]')].map(i=>i.dataset.key)")
+        want = {"varioVolume", "speechVolume", "heightUnit", "distUnit", "speedUnit", "circuitSide", "glideRatio", "trimAirspeedMs"}
+        if set(keys) != want:
+            raise Fail(f"web page: Quick settings holds {sorted(keys)}, expected {sorted(want)}")
+        p.js("(()=>{const i=document.querySelector('#quickSettings [data-key=glideRatio]');i.value='7.5';i.dispatchEvent(new Event('change'));return 1})()")
+        p.wait("[...document.querySelectorAll('[data-key=glideRatio]')].every(i=>i.value==='7.5')", 6, "both copies of glide ratio show 7.5")
+        end = time.time() + 6
+        while abs(v.settings()["glideRatio"] - 7.5) > 0.01:
+            if time.time() > end:
+                raise Fail("web page: the glide ratio set in Quick settings was not saved")
+            time.sleep(0.5)
+        notes.append("Quick settings first, same settings as their groups, saved")
+
+        # reset the flight state from the Logs & system tab
+        p.tab("system")
+        m = v.mark()
+        p.click('button[data-a="reset_flight"]')
+        v.expect("APP", r"Flight state reset by the pilot", m, timeout=6, what="Reset flight state button")
+        v.wait_nav(lambda n: n["fly"] == "0", 6, "not flying after the reset")
+        p.tab("flight")
+        p.wait("!document.body.classList.contains('flying')", 10, "the page shows the ground again")
+        p.wait("document.getElementById('groundActions').offsetParent!==null", 10, "the ground Actions card is back")
+        notes.append("Reset flight state button ends the flight and brings the ground Actions card back")
+    finally:
+        v.sim(gps="fix", baroFault="none", batt="off")
+        v.set(showEngTiles=False, glideRatio=TEST_SETTINGS.get("glideRatio", 5.0))
+    return "; ".join(notes)
+
+
+def t_ui_layout(v, a):
+    """What a look at the screen would show, on a 360 px wide phone (the user's) and a 320 px one: no text cut off ("39 k..."),
+    nothing drawn over anything else, nothing off the edge, in the ground view, flying, at 120 km/h, with other units, a far
+    landing zone, three alerts at once, the Settings and Logs tabs. Saves a screenshot of each to results/ui/ to look at."""
+    notes = []
+    p = None
+    try:
+        v.set(windManual=True, windFromDeg=250, windSpeedMs=4.0)
+        on_ground_with_fix(v)
+        p = v.page()
+        p.tab("flight")
+        p.wait("document.getElementById('t-lzv').textContent.length>0", 8, "landing zone tile filled")
+        p.inspect("ground view")
+        p.screenshot("1_flight_ground")
+        notes.append("ground view")
+
+        airborne(v, hdg=340, air=10, wfrom=250, wspd=4, climb=60.0)
+        p.wait("document.querySelector('#tile-speed .cmp').offsetParent!==null", 15, "the compass shown while moving")
+        p.inspect("flying")
+        p.screenshot("2_flight_moving")
+        notes.append("flying")
+
+        v.sim(air=30)
+        p.wait(r"/^1\d\d /.test(document.getElementById('t-speedv').textContent)", 15, "a three-digit speed")
+        p.inspect("at 120 km/h")
+        p.screenshot("3_flight_fast")
+        notes.append("120 km/h")
+        v.sim(air=10)
+
+        # far landing zone and other units: the longest texts
+        v.sim(lat=52.0)
+        p.wait("document.getElementById('t-lzv').textContent.indexOf('km')>0", 15, "a distance in km")
+        p.inspect("landing zone 55 km away")
+        p.screenshot("4_flight_far")
+        for name, sets in (("mph and miles", {"speedUnit": 1, "distUnit": 1, "heightUnit": 0}), ("knots and metres", {"speedUnit": 2, "distUnit": 0, "heightUnit": 1})):
+            p.tab("settings")
+            for k, val in sets.items():
+                p.js(f"tSet('{k}', {val})")
+            p.tab("flight")
+            time.sleep(2.5)
+            p.inspect(name)
+            p.screenshot("5_flight_" + name.split()[0])
+            notes.append(name)
+        p.tab("settings")
+        for k, val in {"speedUnit": 0, "distUnit": 0, "heightUnit": 0}.items():
+            p.js(f"tSet('{k}', {val})")
+        p.tab("flight")
+        v.sim(lat=51.5)
+
+        # three alerts at once
+        v.sim(batt=3.20, baroFault="dead", gps="silent")
+        p.wait("document.querySelectorAll('#alerts .alert').length>=3", 25, "three alerts in the strip")
+        p.inspect("three alerts")
+        p.screenshot("6_flight_alerts")
+        notes.append("three alerts")
+        v.sim(batt="off", baroFault="none", gps="fix")
+        p.wait("document.querySelectorAll('#alerts .alert').length===0", 25, "alerts cleared")
+
+        p.phone(320, 640)  # an older, narrower phone
+        time.sleep(1)
+        p.inspect("320 px wide, flying")
+        p.screenshot("7_flight_320px")
+        notes.append("320 px wide")
+        p.phone()
+
+        p.tab("settings")
+        time.sleep(1)
+        p.inspect("settings tab")
+        p.screenshot("8_settings")
+        p.tab("system")
+        time.sleep(1)
+        p.inspect("logs and system tab")
+        p.screenshot("9_system")
+        notes.append("settings and logs tabs")
+        v.action("reset_flight")
+        v.sim(speed=0)
+    finally:
+        try:
+            if p:
+                p.phone()
+        except Fail:
+            pass
+        v.set(windManual=TEST_SETTINGS["windManual"], speedUnit=0, distUnit=0, heightUnit=TEST_SETTINGS.get("heightUnit", 0))
+        v.sim(lat=51.5, batt="off", baroFault="none", gps="fix")
+    return "no text cut off, nothing overlapping or off screen in: " + ", ".join(notes) + f" (screenshots in {SHOT_DIR})"
+
+
 def t_ui_guidance(v, a):
     """In flight: flying tiles, emergency and approach banners, then the log list and its Delete."""
     on_ground_with_fix(v)
@@ -3151,13 +3784,16 @@ def t_ui_guidance(v, a):
     p.wait_text("t-flight", r"^\d+:\d\d$", 8, "elapsed flight time while flying")
     p.wait_text("t-ftime", r"^Flying · logging$", 8)
     p.wait("document.getElementById('ready').className==='ready hide'", 5, "ready banner hidden in flight")
-    p.wait("(()=>{const a=document.getElementById('a-wind');return !a.hidden&&/rotate/.test(a.style.transform)})()", 8,
-           "wind from the takeoff run shown as an arrow once moving")
-    p.wait("!document.getElementById('a-lz').hidden", 8, "landing zone arrow shown once moving")
-    p.wait("(()=>{const a=document.getElementById('a-track');return !a.hidden&&/rotate/.test(a.style.transform)})()", 8,
-           "ground speed tile arrow (track against north) shown once moving")
-    p.wait("getComputedStyle(document.querySelector('#t-speed .cmp'),'::before').content==='\"N\"'", 4,
-           "the N that marks the arrow as north-referenced")
+    p.wait("(()=>{const w=document.querySelector('#tile-wind .sockw'),a=document.getElementById('a-wind');"
+           "return w.offsetParent!==null&&/rotate/.test(a.style.transform)})()", 8,
+           "wind from the takeoff run shown as a windsock once moving")
+    p.wait("getComputedStyle(document.getElementById('a-lz')).display!=='none'", 8, "landing zone arrow shown once moving")
+    p.wait("(()=>{const c=document.querySelector('#tile-speed .cmp'),a=document.getElementById('a-track');"
+           "return c.offsetParent!==null&&/rotate/.test(a.style.transform)})()", 8,
+           "ground speed tile compass shown once moving, with the arrow turned to the track")
+    letters = p.js("[...document.querySelectorAll('#tile-speed .cmp text')].map(t=>t.textContent).join('')")
+    if letters != "NESW":
+        raise Fail(f"web page: the compass letters read {letters!r}, expected NESW (N at the top)")
     p.wait("!/bearing/.test(document.getElementById('t-lzs').textContent)", 4, "no bearing on the landing zone tile")
     p.wait_text("t-winds", r"takeoff$")
     v.expect("SIM", r"reached target", m, timeout=40)
@@ -3206,7 +3842,7 @@ def t_ui_guidance(v, a):
         raise Fail(f"web page: log download link is {href}")
     if not re.search(r"^\d+ kB$", p.js(f"{row}.querySelector('span').textContent")):
         raise Fail("web page: log size not shown")
-    if not re.search(r"^\d+ kB free of 1024 kB$", p.js("document.querySelector('#logs p').textContent")):
+    if not re.search(r"^\d+ kB free$", p.js("document.querySelector('#logs p').textContent")):
         raise Fail("web page: free space line wrong")
     p.js(f"{row}.querySelector('button').click()")  # Delete (the confirm box is auto-accepted)
     p.wait(f"!{row}", 6, "log removed from the list after Delete")
@@ -3232,7 +3868,7 @@ def t_ui_settings(v, a):
         main_groups = [g for g in groups if g not in adv_order]
         adv_groups = [g for g in adv_order if g in groups]
         shown = p.js("[...document.querySelectorAll('#settings>details>summary')].map(s=>s.firstChild.textContent)")
-        want = main_groups + (["Advanced settings"] if adv_groups else [])
+        want = ["Quick settings"] + main_groups + (["Advanced settings"] if adv_groups else [])  # Quick settings: the pilot's card, first
         if shown != want:
             raise Fail(f"web page: top-level setting groups {shown}, expected {want}")
         shown_adv = p.js("[...document.querySelectorAll('#advSettings>details>summary')].map(s=>s.firstChild.textContent)")
@@ -3240,7 +3876,7 @@ def t_ui_settings(v, a):
             raise Fail(f"web page: Advanced settings holds {shown_adv}, expected {adv_groups}")
         if p.js("document.getElementById('advSettings').open"):
             raise Fail("web page: Advanced settings should start closed")
-        rows = p.js("document.querySelectorAll('#settings label.row').length")
+        rows = p.js("document.querySelectorAll('#settings details:not(#quickSettings) label.row').length")  # (Quick settings repeats 8 of them)
         near(rows, len(schema), 0, "number of settings shown")
         missing = p.js("schema.filter(f=>!tInput(f.k)).map(f=>f.k)")
         if missing:
@@ -3474,15 +4110,15 @@ TESTS = [
     ("boot", t_boot), ("settings", t_settings), ("vario_climb", t_vario_climb),
     ("vario_sink", t_vario_sink), ("vario_thresholds", t_vario_thresholds), ("vario_logic", t_vario_logic),
     ("mute", t_mute), ("auto_volume", t_auto_volume), ("rpm_logic", t_rpm_logic), ("rpm", t_rpm), ("rpm_speech", t_rpm_speech), ("rpm_glitch", t_rpm_glitch), ("geo_logic", t_geo_logic), ("wind_logic", t_wind_logic),
-    ("circuit_logic", t_circuit_logic), ("battery_logic", t_battery_logic), ("flight_logic", t_flight_logic), ("rpmtrack_logic", t_rpmtrack_logic), ("baro_logic", t_baro_logic), ("wind", t_wind), ("wind_faults", t_wind_faults), ("wind_change", t_wind_change), ("circuit_right", t_circuit_right), ("circuit_left_wind", t_circuit_left_wind),
+    ("circuit_logic", t_circuit_logic), ("battery_logic", t_battery_logic), ("flight_logic", t_flight_logic), ("button_logic", t_button_logic), ("status_logic", t_status_logic), ("alerts_logic", t_alerts_logic), ("resume_logic", t_resume_logic), ("audio_logic", t_audio_logic), ("rpmtrack_logic", t_rpmtrack_logic), ("baro_logic", t_baro_logic), ("wind", t_wind), ("wind_faults", t_wind_faults), ("wind_change", t_wind_change), ("circuit_right", t_circuit_right), ("circuit_slow_pilot", t_circuit_slow_pilot), ("circuit_left_wind", t_circuit_left_wind),
     ("circuit_events", t_circuit_events),
-    ("fault_baro", t_fault_baro), ("fault_gps", t_fault_gps), ("fault_battery", t_fault_battery), ("landing_gps_quality", t_landing_gps_quality), ("battery_flight", t_battery_flight),
+    ("fault_baro", t_fault_baro), ("fault_gps", t_fault_gps), ("fault_battery", t_fault_battery), ("landing_gps_quality", t_landing_gps_quality), ("landing_hover", t_landing_hover), ("button_actions", t_button_actions), ("alerts_flight", t_alerts_flight), ("resume_flight", t_resume_flight), ("battery_flight", t_battery_flight),
     ("memory_events", t_memory_events), ("soak", t_soak),
     ("gps_states", t_gps_states), ("flight", t_flight), ("baro_only", t_baro_only),
     ("guidance", t_guidance), ("battery", t_battery), ("battery_learner", t_battery_learner),
     ("speech", t_speech), ("volume_ramp", t_volume_ramp), ("glide", t_glide),
     ("variant_no_gps", t_variant_no_gps), ("variant_no_mic", t_variant_no_mic), ("gps_detect", t_gps_detect),
-    ("ui_flight", t_ui_flight), ("ui_actions", t_ui_actions), ("ui_guidance", t_ui_guidance),
+    ("ui_flight", t_ui_flight), ("ui_pilot", t_ui_pilot), ("ui_layout", t_ui_layout), ("ui_actions", t_ui_actions), ("ui_guidance", t_ui_guidance),
     ("ui_settings", t_ui_settings), ("ui_spectrum", t_ui_spectrum), ("spectrum_setting", t_spectrum_setting), ("ui_system", t_ui_system), ("ui_help", t_ui_help),
     ("ota_guard", t_ota_guard), ("memory", t_memory),
 ]
@@ -3493,7 +4129,7 @@ TESTS = [
 # memory_events floods the vario with requests and resets on purpose, faster than the log feed can follow.
 # The *_logic tests run production code over thousands of simulated seconds in one request (the circuit suite logs
 # every phase change and trace line, as it would in flight) and assert on the suite's own report, never on the log.
-DROPS_ALLOWED = {"boot", "memory_events"}
+DROPS_ALLOWED = {"boot", "memory_events", "ui_layout"}  # ui_layout judges what is on the screen, and taking screenshots slows the log feed
 
 
 def isolate(v, a):
@@ -3595,6 +4231,7 @@ def main():
     logs_before = {f["n"] for f in v.get_json("/api/logs")["files"]}
     results = []
     touched = []  # tests during which something other than the harness was using the vario
+    missing_clips = set()  # voice clips the vario wanted and did not have (the filesystem needs uploading)
     cleanup = []  # (step, error or None)
     try:
         for name, fn in tests:
@@ -3624,6 +4261,10 @@ def main():
             except Fail as e:
                 results.append((name, False, str(e)))
                 print(f"  FAIL  {name:16} {time.time() - t0:5.1f} s  {e}\n        {diagnostics(v, since)}")
+            for l in v.lines[since:]:
+                mc = re.search(r"Missing voice clip /v/(\w+)\.adp", l.msg) if l.tag == "AUD" else None
+                if mc:
+                    missing_clips.add(mc.group(1))
             ext1 = outside(v)
             if has_outside(ext0) or has_outside(ext1):
                 touched.append(name)
@@ -3673,6 +4314,8 @@ def main():
         for l, e in bad:
             print(f"WARNING: cleanup step '{l}' failed: {e}")
     failed = [r for r in results if not r[1]]
+    if missing_clips:
+        print(f"\nWARNING: the vario had no voice clip for: {', '.join(sorted(missing_clips))} (upload the filesystem: pio run -e release -t uploadfs)")
     if touched:
         print(f"\nNOTE: {len(touched)} test(s) ran while a phone, browser or BLE client was connected: {', '.join(touched)}")
     print(f"\n{len(results) - len(failed)} passed, {len(failed)} failed"

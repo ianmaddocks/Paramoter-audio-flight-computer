@@ -79,3 +79,25 @@ landing_zone|Landing zone
 distance|Distance
 on_course|On course
 cannot_reach|Cannot reach landing zone
+
+# Added with the pilot-interface update (spoken status, battery and barometer messages, circuit legs). A vario whose
+# clips have not been updated still works: a missing clip is skipped, and the messages that matter fall back
+# ("battery_critical|battery_low", "baro_failed|~400").
+approximately|Approximately
+remaining|remaining
+turn_me_off|Turn me off until you need help landing
+battery_critical|Battery critical
+battery_lost|Battery reading lost
+baro_failed|Barometer failed
+baro_back|Barometer back
+wind|Wind
+kmh|kilometres per hour
+mph|miles per hour
+knots|knots
+battery|Battery
+percent|percent
+upwind|Upwind
+crosswind|Crosswind
+downwind|Downwind
+base|Base
+final|Final

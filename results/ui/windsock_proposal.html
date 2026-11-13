@@ -1,0 +1,25 @@
+<!doctype html><meta charset="utf-8"><title>Wind tile with a windsock</title>
+<style>
+body{margin:0;background:#f2f3f5;font-family:system-ui,Segoe UI,Arial,sans-serif;color:#15171b}
+h1{font-size:20px;margin:18px 20px 4px}
+p.sub{margin:0 20px 14px;color:#6b7280;font-size:14px}
+.row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:0 20px 16px}
+.tile{background:#fff;border:1px solid #dfe2e6;border-radius:14px;padding:12px 14px}
+.k{font-size:13px;color:#6b7280;text-transform:uppercase;letter-spacing:.04em}
+.v{display:flex;justify-content:flex-end;height:96px;align-items:center}
+.s{font-size:14px;color:#6b7280}
+.cap{font-size:14px;color:#3d4450;margin:8px 2px 0}
+.o{fill:#E8590C;stroke:#7A2E00;stroke-width:.7}.w{fill:#fff;stroke:#7A2E00;stroke-width:.7}
+.pole{fill:#6b7280}.ring{fill:none;stroke:#6b7280;stroke-width:1.6}
+</style>
+<h1>Wind tile with a windsock</h1>
+<p class="sub">Flying north (up is straight ahead). The sock streams the way the wind is blowing.</p>
+<div class="row" id="r"></div>
+<script>
+function sock(rot){return `<svg width="96" height="96" viewBox="0 0 84 84"><g transform="rotate(${rot} 42 42)">
+<polygon class="o" points="35,42 49,42 48.0,35 36.0,35"/><polygon class="w" points="36.0,35 48.0,35 46.9,28 37.1,28"/>
+<polygon class="o" points="37.1,28 46.9,28 45.9,21 38.1,21"/><polygon class="w" points="38.1,21 45.9,21 44.9,14 39.1,14"/>
+<line class="ring" x1="34" y1="42" x2="50" y2="42"/></g><circle class="pole" cx="42" cy="42" r="4"/></svg>`}
+const ex=[[30,'from 210° · 11 km/h','Wind from 210°: the sock streams up and to the right'],[180,'from 0° · 11 km/h','Headwind: the sock streams back, pointing down'],[90,'from 270° · 11 km/h','Wind from your left: the sock streams to the right']];
+document.getElementById('r').innerHTML=ex.map(e=>`<div><div class="tile"><div class="k">Wind</div><div class="v">${sock(e[0])}</div><div class="s">${e[1]}</div></div><p class="cap">${e[2]}</p></div>`).join('');
+</script>

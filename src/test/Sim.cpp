@@ -2,6 +2,8 @@
 
 #if PV_TEST
 
+#include <Preferences.h>
+
 #include "Hardware.h"
 #include "Log.h"
 #include "nav/Geo.h"
@@ -65,6 +67,8 @@ struct State {
   float micAmp = 150;    // engine signal amplitude, ADC counts
   float micNoise = 0;    // white noise amplitude, ADC counts
   float rpmGlitch = 0;   // one analysis window reports this RPM
+  uint32_t utcBaseS = 0; // seconds added to the simulated GPS clock (which starts at 12:00:00 at power-on)
+  int button = 0;        // an injected button event (ButtonEvent value)
 
   uint32_t lastMs = 0;
 } s;
@@ -147,6 +151,12 @@ int32_t micSample() {
   return constrain((int32_t)lroundf(2048.0f + x), 0, 4095);
 }
 
+int takeButton() {
+  int b = s.button;
+  s.button = 0;
+  return b;
+}
+
 bool takeRpmGlitch(float* rpm) {
   if (s.rpmGlitch <= 0) return false;
   *rpm = s.rpmGlitch;
@@ -159,7 +169,26 @@ float battV() { return s.battV; }
 bool noiseOn() { return s.noise; }
 float noiseDb() { return s.noiseDb; }
 
+// Test build only: a flag kept across restarts ("gpsBoot=silent") makes the simulated GPS start silent after every
+// power-up, so a test that restarts the vario is not at the mercy of a real GPS module on the bench getting a fix
+// (at rest) before the test has set up its simulated flight. "gpsBoot=real" clears it. Applied at the first update
+// and again by off=1.
+bool bootGpsSilent() {
+  Preferences prefs;
+  bool silent = false;
+  if (prefs.begin("simtest", true)) {
+    silent = prefs.getBool("gpsSilent", false);
+    prefs.end();
+  }
+  return silent;
+}
+
 void update(uint32_t nowMs) {
+  static bool bootApplied = false;
+  if (!bootApplied) {
+    bootApplied = true;
+    if (bootGpsSilent()) s.gps = GpsMode::Silent;
+  }
   float dt = s.lastMs ? (nowMs - s.lastMs) / 1000.0f : 0.0f;
   s.lastMs = nowMs;
   if (dt <= 0 || dt > 1.0f) return;
@@ -207,7 +236,7 @@ size_t gpsNmea(uint32_t nowMs, char* out, size_t size) {
   s.lastNmeaMs = nowMs;
 
   // Simulated clock: 2021-01-01 12:00:00 UTC at power-on.
-  uint32_t t = 12 * 3600 + nowMs / 1000;
+  uint32_t t = 12 * 3600 + s.utcBaseS + nowMs / 1000;
   char timeStr[12];
   snprintf(timeStr, sizeof(timeStr), "%02lu%02lu%02lu.%02lu", (unsigned long)(t / 3600 % 24),
            (unsigned long)(t / 60 % 60), (unsigned long)(t % 60), (unsigned long)(nowMs % 1000 / 10));
@@ -314,6 +343,17 @@ bool set(const String& key, const String& value) {
     s.micHz = f;
   } else if (key == "micAmp") {
     s.micAmp = f;
+  } else if (key == "button") {  // ButtonEvent: None, Press, HoldCue, Single, Double, Triple, Hold
+    s.button = value == "press" ? 1 : value == "holdcue" ? 2 : value == "single" ? 3 : value == "double" ? 4
+               : value == "triple" ? 5 : value == "hold" ? 6 : 0;
+  } else if (key == "gpsBoot") {  // silent | real: what the simulated GPS does after every restart
+    Preferences prefs;
+    if (prefs.begin("simtest", false)) {
+      prefs.putBool("gpsSilent", value == "silent");
+      prefs.end();
+    }
+  } else if (key == "utcBase") {
+    s.utcBaseS = (uint32_t)f;
   } else if (key == "rpmGlitch") {
     s.rpmGlitch = f;
   } else if (key == "micNoise") {
@@ -324,6 +364,7 @@ bool set(const String& key, const String& value) {
     uint32_t epoch = s.baroEpoch + 1;  // always a new value, so the barometer filter restarts
     s = State();
     s.baroEpoch = epoch;
+    if (bootGpsSilent()) s.gps = GpsMode::Silent;
   } else {
     return false;
   }

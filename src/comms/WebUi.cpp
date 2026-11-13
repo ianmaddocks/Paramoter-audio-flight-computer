@@ -426,6 +426,10 @@ void handleAction() {
     actionToggleEmergency();
   } else if (what == "mute") {
     actionToggleMute();
+  } else if (what == "tell_me") {
+    actionTellMe();
+  } else if (what == "reset_flight") {
+    actionResetFlight();
   } else if (what == "lz_here") {
     if (!n.fix) {  // always the case without a GPS
       sendError(409, "no GPS fix");

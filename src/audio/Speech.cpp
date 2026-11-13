@@ -109,6 +109,19 @@ void addDuration(audio::Utterance& u, uint32_t seconds) {
   }
 }
 
+void addSpeed(audio::Utterance& u, float ms) {
+  if (g_cfg.speedUnit == SU_MPH) {
+    addNumber(u, (int)lroundf(ms * 2.23694f));
+    u.add("mph");
+  } else if (g_cfg.speedUnit == SU_KNOTS) {
+    addNumber(u, (int)lroundf(ms * 1.94384f));
+    u.add("knots");
+  } else {
+    addNumber(u, (int)lroundf(ms * 3.6f));
+    u.add("kmh");
+  }
+}
+
 void addTurn(audio::Utterance& u, bool right) { u.add(right ? "turn_right_now" : "turn_left_now"); }
 
 void say(audio::Priority p, const char* clip) {

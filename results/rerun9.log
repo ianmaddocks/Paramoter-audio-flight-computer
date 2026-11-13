@@ -1,0 +1,9 @@
+ParaVario 20261113-001355 (3130155-dirty) at paravario.local, 2 tests
+  PASS  circuit_left_wind 290.5 s  crosswind turn at x=277 (expected 277); downwind turn at y=-376 (expected -374); base turn at x=-259 for 163 m (expected -256; final 297 m); final turn at y=-34, 78 m up; touchdown 12 m from the field; no steering call during any called turn
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  ui_guidance       66.0 s  flying tiles, emergency and approach banners, 210101-124220.igc listed and deleted from the page
+Cleanup: close the browser, simulation off, flight logic reset, settings restored, leftover test logs.
+
+NOTE: 1 test(s) ran while a phone, browser or BLE client was connected: circuit_left_wind
+
+2 passed, 0 failed

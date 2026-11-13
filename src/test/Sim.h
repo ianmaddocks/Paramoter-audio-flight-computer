@@ -10,7 +10,7 @@
 // gpsAltErr, gpsAlt, sats, hdop, batt, noise, hasGps, hasMic (0 = behave as a vario with no GPS /
 // microphone), gpsForget (forget that a GPS was ever seen and start detecting again), micMode
 // (real|synth|dead), micHz (engine firing frequency in Hz: rpm x pulses per rev / 60), micAmp (engine
-// signal amplitude, ADC counts), micNoise (white noise amplitude, ADC counts), rpmGlitch (one analysis window reports this RPM with a high confidence), baroFault (none|dead|range|stuck|noise: no samples /
+// signal amplitude, ADC counts), micNoise (white noise amplitude, ADC counts), button (single|double|triple|hold|press|holdcue: a button event as if the button had decoded it), gpsBoot (silent|real: kept across restarts: the simulated GPS starts silent after every power-up, so a real GPS module on the bench cannot get a fix before a test has set up its flight), utcBase (seconds added to the simulated GPS clock, which starts at 12:00:00 at power-on and runs with the uptime), rpmGlitch (one analysis window reports this RPM with a high confidence), baroFault (none|dead|range|stuck|noise: no samples /
 // impossible pressure / frozen value / random error of +-baroNoise m). The simulated sensor always has its
 // own small noise (about 3 cm), as a real one does, baroNoise (metres), baroSpike (adds
 // that many metres to the next baroSpikeN samples, default 1), baroSpikeN, baroDropMs (no samples for that many ms, timed by the vario), baroStep (metres added to every
@@ -38,6 +38,7 @@ bool baroAvail();        // false: the sensor gives no samples at all
 float baroPressureOverride();  // > 0: this pressure (Pa) is what the sensor reports, whatever the altitude
 MicMode micMode();
 int32_t micSample();  // one synthetic ADC sample (12-bit counts), called at the ADC rate by the mic task
+int takeButton();  // a pending injected button event (a ButtonEvent value), 0 = none
 bool takeRpmGlitch(float* rpm);  // true once after rpmGlitch=<rpm>: the next analysis window reports that RPM, confidently
 
 bool battOn();
@@ -61,6 +62,7 @@ inline bool baroAvail() { return true; }
 inline float baroPressureOverride() { return 0; }
 inline MicMode micMode() { return MicMode::Real; }
 inline int32_t micSample() { return 2048; }
+inline int takeButton() { return 0; }
 inline bool takeRpmGlitch(float*) { return false; }
 inline bool battOn() { return false; }
 inline float battV() { return 0; }

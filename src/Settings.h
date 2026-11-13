@@ -28,6 +28,7 @@ struct Settings {
   int32_t rpmMin = 1200;
   int32_t rpmMax = 10000;
   float rpmMinConfidence = 3.0f;
+  bool showEngTiles = false;  // show the Background noise tile and the RPM confidence on the flight tab (tuning data)
   bool spectrumEnabled = false;  // show the Spectrum tab (needs a build with the spectrum feature)
 
   bool varioEnabled = true;
@@ -60,7 +61,9 @@ struct Settings {
   float groundHoldVarioMs = 0.5f;   // ground level stops following the baro above this rate
   float landingSpeedMs = 5.0f / 3.6f;
   int32_t landingTimeS = 30;
-  float landingNoSpeedAglM = 15.0f;  // without a trusted ground speed, landed only this close to the ground
+  int32_t resumeMaxMin = 180;  // a flight is resumed after a restart in the air only within this long (0 = never)
+  float landingNoSpeedAglM = 15.0f;  // "near the ground": below this height above the landing zone (for the landing decision)
+  int32_t landingHighMult = 5;       // a still aircraft ABOVE that height needs this many times the landing time (F10)
 
   int32_t glideShortS = 1;   // glide ratio tile: main value averaged over this many seconds
   int32_t glideLongS = 60;   // ... and the smaller value over this many
@@ -81,6 +84,7 @@ struct Settings {
   float minFinalM = 100.0f;
   float arrivalRadiusM = 80.0f;
   float turnLeadS = 3.0f;
+  bool turnLearn = true;  // landing support learns how fast the pilot turns from the first two turns and calls the later ones to suit
   float offHeadingDeg = 30.0f;
   int32_t guidanceUpdateS = 20;
 

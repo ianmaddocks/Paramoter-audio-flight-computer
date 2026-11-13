@@ -86,6 +86,16 @@ uint8_t spBuf[128];
 int spBufLen = 0, spBufPos = 0;
 bool spHighNibble = false;
 
+// A tone made in place for a '~hz' clip: spSynth is true while it plays, spSamplesLeft counts it down.
+bool spSynth = false;
+uint32_t spSynthPhase = 0, spSynthInc = 0, spSynthTotal = 0;
+
+// The one-shot cue (audio::cue), written by the loop task, read by the audio task.
+volatile uint32_t gCueInc = 0;
+volatile int32_t gCueLeft = 0;
+volatile int32_t gCueTotal = 0;
+uint32_t cuePhase = 0;
+
 uint32_t tonePhase = 0;
 uint32_t toneCyclePos = 0;
 int32_t toneEnv = 0;  // 0..kRampSamples
@@ -98,6 +108,24 @@ inline int32_t stepTowards(int32_t now, int32_t want) {
 }
 
 bool openClip(const char* name) {
+  spSynth = false;
+  if (const char* bar = strchr(name, '|')) {  // "a|b": the first clip that exists (a new clip, then an old one or a tone)
+    char first[32];
+    size_t n = bar - name < (int)sizeof(first) - 1 ? bar - name : sizeof(first) - 1;
+    memcpy(first, name, n);
+    first[n] = 0;
+    return openClip(first) || openClip(bar + 1);
+  }
+  if (name[0] == '~') {  // a tone: "~900" = 900 Hz for 120 ms
+    float hz = (float)atoi(name + 1);
+    if (hz < 50.0f || hz > 4000.0f) return false;
+    spSynth = true;
+    spSynthPhase = 0;
+    spSynthInc = (uint32_t)(hz * 4294967296.0f / kSampleRate);
+    spSynthTotal = spSamplesLeft = kSampleRate * 120 / 1000;
+    spFile = File();  // nothing to read
+    return true;
+  }
   char path[40];
   snprintf(path, sizeof(path), "/v/%s.adp", name);
   spFile = LittleFS.open(path, "r");
@@ -128,6 +156,7 @@ bool startNextClip() {
 
 void stopSpeech() {
   if (spFile) spFile.close();
+  spSynth = false;
   spState = SpState::Idle;
   spSamplesLeft = 0;
 }
@@ -144,11 +173,20 @@ int16_t nextSpeechSample() {
     return 0;
   }
   if (spSamplesLeft == 0) {
-    spFile.close();
+    if (!spSynth) spFile.close();
+    spSynth = false;
     bool more = spClip < spCur.count;
     spState = SpState::Gap;
     spGapLeft = more ? kClipGapSamples : kUtteranceGapSamples;
     return 0;
+  }
+  if (spSynth) {  // a made tone with 5 ms fades at both ends
+    --spSamplesLeft;
+    spSynthPhase += spSynthInc;
+    int32_t env = spSynthTotal - spSamplesLeft < kRampSamples ? (int32_t)(spSynthTotal - spSamplesLeft)
+                  : spSamplesLeft < kRampSamples                ? (int32_t)spSamplesLeft
+                                                                : (int32_t)kRampSamples;
+    return (int16_t)(((int32_t)gSine[spSynthPhase >> 24] * 10000 / 32000) * env / (int32_t)kRampSamples);
   }
   if (!spHighNibble && spBufPos >= spBufLen) {
     spBufLen = spFile.read(spBuf, sizeof(spBuf));
@@ -233,6 +271,15 @@ void render(int16_t* out, int frames) {
         s = (((int32_t)gSine[tonePhase >> 24] * (toneGain >> 4)) >> 12) * toneEnv / (int32_t)kRampSamples;
       }
     }
+    if (gCueLeft > 0) {  // the cue: on top of everything, 4 ms fades, at the speech volume
+      cuePhase += gCueInc;
+      const int32_t played = gCueTotal - gCueLeft;
+      const int32_t ramp = kSampleRate * 4 / 1000;
+      int32_t env = played < ramp ? played : gCueLeft < ramp ? gCueLeft : ramp;
+      s += ((((int32_t)gSine[cuePhase >> 24] * 9000) / 32000) * env / ramp) * (speechGain >> 4) >> 12;
+      --gCueLeft;
+      s = constrain(s, -32768, 32767);
+    }
     out[2 * i] = out[2 * i + 1] = (int16_t)s;
   }
 }
@@ -283,7 +330,7 @@ void begin() {
 namespace {
 bool gCapture = false;
 int gSaid = 0;
-char gSaidText[16][96];
+char gSaidText[16][200];
 }  // namespace
 
 void testCapture(bool on) {
@@ -300,8 +347,8 @@ void say(const Utterance& u) {
   if (gCapture) {
     static const char* kP[] = {"low", "normal", "high", "urgent"};
     char* t = gSaidText[gSaid < 16 ? gSaid : 15];
-    size_t len = snprintf(t, 96, "[%s]", kP[(int)u.prio]);
-    for (int i = 0; i < u.count && len < 90; ++i) len += snprintf(t + len, 96 - len, " %s", u.clips[i]);
+    size_t len = snprintf(t, 200, "[%s]", kP[(int)u.prio]);
+    for (int i = 0; i < u.count && len < 190; ++i) len += snprintf(t + len, 200 - len, " %s", u.clips[i]);
     ++gSaid;
     return;
   }
@@ -316,6 +363,7 @@ void say(const Utterance& u) {
   static const char* kPrio[] = {"low", "normal", "high", "urgent"};
   LOGD("SAY", "[%s] %s", kPrio[(int)u.prio], text);
 #endif
+  const Utterance q = withSignal(u);
   xSemaphoreTake(gLock, portMAX_DELAY);
   switch (u.prio) {
     case Priority::Urgent:
@@ -325,7 +373,7 @@ void say(const Utterance& u) {
     case Priority::High:
       if (gCount == kQueueLen) --gCount;
       gHead = (gHead + kQueueLen - 1) % kQueueLen;
-      gQueue[gHead] = u;
+      gQueue[gHead] = q;
       ++gCount;
       break;
     case Priority::Low:
@@ -333,7 +381,7 @@ void say(const Utterance& u) {
       [[fallthrough]];
     case Priority::Normal:
       if (gCount < kQueueLen) {
-        gQueue[(gHead + gCount) % kQueueLen] = u;
+        gQueue[(gHead + gCount) % kQueueLen] = q;
         ++gCount;
       }
       break;
@@ -342,6 +390,19 @@ void say(const Utterance& u) {
 }
 
 bool speaking() { return gBusy || gCount > 0; }
+
+void cue(float hz, uint16_t ms) {
+#if PV_TEST
+  if (gCapture) {  // recorded like speech, as "[cue] ~<hz>"
+    char* t = gSaidText[gSaid < 16 ? gSaid : 15];
+    snprintf(t, 200, "[cue] ~%d", (int)hz);
+    ++gSaid;
+    return;
+  }
+#endif
+  gCueInc = (uint32_t)(hz * 4294967296.0f / kSampleRate);
+  gCueTotal = gCueLeft = (int32_t)(kSampleRate * ms / 1000);
+}
 
 void setTone(float hz, uint16_t onMs, uint16_t offMs) {
   portENTER_CRITICAL(&gToneMux);

@@ -54,8 +54,65 @@ float Approach::bearingOf(float dx, float dy) const {
 
 float Approach::headingOf(float relDeg) const { return geo::wrap360(upwindDeg_ + relDeg); }
 
-float Approach::lead(const NavState& nav) const {
-  return fmaxf(nav.speedMs, 5.0f) * g_cfg.turnLeadS;
+// Calling a turn: the pilot reacts (a second or two) and then turns at some rate, and the aircraft flies a circle arc while it
+// does: a 90 degree turn at turn rate w (deg/s) ends 57.3 / w seconds' worth of flight past where it began. So the turn must
+// be called early by (reaction + 57.3 / w) seconds. The setting is the default; after the first two turns of the circuit have
+// been measured (turn call to track within 20 degrees of the new leg) the lead is what this pilot has shown: a pilot who takes
+// 3 s for a quarter circle is called late-ish, one who takes 20 s a long way early. Samples that cannot be trusted (a turn
+// that was not completed, went the wrong way, was a jump of the track, or was under 60 degrees) are not used.
+float Approach::leadSeconds() const {
+  if (g_cfg.turnLearn && learned_ >= 2) {
+    const float rate = rateSum_ / learned_, react = reactSum_ / learned_;
+    return fminf(fmaxf(react + 57.3f / rate, 2.0f), 25.0f);
+  }
+  return g_cfg.turnLeadS;
+}
+
+float Approach::lead(const NavState& nav) const { return fmaxf(nav.speedMs, 5.0f) * leadSeconds(); }
+
+void Approach::beginTrial(const NavState& nav, float targetHdgDeg) {
+  if (!g_cfg.turnLearn || learned_ >= 2 || nav.speedMs < kMinGuidanceSpeed) return;
+  trial_ = Trial();
+  trial_.active = true;
+  trial_.callMs = nav.ms;
+  trial_.track0 = nav.trackDeg;
+  trial_.target = targetHdgDeg;
+  trial_.want = geo::wrap180(targetHdgDeg - nav.trackDeg);
+  if (fabsf(trial_.want) < 60.0f) trial_.active = false;  // not a turn to learn from
+}
+
+void Approach::updateTrial(const NavState& nav) {
+  if (!trial_.active) return;
+  if (nav.speedMs < kMinGuidanceSpeed) return;
+  const uint32_t t = nav.ms;
+  if (t - trial_.callMs > 60000 || (!trial_.started && t - trial_.callMs > 30000)) {
+    trial_.active = false;  // never completed
+    return;
+  }
+  const float dev = geo::wrap180(nav.trackDeg - trial_.track0);  // signed turn so far
+  if (!trial_.started) {
+    if (fabsf(dev) < 10.0f) return;
+    if (dev * trial_.want < 0) {  // the wrong way: not a sample
+      trial_.active = false;
+      return;
+    }
+    trial_.started = true;
+    trial_.startMs = t;
+    return;
+  }
+  ++trial_.samples;
+  const float remain = fabsf(geo::wrap180(trial_.target - nav.trackDeg));
+  const bool past = fabsf(dev) >= fabsf(trial_.want) - 20.0f || dev * trial_.want < 0;
+  if (remain > 20.0f && !past) return;
+  trial_.active = false;
+  const float dt = (t - trial_.startMs) / 1000.0f;
+  if (trial_.samples < 3 || dt < 1.0f) return;  // the track jumped: nothing to measure
+  const float rate = fminf(fmaxf((fabsf(trial_.want) - 30.0f) / dt, 1.5f), 45.0f);  // between 10 and (want - 20) degrees
+  const float react = fminf(fmaxf((trial_.startMs - trial_.callMs) / 1000.0f - 10.0f / rate, 0.0f), 15.0f);
+  rateSum_ += rate;
+  reactSum_ += react;
+  ++learned_;
+  LOGI("APR", "Pilot's turn %d: %.0f deg/s, reaction %.1f s; lead now %.1f s", learned_, rate, react, leadSeconds());
 }
 
 void Approach::setPhase(ApPhase p, uint32_t now) {
@@ -70,9 +127,11 @@ void Approach::setPhase(ApPhase p, uint32_t now) {
   graceUntilMs_ = p == ApPhase::ToStart ? 0 : now + kTurnGraceMs;
 }
 
-void Approach::turnCall(bool right) {
+void Approach::turnCall(bool right, const char* leg, const NavState& nav, float targetHdgDeg) {
+  beginTrial(nav, targetHdgDeg);
   Utterance u(Priority::Urgent);
   speech::addTurn(u, right);
+  if (leg) u.add(leg);
   audio::say(u);
 }
 
@@ -143,6 +202,9 @@ bool Approach::start(const NavState& nav, const Wind& wind) {
   descendCalled_ = tooLowCalled_ = false;
   lastSteerMs_ = lastGlideCallMs_ = 0;
   graceUntilMs_ = progressUntilMs_ = 0;
+  trial_ = Trial();
+  rateSum_ = reactSum_ = 0;
+  learned_ = 0;
   setPhase(ApPhase::ToStart, nav.ms);
   callStartPoint(nav, toFrame(nav), true);
   LOGI("APR", "Approach: upwind %.0f, start x=%.0f, crosswind x=%.0f, nominal base x=%.0f", upwindDeg_,
@@ -164,6 +226,7 @@ void Approach::update(const NavState& nav, const Wind& wind) {
   const float ld = lead(nav);
   tracePos_ = pos;
   traceAgl_ = nav.aglM;
+  updateTrial(nav);
 
   switch (phase_) {
     case ApPhase::ToStart: {
@@ -173,7 +236,7 @@ void Approach::update(const NavState& nav, const Wind& wind) {
       if (arrived) {
         setPhase(ApPhase::Upwind, now);
         float diff = geo::wrap180(upwindDeg_ - nav.trackDeg);
-        if (fabsf(diff) > g_cfg.offHeadingDeg) turnCall(diff > 0);
+        if (fabsf(diff) > g_cfg.offHeadingDeg) turnCall(diff > 0, "upwind", nav, upwindDeg_);
         break;
       }
       if (!descendCalled_ && nav.aglM > g_cfg.circuitHeightM + 30.0f) {
@@ -199,7 +262,7 @@ void Approach::update(const NavState& nav, const Wind& wind) {
       followLeg(nav, pos, xStart_, 0, 0);
       if (pos.x >= xCross_ - ld) {
         setPhase(ApPhase::Crosswind, now);
-        if (side_) turnCall(side_ > 0);
+        if (side_) turnCall(side_ > 0, "crosswind", nav, headingOf(90.0f * side_));
         else speech::say(Priority::Urgent, "turn_crosswind_now");
       }
       break;
@@ -215,7 +278,7 @@ void Approach::update(const NavState& nav, const Wind& wind) {
       followLeg(nav, pos, xCross_, 0, 90.0f * side_);
       if (side_ * pos.y >= S - ld) {
         setPhase(ApPhase::Downwind, now);
-        turnCall(side_ > 0);
+        turnCall(side_ > 0, "downwind", nav, headingOf(180.0f));
       }
       break;
 
@@ -246,7 +309,7 @@ void Approach::update(const NavState& nav, const Wind& wind) {
       if (pos.x <= -xb + ld) {
         xBase_ = pos.x;
         setPhase(ApPhase::Base, now);
-        turnCall(side_ > 0);
+        turnCall(side_ > 0, "base", nav, headingOf(-90.0f * side_));
       }
       break;
     }
@@ -256,7 +319,7 @@ void Approach::update(const NavState& nav, const Wind& wind) {
       float hNeed = hypotf(pos.x, pos.y) / wind.groundGlide(bearingOf(-pos.x, -pos.y));
       if (side_ * pos.y <= ld || nav.aglM < hNeed * 1.05f) {
         setPhase(ApPhase::Final, now);
-        turnCall(side_ > 0);
+        turnCall(side_ > 0, "final", nav, bearingOf(-pos.x, -pos.y));
       }
       break;
     }

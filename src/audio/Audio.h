@@ -10,6 +10,10 @@ constexpr uint32_t kSampleRate = 16000;
 enum class Priority : uint8_t { Low, Normal, High, Urgent };
 
 // A sequence of clip names (files /v/<name>.adp on LittleFS). Names must be string literals.
+// A name starting with '~' is not a file but a short tone made in place: "~900" is 900 Hz for 120 ms (used as the
+// signal before urgent calls, and as the cue inside an utterance). A clip whose file is missing is skipped, unless the
+// name is "a|b": then the first of a, b that exists is played ("battery_critical|battery_low", "baro_failed|~400"), so
+// a message added in a later voice-clip set still says something on a vario whose clips have not been updated.
 struct Utterance {
   static constexpr int kMaxClips = 24;
   const char* clips[kMaxClips];
@@ -23,8 +27,23 @@ struct Utterance {
   }
 };
 
+// What actually gets queued for an utterance: an urgent one gets a short signal tone first, so it is recognised over
+// engine noise before the words begin (unless it already starts with a tone or is full).
+inline Utterance withSignal(const Utterance& u) {
+  Utterance q = u;
+  if (u.prio == Priority::Urgent && u.count > 0 && u.count < Utterance::kMaxClips && u.clips[0][0] != '~') {
+    for (int i = q.count; i > 0; --i) q.clips[i] = q.clips[i - 1];
+    q.clips[0] = "~1000";
+    ++q.count;
+  }
+  return q;
+}
+
 void begin();
 void say(const Utterance& u);
+// One-shot cue tone played at once on top of whatever is sounding (a button click, the hold cue); it does not
+// wait in the speech queue and does not interrupt speech or the vario tone.
+void cue(float hz, uint16_t ms);
 bool speaking();
 
 #if PV_TEST

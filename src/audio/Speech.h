@@ -9,6 +9,7 @@ void addHeight(audio::Utterance& u, float metres);
 void addDistance(audio::Utterance& u, float metres);
 void addClock(audio::Utterance& u, float relDeg);
 void addDuration(audio::Utterance& u, uint32_t seconds);
+void addSpeed(audio::Utterance& u, float metresPerS);  // in the configured speed unit
 void addTurn(audio::Utterance& u, bool right);
 
 void say(audio::Priority p, const char* clip);

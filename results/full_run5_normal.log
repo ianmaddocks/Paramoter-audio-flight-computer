@@ -1,0 +1,59 @@
+ParaVario 20261112-230714 (3130155-dirty) at paravario.local, 65 tests
+  PASS  boot               5.5 s  beep 0.25 s at 900 Hz, 'Ready' 1.01 s later (vario answered again after 3 s)
+        memory: free 47908 lowest 31236 largest block 27636 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  settings           5.2 s  round trip and clamping ok
+        memory: free 47112 lowest 27460 largest block 19444 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  vario_climb       22.1 s  tone 796 Hz, heard at -33 dBFS (+42 dB on silence)
+        memory: free 47132 lowest 25092 largest block 25588 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  vario_sink        16.9 s  tone 297 Hz, heard at -27 dBFS (52 dB over floor)
+        memory: free 47252 lowest 25092 largest block 25588 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  vario_thresholds  85.4 s  climb: silent at 0.25, 731 Hz at 0.35 (expected 735), heard 46 dB over floor; sink: silent at -1.80, 309 Hz at -2.20 (expected 306), heard 52 dB over floor
+        memory: free 47268 lowest 25092 largest block 27636 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  vario_logic        2.0 s  43 cases passed: thresholds exact (>= climb, <= sink), formulas and limits, all silencing conditions
+        memory: free 47104 lowest 25092 largest block 25588 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  mute              19.5 s  muted climb silent, tone back after unmute
+        memory: free 46896 lowest 25092 largest block 20468 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  auto_volume       24.6 s  -60 dBFS -> 20/40%, -40 dBFS -> 60/70%, -20 dBFS -> 100/100%
+        memory: free 41484 lowest 24260 largest block 21492 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  rpm_logic          4.4 s  22 cases passed: speeds 1500..8000 rpm within 1.5 %, pulses per revolution, noise and silence give no RPM
+        memory: free 46628 lowest 24260 largest block 21492 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  rpm               93.4 s  stopped: 0; idle 2000 found in 0.8 s, steady 1969..2034; up 2000->5000 followed in steps; down 5000->2000 followed in steps; rapid 2000/4000 alternation: 32 readings, none outside 1800..4400 (0 zero); noise: engine kept at 2000 under noise; loud noise alone gives 0; input lost -> 0 after 2.3 s; recovered in 0.6 s
+        memory: free 46484 lowest 24260 largest block 21492 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  rpm_speech        39.6 s  3 announcements of about 6 s: RPM held at 2500 (+-6 %) throughout, 19 readings each; change to 3500 during speech followed within 6.6 s
+        memory: free 46480 lowest 24260 largest block 21492 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  rpm_glitch        14.3 s  5 single bad windows (4000, 1000, 6000, 3000, 4000 rpm): reading stayed within 42 rpm of 2000 over 26 readings; a real change to 3600 followed in 0.7 s
+        memory: free 43924 lowest 23784 largest block 20468 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  geo_logic          1.2 s  39 cases passed: wrap, distance (incl. date line), bearings, local offsets, vector bearing, clock positions
+        memory: free 41408 lowest 23784 largest block 19444 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  wind_logic         5.7 s  82 cases passed: fit accuracy, turn direction, 0/360, noise, no-fit and refused cases, averaging, ground glide
+        memory: free 46532 lowest 22392 largest block 21492 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  circuit_logic      2.0 s  57 cases passed: leg order, turn points, base turn from height, overshoot, wrong way, refusals
+        memory: free 46560 lowest 17736 largest block 21492 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  battery_logic      1.2 s  49 cases passed: conversion, smoothing, curve, low-battery timing and exceptions
+        memory: free 46544 lowest 17736 largest block 21492 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  flight_logic       1.4 s  46 cases passed: speed rule unchanged, no landing from a missing or weak GPS at height, limits exact
+        memory: free 41140 lowest 17736 largest block 14324 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  button_logic       4.3 s  15 cases passed: single/double/triple clicks, gloved gaps, hold with cue, abandoned hold, bounce
+        memory: free 46540 lowest 17736 largest block 21492 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  status_logic       1.2 s  17 cases passed: height, landing zone with clock and distance, wind, battery, units, what is left out
+        memory: free 41348 lowest 17736 largest block 21492 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  alerts_logic       1.4 s  21 cases passed: low/critical/lost battery messages, barometer failed and back
+        memory: free 46380 lowest 17736 largest block 21492 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  resume_logic       1.2 s  22 cases passed: age, reach, flying speed, missing time/position
+        memory: free 46540 lowest 17736 largest block 21492 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  audio_logic        1.6 s  9 cases passed: urgent calls get the signal tone, nothing else does
+        memory: free 41404 lowest 17736 largest block 17396 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  rpmtrack_logic     1.0 s  35 cases passed: smoothing, jump confirmation, dropout hold, speech hold
+        memory: free 46540 lowest 17736 largest block 21492 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  baro_logic         2.2 s  29 cases passed: impossible values, lone outliers, steps, rate limit, frozen reading, recovery
+        memory: free 41176 lowest 17736 largest block 15348 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  wind             232.7 s  takeoff run: from 270, source takeoff; head, tail and cross winds give the right ground speed and drift; straight flight leaves the estimate; wind from 270 at 5 m/s, right turns -> from 270 at 5.0; wind from 355 at 7 m/s, left turns (0/360 wrap) -> from 321 at 4.5; wind from 5 at 3 m/s, right turns -> from 339 at 3.5; wind from 180 at 8 m/s, left turns -> from 195 at 2.5; no wind -> from 195 at 1.2; wind from 225 at 6 m/s -> from 220 at 3.5; steady wind: error 2.49 -> 0.00 -> 0.00 -> 0.00 m/s over successive fits
+        memory: free 41236 lowest 17736 largest block 20468 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  wind_faults      318.1 s  baseline from 270 at 5.0; straight flight: no fit; half circle: no fit; 2.5 deg/s turn (150 degrees in the 60 s window): no fit; a 16 m/s wind at 20 m/s airspeed (a wind above the 15 m/s limit; a wind over the airspeed gives no circle at all): rejected, estimate kept; 4 m/s airspeed: rejected, estimate kept; GPS silent / no fix for 7 s in a circle: no fit from the gap, correct again after; manual wind used and kept while circling
+        memory: free 41356 lowest 17736 largest block 21492 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  wind_change      133.1 s  wind A from 270 at 5 -> from 270 at 4.9; first fit after the change: 0.00 m/s from the expected mean; second fit in the new wind: 0.00 m/s from the true wind; third fit stays on it
+        memory: free 41348 lowest 17736 largest block 18420 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  circuit_right    275.3 s  crosswind turn at x=226 (expected 225); downwind turn at y=372 (expected 371); base turn at x=-223 for 165 m (expected -220; final 264 m); final turn at y=29, 77 m up; touchdown 18 m from the field; no steering call during any called turn
+        memory: free 41180 lowest 1344 largest block 19444 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  circuit_left_wind 287.4 s  crosswind turn at x=277 (expected 277); downwind turn at y=-375 (expected -374); base turn at x=-255 for 163 m (expected -256; final 297 m); final turn at y=-29, 77 m up; touchdown 14 m from the field; no steering call during any called turn
+        memory: free 41232 lowest 1344 largest block 18420 | others: web pages 0, Wi-Fi stations 0, BLE 0

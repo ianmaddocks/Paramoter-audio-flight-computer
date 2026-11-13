@@ -1,0 +1,275 @@
+Test order shuffled, seed 12: rpm_glitch circuit_right resume_logic volume_ramp variant_no_mic alerts_logic rpmtrack_logic ui_guidance status_logic battery mute battery_logic gps_detect ota_guard rpm_logic battery_learner fault_battery flight ui_actions alerts_flight spectrum_setting guidance fault_baro ui_pilot ui_layout vario_climb auto_volume flight_logic glide ui_flight wind_change memory_events settings vario_logic wind_faults speech fault_gps vario_thresholds geo_logic button_actions vario_sink wind_logic audio_logic rpm_speech ui_settings circuit_slow_pilot ui_system battery_flight gps_states memory landing_hover circuit_logic resume_flight ui_help circuit_left_wind variant_no_gps soak button_logic circuit_events baro_logic boot wind rpm baro_only landing_gps_quality ui_spectrum
+ParaVario 20261113-001355 (3130155-dirty) at paravario.local, 66 tests
+  PASS  rpm_glitch        13.3 s  5 single bad windows (4000, 1000, 6000, 3000, 4000 rpm): reading stayed within 38 rpm of 2000 over 34 readings; a real change to 3600 followed in 1.2 s
+        memory: free 46180 lowest 8956 largest block 24564 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  circuit_right    269.8 s  crosswind turn at x=226 (expected 225); downwind turn at y=378 (expected 371); base turn at x=-235 for 167 m (expected -226; final 270 m); final turn at y=52, 82 m up; touchdown 2 m from the field; no steering call during any called turn
+        memory: free 40672 lowest 8956 largest block 17396 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  resume_logic       0.7 s  22 cases passed: age, reach, flying speed, missing time/position
+        memory: free 46032 lowest 8956 largest block 24564 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  volume_ramp       13.1 s  10 -> 100 %: 19 % within 1 s, - % at 1.5 s, 100 % by 4.5 s; never faster or slower than 30 %/s; falls gradually too
+        memory: free 46164 lowest 8956 largest block 24564 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  variant_no_mic    20.4 s  volume back to the set 40/20 % at -20 dBFS noise, 86 settings listed, no spectrum
+        memory: free 45904 lowest 8956 largest block 22516 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  alerts_logic       1.2 s  21 cases passed: low/critical/lost battery messages, barometer failed and back
+        memory: free 32600 lowest 8956 largest block 9204 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  rpmtrack_logic     1.1 s  35 cases passed: smoothing, jump confirmation, dropout hold, speech hold
+        memory: free 46044 lowest 8956 largest block 24564 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  ui_guidance       69.4 s  flying tiles, emergency and approach banners, 210101-124906.igc listed and deleted from the page
+        memory: free 44656 lowest 8956 largest block 12276 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  status_logic       1.6 s  17 cases passed: height, landing zone with clock and distance, wind, battery, units, what is left out
+        memory: free 45904 lowest 8956 largest block 23540 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  battery           38.7 s  curve ok, minutes [360, 354, 288, 180, 43, 0], real battery back at 4.164 V
+        memory: free 38308 lowest 8956 largest block 11764 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  mute              14.4 s  muted climb silent, tone back after unmute
+        memory: free 45840 lowest 8956 largest block 17396 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  battery_logic      1.5 s  49 cases passed: conversion, smoothing, curve, low-battery timing and exceptions
+        memory: free 42704 lowest 8956 largest block 15860 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  gps_detect        29.5 s  unknown -> not fitted after 10 s -> found when it starts sending -> kept when silent; set by hand both ways; page followed
+        memory: free 42840 lowest 8956 largest block 10740 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  ota_guard          3.2 s  refused with a wrong and a missing password; vario kept running
+        memory: free 46196 lowest 8956 largest block 24564 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  rpm_logic          9.1 s  22 cases passed: speeds 1500..8000 rpm within 1.5 %, pulses per revolution, noise and silence give no RPM
+        memory: free 40916 lowest 8956 largest block 14836 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  battery_learner    5.1 s  4 h run -> 234.2 min at 4.10 V, pace-scaled 59 min, blended 199.4, charging unknown
+        memory: free 46196 lowest 8956 largest block 24564 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  fault_battery     77.5 s  flickering 3.4/3.6 V: 0 call(s) in 40 s; 0.0 V: 0 %, no call; 6.0 V: 100 %, no call
+        memory: free 40768 lowest 8956 largest block 15348 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  flight           112.5 s  86 IGC records, 11 s before takeoff, alt 100..165 m, 6 without fix
+        memory: free 46116 lowest 8956 largest block 25588 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  FAIL  ui_actions        31.4 s  web page: #toast shows 'Done', expected /^Failed: no GPS fix$/ (Set LZ here refused without a fix)
+        state: uptime 3325 s, flying False, agl -0 m, vario +0.01, baro ok True, fix False, wind none 0/0.0, heap 44020 (lowest 8956)
+        sim: {"baro": 1, "alt": 100.0, "vz": 0.0, "gps": "nofix", "lat": 51.5, "lon": 0.5, "speed": 0.0, "track": 0.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [ 3322.057] D BAT: v=4.163 pct=100 min=360 learned=0
+          [ 3322.057] D NAV: fix=0 good=0 sat=10 hdop=0.9 51.500000,0.508052 gs=0.0 trk=90 gpsAlt=102.0
+          [ 3322.057] D NAV: baro=1 p=101927 t=20.0 std=-50.0 msl=-50.0 agl=-0.0 vs=-0.01 fly=0 ft=0
+          [ 3322.058] D NAV: lz=0 0.000000,0.000000 elev=-50.0 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=43364
+          [ 3323.057] D NAV: fix=0 good=0 sat=10 hdop=0.9 51.500000,0.508052 gs=0.0 trk=90 gpsAlt=102.0
+          [ 3323.057] D NAV: baro=1 p=101927 t=20.0 std=-50.0 msl=-50.0 agl=-0.0 vs=-0.01 fly=0 ft=0
+          [ 3323.058] D NAV: lz=0 0.000000,0.000000 elev=-50.0 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=43364
+          [ 3323.873] D MIC: noise=-59.4 (blk -58.9) dBFS rpm=0 raw=1743 conf=1.5 fs=2034 tone=0 clear=1 ovf=408621
+          [ 3324.058] D BAT: v=4.163 pct=100 min=360 learned=0
+          [ 3324.058] D NAV: fix=0 good=0 sat=10 hdop=0.9 51.500000,0.508052 gs=0.0 trk=90 gpsAlt=102.0
+          [ 3324.058] D NAV: baro=1 p=101928 t=20.0 std=-50.0 msl=-50.0 agl=0.0 vs=+0.01 fly=0 ft=0
+          [ 3324.059] D NAV: lz=0 0.000000,0.000000 elev=-50.0 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=43364
+          [ 3325.058] D NAV: fix=0 good=0 sat=10 hdop=0.9 51.500000,0.508052 gs=0.0 trk=90 gpsAlt=102.0
+          [ 3325.058] D NAV: baro=1 p=101928 t=20.0 std=-50.0 msl=-50.0 agl=-0.0 vs=-0.03 fly=0 ft=0
+          [ 3325.059] D NAV: lz=0 0.000000,0.000000 elev=-50.0 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=43364
+          [ 3325.519] I WEB: settings saved
+          [ 3325.813] I WEB: action lz_here
+          [ 3325.917] D MIC: noise=-58.8 (blk -56.9) dBFS rpm=0 raw=6553 conf=1.7 fs=2034 tone=0 clear=1 ovf=408877
+        memory: free 43444 lowest 8956 largest block 20468 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  alerts_flight    130.1 s  barometer failed / back spoken in flight; routine height calls: 2+ in 26 s normally, none during the approach
+        memory: free 37620 lowest 1972 largest block 9204 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  spectrum_setting   6.6 s  tab removed when off, back when on (default is off: True)
+        memory: free 46184 lowest 1972 largest block 24564 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  guidance          75.0 s  refusals, emergency 6 o'clock + on course, approach start and cancel
+        memory: free 37588 lowest 1972 largest block 10740 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  fault_baro       256.4 s  dead: detected, banner, silent, recovered; range: detected, banner, silent, recovered; NaN pressure: detected, silent, recovered; frozen value: detected after 5 s, banner, silent, recovered; one 30 m wild sample: held back, no tone, vario unmoved; -30 m and +12 m single samples: held back too; two wild samples in a row: accepted as a step, no tone; a 25 m step that stays: accepted as a step, no tone; intermittent: 1.2 s dropouts ignored, 3 s dropouts detected and recovered x3; 0.4 m noise: vario reads within +-0.20 m/s
+        memory: free 46048 lowest 1972 largest block 23540 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  ui_pilot          47.8 s  ground: setup card shown, no alerts, GPS tile says strong; flight: the ground card is gone, the in-flight card holds Landing support, Emergency support, Update me and Mute; Update me speaks; alert strip: low and critical battery, barometer, no GPS; each clears; battery tile '~3h 54m'; noise tile only on request; Quick settings first, same settings as their groups, saved; Reset flight state button ends the flight and brings the ground Actions card back
+        memory: free 46240 lowest 1972 largest block 24564 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  ui_layout         74.5 s  no text cut off, nothing overlapping or off screen in: ground view, flying, 120 km/h, mph and miles, knots and metres, three alerts, 320 px wide, settings and logs tabs (screenshots in results\ui)
+        memory: free 46028 lowest 1972 largest block 25588 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  vario_climb       26.6 s  tone 795 Hz, heard at -33 dBFS (+46 dB on silence)
+        memory: free 43592 lowest 1972 largest block 18420 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  auto_volume       27.7 s  -60 dBFS -> 20/40%, -40 dBFS -> 60/70%, -20 dBFS -> 100/100%
+        memory: free 42724 lowest 1972 largest block 16372 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  flight_logic       1.6 s  46 cases passed: speed rule unchanged, no landing from a missing or weak GPS at height, limits exact
+        memory: free 43564 lowest 1972 largest block 20468 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  glide             89.5 s  6.7 : 1 now, 6.7 : 1 over 20 s (true 6.7)
+        memory: free 38468 lowest 1972 largest block 14324 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  ui_flight         33.5 s  banner, 11 tiles, height graph and layout correct; speed, vario, battery and GPS changes followed
+        memory: free 46196 lowest 1972 largest block 25588 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  wind_change      130.7 s  wind A from 270 at 5 -> from 270 at 5.0; first fit after the change: 0.00 m/s from the expected mean; second fit in the new wind: 0.00 m/s from the true wind; third fit stays on it
+        memory: free 37752 lowest 1972 largest block 9716 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  memory_events    301.0 s  free 46204 -> [41016, 46196, 46032] B over three rounds, lowest 1972 B, largest block 25588 B, stacks free {'loopTask': 1560, 'audio': 2216, 'mic': 2000}
+        memory: free 46028 lowest 1972 largest block 22516 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  settings           1.7 s  round trip and clamping ok
+        memory: free 45876 lowest 1972 largest block 24564 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  vario_logic        1.1 s  43 cases passed: thresholds exact (>= climb, <= sink), formulas and limits, all silencing conditions
+        memory: free 46024 lowest 1972 largest block 25588 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  wind_faults      320.7 s  baseline from 270 at 5.0; straight flight: no fit; half circle: no fit; 2.5 deg/s turn (150 degrees in the 60 s window): no fit; a 16 m/s wind at 20 m/s airspeed (a wind above the 15 m/s limit; a wind over the airspeed gives no circle at all): rejected, estimate kept; 4 m/s airspeed: rejected, estimate kept; GPS silent / no fix for 7 s in a circle: no fit from the gap, correct again after; manual wind used and kept while circling
+        memory: free 41052 lowest 1972 largest block 14324 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  speech            21.9 s  clip sequence ok, speech peaks +30 dB over the quiet room
+        memory: free 45828 lowest 1972 largest block 19444 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  fault_gps         95.4 s  position 0, 0 on the ground: no fix, back after; dropout: announced after 5 s, flight kept, approach refused, fix back without reboot; 3 satellites: no fix; back with 10; weak fix (4 satellites, hdop 4.2) for 14 s in flight: flight kept; latitude 95 / -91 and longitude 200: no fix each time, flight kept, fix back
+        memory: free 41024 lowest 1972 largest block 12276 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  vario_thresholds  88.2 s  climb: silent at 0.25, 731 Hz at 0.35 (expected 735), heard 44 dB over floor; sink: silent at -1.80, 310 Hz at -2.20 (expected 306), heard 54 dB over floor
+        memory: free 42892 lowest 1972 largest block 18420 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  geo_logic          1.6 s  39 cases passed: wrap, distance (incl. date line), bearings, local offsets, vector bearing, clock positions
+        memory: free 46056 lowest 1972 largest block 25588 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  button_actions    26.5 s  click and hold cues; single: tell me, starts nothing; double: approach on and off; a single never cancels; hold: emergency on and off; a single never cancels; triple: mute and unmute; no GPS: single tells height and battery, double/hold mute
+        memory: free 41768 lowest 1972 largest block 10228 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  vario_sink        12.2 s  tone 297 Hz, heard at -27 dBFS (52 dB over floor)
+        memory: free 43620 lowest 1972 largest block 18420 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  wind_logic         2.6 s  82 cases passed: fit accuracy, turn direction, 0/360, noise, no-fit and refused cases, averaging, ground glide
+        memory: free 46068 lowest 1972 largest block 25588 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  audio_logic        0.9 s  9 cases passed: urgent calls get the signal tone, nothing else does
+        memory: free 43596 lowest 1972 largest block 18420 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  rpm_speech        47.8 s  3 announcements of about 6 s: RPM held at 2500 (+-6 %) throughout, 25 readings each; change to 3500 during speech followed within 5.7 s
+        memory: free 46184 lowest 1972 largest block 25588 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  ui_settings       18.9 s  16 groups, 96 settings; number, feet, list, checkbox gate, unit switch, text
+        memory: free 46188 lowest 1972 largest block 25588 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  circuit_slow_pilot 342.4 s  measured (6.0, 1.1, 3.0) and (8.0, 0.8, 8.9); lead 8.9 s; base turn 85 m earlier than the setting would call it
+        memory: free 40732 lowest 1972 largest block 14324 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  ui_system         17.0 s  5 tabs switch, debug log live/pause/clear, firmware box guarded, version and system line
+        memory: free 46020 lowest 1972 largest block 23540 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  battery_flight   148.4 s  3.40 V: ordinary call; 3.20 V: urgent call after 6 s; reading lost in flight (0 V): urgent call; recovered: silent; 0 V on the ground: silent (USB power)
+        memory: free 45940 lowest 1972 largest block 25588 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  gps_states        29.3 s  not responding / waiting / weak fix ignored / good fix ready
+        memory: free 46088 lowest 1972 largest block 21492 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  FAIL  memory            10.4 s  free memory fell dangerously low during the tests: free 44 kB (was 42 kB at the start), lowest since power-on 1 kB, largest block 23 kB
+        state: uptime 5737 s, flying False, agl -0 m, vario -0.05, baro ok True, fix False, wind none 0/0.0, heap 46048 (lowest 1972)
+        sim: {"baro": 0, "alt": 0.0, "vz": 0.0, "gps": "real", "lat": 51.5, "lon": 0.5, "speed": 0.0, "track": 0.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [ 5733.263] D NAV: lz=0 0.000000,0.000000 elev=-58.7 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=49008
+          [ 5733.462] D VOL: noise -57.7 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [ 5733.764] D BAT: v=4.159 pct=100 min=360 learned=0
+          [ 5734.193] D MIC: noise=-57.7 (blk -57.3) dBFS rpm=0 raw=2068 conf=1.5 fs=2003 tone=0 clear=1 ovf=703597
+          [ 5734.267] D NAV: fix=0 good=0 sat=0 hdop=100.0 51.501096,0.500000 gs=0.0 trk=0 gpsAlt=100.0
+          [ 5734.268] D NAV: baro=1 p=102033 t=59.9 std=-58.7 msl=-58.7 agl=-0.0 vs=-0.02 fly=0 ft=0
+          [ 5734.268] D NAV: lz=0 0.000000,0.000000 elev=-58.7 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=49008
+          [ 5735.281] D NAV: fix=0 good=0 sat=0 hdop=100.0 51.501096,0.500000 gs=0.0 trk=0 gpsAlt=100.0
+          [ 5735.282] D NAV: baro=1 p=102033 t=59.9 std=-58.7 msl=-58.7 agl=-0.0 vs=-0.01 fly=0 ft=0
+          [ 5735.282] D NAV: lz=0 0.000000,0.000000 elev=-58.7 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=48972
+          [ 5735.788] D BAT: v=4.159 pct=100 min=360 learned=0
+          [ 5736.237] D MIC: noise=-57.6 (blk -57.4) dBFS rpm=0 raw=1744 conf=1.6 fs=2003 tone=0 clear=1 ovf=703853
+          [ 5736.291] D NAV: fix=0 good=0 sat=0 hdop=100.0 51.501096,0.500000 gs=0.0 trk=0 gpsAlt=100.0
+          [ 5736.292] D NAV: baro=1 p=102033 t=59.9 std=-58.8 msl=-58.8 agl=-0.1 vs=-0.04 fly=0 ft=0
+          [ 5736.292] D NAV: lz=0 0.000000,0.000000 elev=-58.7 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=49176
+          [ 5737.297] D NAV: fix=0 good=0 sat=0 hdop=100.0 51.501096,0.500000 gs=0.0 trk=0 gpsAlt=100.0
+          [ 5737.298] D NAV: baro=1 p=102034 t=59.9 std=-58.8 msl=-58.8 agl=-0.1 vs=-0.04 fly=0 ft=0
+          [ 5737.298] D NAV: lz=0 0.000000,0.000000 elev=-58.7 wind=none 0/0.0 mode=none/off mute=0 batt=4.16V heap=49208
+        memory: free 42680 lowest 1972 largest block 17396 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  landing_hover    200.0 s  hovering at 60 m for 16 s: still flying; declared landed after about 25 s (landingHighMult 5); multiplier 1: landed after the normal time, as before; near the ground: landed 8 s after stopping
+        memory: free 46220 lowest 1972 largest block 23540 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  circuit_logic      2.2 s  74 cases passed: leg order, turn points, base turn from height, overshoot, wrong way, refusals
+        memory: free 40684 lowest 1972 largest block 12276 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  resume_flight    509.6 s  30 min off at flying speed: resumed, same LZ, 50 m, flight time 1823 s; resumed flight lands normally; too old (4 h): not resumed; on the ground: not resumed; impossible place: not resumed; resume switched off: not resumed; no GPS within 3 minutes: dropped; reset by the pilot: flight ended, nothing resumed after a restart
+        memory: free 41032 lowest 19712 largest block 16372 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  ui_help           15.4 s  13 links on the Help tab, 18 settings groups linked, guides rendered in the page; the guide for a vario without a GPS is offered then
+        memory: free 38788 lowest 19712 largest block 15348 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  circuit_left_wind 298.7 s  crosswind turn at x=277 (expected 277); downwind turn at y=-378 (expected -374); base turn at x=-260 for 162 m (expected -253; final 293 m); final turn at y=-28, 78 m up; touchdown 18 m from the field; no steering call during any called turn
+        memory: free 37724 lowest 3836 largest block 10228 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  variant_no_gps   116.8 s  ready, takeoff, 40.4 m and landing on the barometer; 53 settings listed, no log
+        memory: free 40420 lowest 3836 largest block 16372 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  FAIL  soak             769.3 s  lowest free memory fell from 3836 to 3532 B during the soak
+        state: uptime 1220 s, flying True, agl 330 m, vario -0.43, baro ok True, fix True, wind circling 270/4.0, heap 38184 (lowest 3532)
+        sim: {"baro": 1, "alt": 430.35, "vz": 0.0, "gps": "fix", "lat": 51.509741, "lon": 0.546951, "speed": 9.76, "track": 8.3, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 345.0}
+        last log lines:
+          [ 1217.652] D NAV: baro=1 p=97988 t=20.0 std=281.6 msl=431.6 agl=331.6 vs=-0.48 fly=1 ft=754
+          [ 1217.653] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/4.0 mode=none/off mute=0 batt=4.16V heap=33052
+          [ 1218.653] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.509575,0.546962 gs=7.8 trk=338 gpsAlt=431.1
+          [ 1218.653] D NAV: baro=1 p=97994 t=20.0 std=281.1 msl=431.1 agl=331.1 vs=-0.49 fly=1 ft=755
+          [ 1218.654] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/4.0 mode=none/off mute=0 batt=4.16V heap=33052
+          [ 1218.720] D MIC: noise=-57.7 (blk -40.7) dBFS rpm=0 raw=6529 conf=2.4 fs=1866 tone=0 clear=0 ovf=148625
+          [ 1218.752] D BAT: v=4.156 pct=100 min=360 learned=0
+          [ 1218.952] D VOL: noise -57.7 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [ 1219.653] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.509648,0.546937 gs=9.0 trk=358 gpsAlt=430.6
+          [ 1219.653] D NAV: baro=1 p=98000 t=20.0 std=280.6 msl=430.6 agl=330.6 vs=-0.49 fly=1 ft=756
+          [ 1219.654] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/4.0 mode=none/off mute=0 batt=4.16V heap=35604
+          [ 1220.113] I SIM: turn=0
+          [ 1220.113] I SIM: vz=0
+          [ 1220.735] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.509752,0.546954 gs=9.8 trk=8 gpsAlt=430.3
+          [ 1220.736] D NAV: baro=1 p=98003 t=20.0 std=280.3 msl=430.3 agl=330.3 vs=-0.24 fly=1 ft=757
+          [ 1220.736] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/4.0 mode=none/off mute=0 batt=4.16V heap=39080
+          [ 1220.776] D MIC: noise=-58.0 (blk -58.3) dBFS rpm=0 raw=3206 conf=1.6 fs=1347 tone=0 clear=1 ovf=148849
+          [ 1220.835] D BAT: v=4.156 pct=100 min=360 learned=0
+        memory: free 40404 lowest 3532 largest block 12788 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  button_logic       0.9 s  15 cases passed: single/double/triple clicks, gloved gaps, hold with cue, abandoned hold, bounce
+        memory: free 45892 lowest 3532 largest block 18420 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  circuit_events   316.7 s  crosswind turn at x=225 (expected 225); downwind turn at y=370 (expected 370); base turn at x=-219 for 165 m (expected -220; final 264 m); final turn at y=29, 76 m up; touchdown 2 m from the field; 1 steering calls (a turn was ignored on purpose); start point called 4 times while flying away, no leg change during the 6 s GPS loss, 1 steer right calls while the turn was ignored
+        memory: free 41024 lowest 3460 largest block 19444 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  baro_logic         2.7 s  29 cases passed: impossible values, lone outliers, steps, rate limit, frozen reading, recovery
+        memory: free 46204 lowest 3460 largest block 20468 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  boot              12.6 s  beep 0.26 s at 900 Hz, 'Ready' 1.01 s later (vario answered again after 6 s)
+        memory: free 47376 lowest 23648 largest block 14324 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  wind             253.7 s  takeoff run: from 270, source takeoff; head, tail and cross winds give the right ground speed and drift; straight flight leaves the estimate; wind from 270 at 5 m/s, right turns -> from 270 at 5.0; wind from 355 at 7 m/s, left turns (0/360 wrap) -> from 321 at 4.5; wind from 5 at 3 m/s, right turns -> from 339 at 3.5; wind from 180 at 8 m/s, left turns -> from 195 at 2.5; no wind -> from 195 at 1.2; wind from 225 at 6 m/s -> from 220 at 3.5; steady wind: error 2.49 -> 0.00 -> 0.00 -> 0.00 m/s over successive fits
+        memory: free 41448 lowest 11700 largest block 12788 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  rpm               83.6 s  stopped: 0; idle 2000 found in 0.6 s, steady 1997..2028; up 2000->5000 followed in steps; down 5000->2000 followed in steps; rapid 2000/4000 alternation: 31 readings, none outside 1800..4400 (0 zero); noise: engine kept at 2000 under noise; loud noise alone gives 0; input lost -> 0 after 2.3 s; recovered in 0.7 s
+        memory: free 46416 lowest 11700 largest block 21492 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  baro_only        132.4 s  slow rise ignored, takeoff at 2 m/s and landing without GPS, agl reads 60.2 m at a true 60 m
+        memory: free 38648 lowest 8264 largest block 13812 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  landing_gps_quality 687.1 s  weak fix, +0.0 m/s at about 200 m, 29 s; weak fix, +0.2 m/s at about 200 m, 29 s; weak fix, -0.2 m/s at about 200 m, 29 s; no GPS for 70 s at 200 m; landing with no GPS found 13 s after touchdown; landing with a weak fix found (13 cases kept the flight)
+        memory: free 41144 lowest 8264 largest block 13812 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  ui_spectrum       16.9 s  4.3 updates/s, tone mark and peak at 290 Hz, pause and floor ok
+        memory: free 45888 lowest 8264 largest block 21492 | others: web pages 0, Wi-Fi stations 0, BLE 0
+        low memory: web: lowest 8956 -> 6628 B during request  (free now 22120)
+        low memory: lowest free memory 8956 -> 6628 B after web server (free now 22120)
+        low memory: web: lowest 6628 -> 1972 B during request  (free now 16564)
+        low memory: lowest free memory 6628 -> 1972 B after web server (free now 16564)
+        low memory: route GET /api/debuglog lowered the low-water mark 29616 -> 21736 B (free now 45668)
+        low memory: web: lowest 29616 -> 21736 B during request /api/debuglog (free now 47784)
+        low memory: lowest free memory 29616 -> 21736 B after web server (free now 47784)
+        low memory: web: lowest 21736 -> 19408 B during request  (free now 20312)
+        low memory: lowest free memory 21736 -> 19408 B after web server (free now 20664)
+        low memory: web: lowest 19408 -> 14752 B during request  (free now 19912)
+        low memory: lowest free memory 19408 -> 14752 B after web server (free now 19912)
+        low memory: lowest free memory 25536 -> 21732 B after flight logic (free now 42336)
+        low memory: web: lowest 24060 -> 21732 B during idle before  (free now 42336)
+        low memory: web: lowest 21732 -> 19404 B during request  (free now 22496)
+        low memory: lowest free memory 21732 -> 19404 B after web server (free now 22496)
+        low memory: lowest free memory 19404 -> 16860 B after web server (free now 34180)
+        low memory: lowest free memory 24008 -> 20728 B after flight logic (free now 20728)
+        low memory: web: lowest 24008 -> 20728 B during idle before  (free now 20728)
+        low memory: lowest free memory 20728 -> 16924 B after flight logic (free now 21568)
+        low memory: web: lowest 19252 -> 16924 B during idle before  (free now 21568)
+        low memory: lowest free memory 16924 -> 13752 B after flight logic (free now 30376)
+        low memory: web: lowest 16080 -> 13752 B during idle before  (free now 30376)
+        low memory: lowest free memory 24768 -> 15456 B after flight logic (free now 17528)
+        low memory: web: lowest 24768 -> 15456 B during idle before  (free now 17528)
+        low memory: route GET /api/status lowered the low-water mark 14848 -> 12588 B (free now 32128)
+        low memory: web: lowest 14848 -> 12588 B during request /api/status (free now 33860)
+        low memory: lowest free memory 15456 -> 12588 B after web server (free now 33860)
+        low memory: route POST /api/settings lowered the low-water mark 27368 -> 21784 B (free now 23592)
+        low memory: web: lowest 27368 -> 21784 B during request /api/settings (free now 25320)
+        low memory: lowest free memory 27420 -> 21784 B after web server (free now 25320)
+        low memory: lowest free memory 21784 -> 17128 B after flight logic (free now 20496)
+        low memory: web: lowest 21784 -> 17128 B during idle before  (free now 20496)
+        low memory: lowest free memory 17128 -> 14800 B after flight logic (free now 20312)
+        low memory: web: lowest 17128 -> 14800 B during idle before  (free now 20312)
+        low memory: route GET /api/debuglog lowered the low-water mark 29160 -> 22912 B (free now 40352)
+        low memory: web: lowest 29160 -> 22912 B during request /api/debuglog (free now 42308)
+        low memory: lowest free memory 29948 -> 22912 B after web server (free now 42308)
+        low memory: lowest free memory 22912 -> 21296 B after web server (free now 39568)
+        low memory: lowest free memory 21296 -> 16640 B after flight logic (free now 17932)
+        low memory: web: lowest 21296 -> 16640 B during idle before  (free now 17932)
+        low memory: route GET /api/status lowered the low-water mark 16456 -> 14996 B (free now 25856)
+        low memory: lowest free memory 16640 -> 14996 B after web server (free now 27568)
+        low memory: lowest free memory 14996 -> 12668 B after flight logic (free now 16076)
+        low memory: web: lowest 14996 -> 12668 B during idle before  (free now 16076)
+        low memory: route GET /api/status lowered the low-water mark 31360 -> 22040 B (free now 35564)
+        low memory: web: lowest 31360 -> 22040 B during request /api/status (free now 37496)
+        low memory: lowest free memory 32836 -> 22040 B after web server (free now 37496)
+        low memory: web: lowest 22040 -> 19712 B during dns  (free now 21764)
+        low memory: lowest free memory 22040 -> 19712 B after web server (free now 28932)
+        low memory: web: lowest 19712 -> 17384 B during request  (free now 19484)
+        low memory: lowest free memory 19712 -> 17384 B after web server (free now 19484)
+        low memory: lowest free memory 17384 -> 15056 B after bluetooth (free now 19328)
+        low memory: web: lowest 17384 -> 15056 B during idle before  (free now 19328)
+        low memory: lowest free memory 15056 -> 13172 B after flight logic (free now 20360)
+        low memory: web: lowest 14956 -> 13172 B during idle before  (free now 20360)
+        low memory: web: lowest 13172 -> 10844 B during request  (free now 17868)
+        low memory: lowest free memory 13172 -> 10844 B after web server (free now 17868)
+        low memory: lowest free memory 10844 -> 8516 B after flight logic (free now 15372)
+        low memory: web: lowest 10844 -> 8516 B during idle before  (free now 15372)
+        low memory: lowest free memory 8516 -> 6188 B after flight logic (free now 19764)
+        low memory: web: lowest 8516 -> 6188 B during idle before  (free now 19764)
+        low memory: route GET /api/status lowered the low-water mark 5644 -> 4544 B (free now 21816)
+        low memory: lowest free memory 6188 -> 4544 B after web server (free now 23888)
+        low memory: lowest free memory 24376 -> 22492 B after web server (free now 28624)
+        low memory: lowest free memory 22492 -> 20788 B after web server (free now 25444)
+        low memory: route GET /api/status lowered the low-water mark 20788 -> 16584 B (free now 37668)
+        low memory: web: lowest 20788 -> 16584 B during request /api/status (free now 39380)
+        low memory: lowest free memory 20788 -> 16584 B after web server (free now 39380)
+        low memory: lowest free memory 16584 -> 14256 B after flight logic (free now 21216)
+        low memory: web: lowest 16584 -> 14256 B during idle before  (free now 21216)
+        low memory: lowest free memory 14256 -> 11700 B after flight logic (free now 16296)
+        low memory: web: lowest 14028 -> 11700 B during idle before  (free now 16296)
+        low memory: lowest free memory 11700 -> 9372 B after flight logic (free now 18976)
+        low memory: web: lowest 11700 -> 9372 B during idle before  (free now 18976)
+        low memory: route GET /api/status lowered the low-water mark 9372 -> 8264 B (free now 22320)
+Cleanup: close the browser, simulation off, flight logic reset, settings restored, 2 leftover test log(s) deleted, leftover test logs.
+
+63 passed, 3 failed, 588 log lines missed

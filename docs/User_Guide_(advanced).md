@@ -9,11 +9,14 @@ There is only one program for both. The vario finds out at power-on whether a GP
 ## The push button
 | Press | What it does |
 |---|---|
-| **Single press** | Starts **landing approach** guidance ("Landing approach…"). Press again to cancel ("Approach cancelled"). Does nothing while emergency mode is on. |
-| **Double press** | Starts **emergency glide** guidance ("Emergency, glide range…"). Double press again to cancel ("Emergency cancelled"). Starting emergency mode cancels any landing approach. |
-| **Long press** (hold about 1 s) | Mutes or unmutes the **vario beeps** ("Vario muted" / "Vario on"). Spoken calls are never muted. |
+| **Single press** | **Update me**: speaks your height, the landing zone (clock direction and distance), the wind and the battery. It never starts or cancels anything, so an accidental touch does no harm. |
+| **Double press** | Starts **landing approach** guidance ("Landing approach…"). Double press again to cancel ("Approach cancelled"). Does nothing while emergency mode is on. |
+| **Hold** (1.5 s) | Starts **emergency glide** guidance ("Emergency, glide range…"). Hold again to cancel ("Emergency cancelled"). Starting emergency mode cancels any landing approach. |
+| **Triple press** | Mutes or unmutes the **vario beeps** ("Vario muted" / "Vario on"). Spoken calls are never muted. |
 
-A single press takes effect about half a second after you let go, because the vario waits to see whether a second press follows. (On a vario without a GPS every press mutes.)
+You hear a short **click** on every press, and a rising tone 0.8 s into a hold that says "keep holding". Let go before 1.5 s and the hold is abandoned: nothing happens. Release between the clicks of a double or triple press takes up to 0.6 s (wide enough for gloves). A single press is spoken about 0.6 s after you let go, because the vario waits to see whether a second press follows.
+
+**This changed:** earlier versions started the approach with a single press, the emergency with a double press and muted with a long press. Starting guidance is now the deliberate gesture and a single press only tells. On a vario without a GPS a single press tells the height and battery, and a double press, triple press or hold mutes.
 
 
 ## Before you fly
@@ -25,11 +28,22 @@ A single press takes effect about half a second after you let go, because the va
 
 ## If the GPS is missing or stops
 
-A vario with no GPS module (see [User_Guide_(basic).md](User_Guide_(basic).md)) simply leaves out what depends on it: no speed, wind, landing zone, approach or emergency guidance and no flight log, and every press of the button mutes or unmutes the vario.
+A vario with no GPS module (see [User_Guide_(basic).md](User_Guide_(basic).md)) simply leaves out what depends on it: no speed, wind, landing zone, approach or emergency guidance and no flight log, and a single press of the button only tells the height and the battery, while a double press, triple press or hold mutes or unmutes the vario.
 
 How the vario knows: at power-on it listens for the GPS module. If it hears nothing for a few seconds it treats the GPS as not fitted. Once a GPS has been seen it is remembered, so a GPS that later goes quiet shows `GPS not responding` rather than disappearing. You can also set it by hand: **GPS module** in Settings, Advanced settings, GPS (Auto-detect, Always present or Not fitted).
 
 A GPS that stops working in flight leaves you with the vario, heights and height calls; "No GPS" is spoken after 5 seconds.
+
+## Switching off in flight to save the battery
+
+When the battery runs low you hear, for example, "Battery low. Approximately 25 minutes remaining. Landing zone 1.2 kilometres. Turn me off until you need help landing." You can switch the vario off to save what is left, and switch it on again when you start your landing approach or want the direction to the landing zone. **Switch it on a minute or two before you need it**: it has to find the GPS first.
+
+What the vario remembers when it is switched on again in flight:
+
+- It remembers the flight if it was switched off within *Resume the flight if switched back on within* (GPS settings, default 3 hours) **and** it is moving at flying speed at the first good GPS fix, in a place the flight could have got to. Then you hear "Flight resumed" and it still knows the landing zone, the heights, the wind and the flight time, including the time it was off.
+- It does **not** resume if the record is too old, the position is impossible, it is standing still (for example switched on at the launch), or no GPS position and time arrive within 3 minutes. It then starts as on any other day, so it can never come up believing it is flying when it is not.
+- If you switch it on again below flying speed (for example hanging in a strong headwind), it does not resume; a landing zone you set with **Set LZ manually** is still remembered.
+- If it ever does think it is flying when it is not, press **Reset flight state** on the Logs & system tab.
 
 ## What you will hear
 
@@ -43,15 +57,19 @@ A GPS that stops working in flight leaves you with the vario, heights and height
 |---|---|
 | "Take off" | Takeoff detected. |
 | "250 feet" … | You climb or descend through a height boundary. |
-| "400 feet" | Every 60 s while flying (current height). |
+| "400 feet" | Every 60 s while flying (current height); skipped during approach or emergency guidance. |
 | "Flight time 1 hour 5 minutes" | Every 5 minutes; skipped during approach or emergency guidance. |
 | "Landed, flight time …" | Landing detected. |
 | "No GPS" | GPS lost for 5 s in flight. |
-| "Battery low" | Battery below the warning voltage; repeats every 5 minutes. |
+| "Barometer failed" / "Barometer back" | The barometer stops working in flight (after 3 s; repeated every minute) / reads again. The vario beeps are off meanwhile. Urgent. |
+| "Battery low. Approximately 25 minutes remaining. Landing zone 1.2 kilometres. Turn me off until you need help landing." | Battery below the warning voltage; repeats every 5 minutes. The minutes appear when the vario has learned them, the distance when there is a fix and a landing zone. |
+| "Battery critical…" | Below the critical voltage: urgent, every minute, same details. |
+| "Battery reading lost" | A real battery reading disappears in flight. Urgent, every minute. |
+| (rising signal tone) | Before every urgent call, so you recognise it over engine noise. |
 
 All heights are above the landing zone, not above the ground you're currently flying over.
 
-## Landing approach (single press)
+## Landing approach (double press)
 
 The circuit is built around the LZ. Upwind and final are flown into wind along the same line, and upwind passes over the LZ:
 
@@ -76,11 +94,13 @@ The circuit is built around the LZ. Upwind and final are flown into wind along t
 5. **Base.** The base turn point is recalculated continuously from your height, so that an engine-off glide along base and final ends on the LZ. If you're high, the downwind leg is extended. If you're low you hear "Too low".
 6. **Final.** "Turn left/right now", then "Too high" / "Too low" against the glide path.
 
-If you drift more than 30° off a leg for 4 s you hear "Steer left" or "Steer right". It is not said while you are making a turn that was just called: for 5 s after a "Turn ... now" (your reaction time), and for as long as your track keeps swinging towards the leg (the angle off the leg shrinking by 3° or more a second), plus 3 s after it stops. A turn that stalls halfway, goes the wrong way or is ignored is called after that. Guidance ends on landing, once you pass the LZ, or when you press the button to cancel.
+Each turn call names the leg you are turning onto: "Turn right now, downwind". If you drift more than 30° off a leg for 4 s you hear "Steer left" or "Steer right". It is not said while you are making a turn that was just called: for 5 s after a "Turn ... now" (your reaction time), and for as long as your track keeps swinging towards the leg (the angle off the leg shrinking by 3° or more a second), plus 3 s after it stops. A turn that stalls halfway, goes the wrong way or is ignored is called after that. Guidance ends on landing, once you pass the LZ, or when you press the button to cancel.
+
+**It learns how fast you turn.** The first two turns (to crosswind and to downwind) are called 3 s early (*Call turns early by*) and timed: how long you took to start turning, and how fast you turn. From the base turn on, the calls come early by that much instead: a pilot who takes 3 s for a quarter circle is called about 5 s before the corner, one who takes 20 s about 16 s before it. A turn that was not measured properly is not used, and with fewer than two good ones the setting is kept. Switch it off with *Learn how fast I turn from the first two turns*.
 
 The vario has no wind sensor. Wind direction is taken from your takeoff run (assumed into wind), then refined from GPS whenever you turn through about 270°. Ground speeds measured before a change of wind (straight flight before you start circling) are recognised as not fitting the circle and left out, and two circling estimates in a row that agree are averaged with each other and not with the older estimate, so after a real change of wind the estimate is right from the second full circle. If the windsock tells you otherwise, set the wind manually on the web page (Settings → Wind).
 
-## Emergency glide (double press)
+## Emergency glide (hold)
 
 You hear your glide range, the LZ as a clock position and its distance, and "Cannot reach landing zone" if it's beyond your glide. Then:
 - **"On course"** once you're pointing at the LZ (within ±15°).
@@ -99,10 +119,12 @@ The phone has no internet while it's on this network, so turn mobile data on if 
 | Section | Contents |
 |---|---|
 | Banner | Green **Ready to fly**, or amber with what's missing and the satellite count. Hidden while flying, except during guidance: blue **Approach** with the current circuit leg, or red **Emergency** with the glide range. |
-| Tiles | Refreshed every second. Top group: height above the LZ (and above sea level) with a rolling graph of the last 10 minutes beside it, vario, ground speed and track, **glide ratio**, flight state and time, LZ distance with an arrow to it, wind with an arrow (arrows are relative to your direction of travel). Under the Actions: GPS satellites and signal quality (strong, good, ok, poor, none), battery, engine RPM, background noise. |
+| Tiles | Refreshed every second. Top group: height above the LZ (and above sea level) with a rolling graph of the last 10 minutes beside it, vario, ground speed and track, **glide ratio**, flight state and time, LZ distance with an arrow to it, wind as a windsock (the sock streams the way the wind blows), both relative to your direction of travel. Under the Actions: GPS signal quality (strong, good, ok, poor, none) with the satellite count, battery (minutes left when known, otherwise the percentage), engine RPM. The Ground speed tile has a **compass** for your track against absolute north (a ring marked N, E, S, W with an arrow inside). The **Background noise** tile and the RPM confidence are tuning data and are hidden unless you turn on *Show background noise and RPM confidence on the flight tab* (Engine RPM, Advanced). |
 | Glide ratio | Ground distance covered per unit of height lost, e.g. `6.7 : 1`. The big value is the average over the last second, the small one the average over the last 60 seconds (both windows are in the Glide settings). Shows `–` when level or climbing, and `>50` above 50. Needs a GPS. |
-| Actions | Landing approach, Emergency glide, Mute vario (same as the button), **Test voice**, **Set LZ here**, **LZ = takeoff**, **Full screen** (hides the browser's bars). |
-| Settings | Collapsible groups (see below); Battery, Wi-Fi, GPS, Engine RPM, Wind, Logging and Glide are inside **Advanced settings** at the end. Change a value and it is saved a moment later. Settings marked *restart* apply after a restart. |
+| Actions | One card headed **Actions**, and which one you see depends on the phase. **In flight:** **Landing support**, **Emergency support**, **Update me** and **Mute vario** (the same as the button). **On the ground:** **Audio test**, **Mute vario**, **Set LZ manually** and **LZ = takeoff**. Below them, **Full screen** (hides the browser's bars). |
+| Alerts | A strip under the banner for what a pilot must know in flight: **Battery low** or **critical** (with the minutes left and the distance to the LZ), **Barometer failed**, **No GPS fix**. It clears when the problem goes away. |
+| Settings | **Quick settings** first: volumes, units, circuit direction, glide ratio and trim airspeed (also in their groups; the two copies follow each other). Then collapsible groups (see below); Battery, Wi-Fi, GPS, Engine RPM, Wind, Logging and Glide are inside **Advanced settings** at the end. Change a value and it is saved a moment later. Settings marked *restart* apply after a restart. |
+| Reset flight state | On the Logs & system tab. The way out if the vario ever thinks it is flying when it is not: it forgets the flight and any guidance. |
 | Flight logs | IGC files for each flight. Tap a name to download or Delete to remove. The oldest logs are deleted automatically when space runs low. |
 | Logging | Live messages from the vario, with Pause, Clear and Save as file, for finding problems. Opens automatically on the debug firmware. The same lines appear on the USB serial port. (Flight recording is set in the Logging group of the settings.) |
 | Firmware update | Shows the installed version. Choose a `.bin` file and tap **Install update** (see *Maintenance*). Disabled while flying. |

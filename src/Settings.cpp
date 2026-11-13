@@ -57,6 +57,7 @@ const Field kFields[] = {
     I(rpmMin, "Engine RPM", "Lowest RPM", "rpm", 300, 20000),
     I(rpmMax, "Engine RPM", "Highest RPM", "rpm", 1000, 30000),
     FL(rpmMinConfidence, "Engine RPM", "Minimum confidence (see Mic tile)", "", 1.0f, 20.0f),
+    B(showEngTiles, "Engine RPM", "Show background noise and RPM confidence on the flight tab"),
     B(spectrumEnabled, "Engine RPM", "Show the Spectrum tab"),
 
     B(varioEnabled, "Vario", "Vario beeps enabled"),
@@ -92,7 +93,9 @@ const Field kFields[] = {
        0.1f, 3.0f),
     FL(landingSpeedMs, "Takeoff & landing", "Landed by ground speed", "speed", 0.2f, 10.0f),
     I(landingTimeS, "Takeoff & landing", "Landed after", "s", 5, 300),
-    FL(landingNoSpeedAglM, "Takeoff & landing", "Landed without GPS speed: only below", "height", 3.0f, 100.0f),
+    FL(landingNoSpeedAglM, "Takeoff & landing", "Counts as near the ground below", "height", 3.0f, 100.0f),
+    I(landingHighMult, "Takeoff & landing", "Landed above that height: wait this many times longer", "x", 1, 20),
+    I(resumeMaxMin, "GPS", "Resume the flight if switched back on within (0 = never)", "min", 0, 720),
 
     I(glideShortS, "Glide", "Glide ratio tile: average over", "s", 1, 10),
     I(glideLongS, "Glide", "Glide ratio tile: second average over", "s", 10, 120),
@@ -113,6 +116,7 @@ const Field kFields[] = {
     FL(minFinalM, "Landing approach", "Minimum final length", "dist", 30.0f, 1000.0f),
     FL(arrivalRadiusM, "Landing approach", "Circuit start capture radius", "dist", 20.0f, 500.0f),
     FL(turnLeadS, "Landing approach", "Call turns early by", "s", 0.0f, 15.0f),
+    B(turnLearn, "Landing approach", "Learn how fast I turn from the first two turns"),
     FL(offHeadingDeg, "Landing approach", "Off-heading warning", "°", 10.0f, 90.0f),
     I(guidanceUpdateS, "Landing approach", "Guidance update every", "s", 5, 120),
 

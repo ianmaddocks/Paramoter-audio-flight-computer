@@ -6,6 +6,9 @@
 struct FlightRecord {
   uint32_t version;
   uint32_t savedUtc;  // GPS UTC epoch seconds when saved, 0 if unknown
+  bool posValid;      // lastLat/lastLon: where the aircraft was when this was saved
+  double lastLat;
+  double lastLon;
   bool flying;
   uint32_t flightTimeS;
 

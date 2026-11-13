@@ -15,7 +15,12 @@ There is only one program for both. The vario finds out at power-on whether a GP
 Every tile, button and setting is explained in [Feature_Reference.md](Feature_Reference.md), Part 1. This guide tells you how to use the vario; the reference tells you what each control does. Links below point to the entries you are most likely to want.
 
 ## The push button
-There is one push button. On this version **any press** switches the vario beeps off or on. You hear "Vario muted" or "Vario on". Spoken calls (heights, flight time, battery) are never muted.
+There is one push button, with a click on every press.
+
+- **Single press:** **Update me**: the vario speaks your height and the battery.
+- **Double press, triple press or a hold (1.5 s):** switches the vario beeps off or on. You hear "Vario muted" or "Vario on". Spoken calls (heights, flight time, battery) are never muted.
+
+A rising tone 0.8 s into a hold says "keep holding"; let go before 1.5 s and nothing happens. A single press is spoken about 0.6 s after you let go, the time the vario waits to see if a second press follows. (Earlier versions muted on any press.)
 
 
 ## Before you fly
@@ -56,12 +61,12 @@ All of these can be changed or switched off in Settings; see the *Height calls*,
 With no GPS the vario uses the barometer alone.
 
 - **Takeoff:** you have climbed about 50 feet (15 m) from where you stood. A slow rise, such as walking up a slope or carrying the vario upstairs, is not taken for a takeoff, because the vario follows slow changes in pressure while you are on the ground and only "locks" the ground level when it sees a real climb (faster than 0.5 m/s).
-- **Landing:** the height has stayed steady for twice the *Landed after* time (60 seconds by default) **and** you are within 50 feet (15 m) of the landing zone height (*Landed without GPS speed: only below*).
+- **Landing:** the height has stayed steady for twice the *Landed after* time (60 seconds by default) **and** you are within 50 feet (15 m) of the landing zone height (*Counts as near the ground below*).
 
 **Things to know**
 
 - If you take off and **climb more slowly than 0.5 m/s** at first, the ground level keeps following you up. A normal climb-out is faster than that. If you often climb out slowly, lower the setting *Ground level held when climbing or sinking faster than*.
-- Flying **perfectly level** is not taken for a landing, however long it lasts, because the vario also needs you to be close to the ground. The other way round: if you land more than 50 feet (15 m) above where you took off, the landing is not noticed until you raise *Landed without GPS speed: only below*.
+- Flying **perfectly level** is not taken for a landing, however long it lasts, because the vario also needs you to be close to the ground. The other way round: if you land more than 50 feet (15 m) above where you took off, the landing is not noticed until you raise *Counts as near the ground below*.
 - If you **switch the vario on in the air**, it treats where you are as the ground until you climb 50 feet; heights will not be right. Switch it on at the launch.
 
 ## The web page
@@ -75,8 +80,8 @@ There are four tabs:
 
 | Tab | What is there |
 |---|---|
-| **Flight** | The ready banner; tiles for **Height**, a **height graph** of the last 10 minutes, **Vario**, **Flight time**, **Battery**, **Engine RPM** and **Background noise**; and buttons for **Mute vario**, **Test voice** and **Full screen** (hides the browser's bars). Refreshed every second. |
-| **Settings** | Every setting, in groups. Change a value and it is saved a moment later. A setting marked *restart* takes effect after a restart. The rarely needed groups (Battery, Wi-Fi, Engine RPM and the GPS module choice on this version) are inside **Advanced settings** at the end. |
+| **Flight** | The ready banner; tiles for **Height**, a **height graph** of the last 10 minutes, **Vario**, **Flight time**, **Battery**, **Engine RPM** and **Background noise**; an **alert strip** for a low or critical battery (with the minutes left) and a failed barometer; and one card headed **Actions**: **Update me** and **Mute vario** in flight, **Audio test** and **Mute vario** on the ground; below it **Full screen** (hides the browser's bars). The battery tile shows the minutes left when known. **Background noise** and the RPM confidence are tuning data, hidden unless switched on in Engine RPM (Advanced). Refreshed every second. |
+| **Settings** | **Quick settings** first (volumes, units and the like), then every setting, in groups. Change a value and it is saved a moment later. A setting marked *restart* takes effect after a restart. The rarely needed groups (Battery, Wi-Fi, Engine RPM and the GPS module choice on this version) are inside **Advanced settings** at the end. |
 | **Logs & system** | The **Logging** section (live messages from the vario, for finding problems), firmware update, **Restart** and **Factory defaults**. (The flight-log list is empty on this version, because logs need a GPS.) |
 | **Help** | Opens this guide and the feature reference on GitHub (the latest version; the phone needs internet, so turn mobile data on). Each group on the Settings tab also has a **Help** link to its entry in the reference. |
 
@@ -98,7 +103,7 @@ Details of each tile and button: [reference, Tiles](Feature_Reference.md#basic-t
 | Change when heights are spoken | Boundaries when climbing / descending | [Height calls](Feature_Reference.md#basic-settings-height-calls) |
 | Stop the height every minute | Periodic height every = 0 | [Height calls](Feature_Reference.md#basic-settings-height-calls) |
 | Detect takeoff sooner or later | Takeoff height gain without GPS | [Takeoff and landing](Feature_Reference.md#basic-settings-takeoff-and-landing) |
-| Landing not noticed on high ground | Landed without GPS speed: only below (increase) | [Takeoff and landing](Feature_Reference.md#basic-settings-takeoff-and-landing) |
+| Landing not noticed on high ground | Counts as near the ground below (increase) | [Takeoff and landing](Feature_Reference.md#basic-settings-takeoff-and-landing) |
 | Stop a false "Landed" close to the ground | Landed after (increase) | [Takeoff and landing](Feature_Reference.md#basic-settings-takeoff-and-landing) |
 | Name my vario in the app | Device name | [Bluetooth](Feature_Reference.md#basic-settings-bluetooth) |
 | Reach the vario from my home computer | Server network name and password | [Wi-Fi](Feature_Reference.md#basic-settings-wi-fi) |
