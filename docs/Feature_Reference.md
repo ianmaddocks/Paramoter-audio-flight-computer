@@ -328,14 +328,14 @@ Many pilots want calls on the way down (to the landing) and fewer on the way up.
 ### Boundaries when climbing / Boundaries when descending
 The heights at which the vario speaks.
 
-A list separated by commas, in your height unit. Climbing default: `50, 100, 250, 500, 750, 1000`. Descending default: `50, 100, 150, 250, 350, 500, 750, 1000`. To hear every 100 feet on the way down, type `100, 200, 300, 400, 500`.
+A list separated by commas, in your height unit. Climbing default: `50, 100, 250, 500, 750, 1000`. Descending default: `10, 15, 20, 30, 40, 50, 75, 100`. To hear every 100 feet on the way down, type `100, 200, 300, 400, 500`.
 
 The climbing list is only used on the way up and the descending list on the way down. Each is greyed out while its *Announce* switch is off.
 
 ### Repeat every (above last boundary)
 Keeps the calls coming above your highest listed height.
 
-For example, with a last boundary of 1000 ft and this at 500 ft you also hear "1500 feet", "2000 feet", and so on. 0 means no calls above the list. Default: 500 ft.
+For example, with a last boundary of 1000 ft and this at 500 ft you also hear "1500 feet", "2000 feet", and so on. 0 means no calls above the list. Default: 100 ft.
 
 ### Hysteresis
 Stops the same call repeating when you hover at a boundary.
@@ -352,7 +352,7 @@ This call is low priority: if the vario is already speaking, it is skipped rathe
 ### Flight time every
 How often the flight time is announced.
 
-For example, at 5 min you hear "Flight time 15 minutes". 0 turns it off. Default: 5 min.
+For example, at 5 min you hear "Flight time 15 minutes". 0 turns it off. Default: 10 min.
 
 <a id="basic-settings-takeoff-and-landing"></a>
 ## Settings: Takeoff and landing
@@ -360,7 +360,7 @@ For example, at 5 min you hear "Flight time 15 minutes". 0 turns it off. Default
 ### Takeoff height gain without GPS
 How far you must climb for the vario to decide you have taken off.
 
-For example, at 49 ft (15 m), once you have climbed 49 ft from where you stood, you hear "Take off" and the flight starts. Lower it to detect takeoff sooner, but not so low that carrying the vario upstairs counts. Default: 49 ft.
+For example, at 49 ft (15 m), once you have climbed 49 ft from where you stood, you hear "Take off" and the flight starts. Lower it to detect takeoff sooner, but not so low that carrying the vario upstairs counts. Default: 20 ft (6 m).
 
 An Advanced vario with a good GPS fix uses speed instead (see Part 2); this setting is also its fall-back when the GPS has no usable fix.
 
@@ -724,7 +724,7 @@ Choose the one you think in; the Ground speed tile follows it. Takeoff and landi
 ### Takeoff ground speed
 The speed at which the vario starts to think you are taking off.
 
-For example, at 15 km/h, your takeoff run has to exceed that. Default: 15 km/h.
+For example, at 15 km/h, your takeoff run has to exceed that. Default: 8 km/h.
 
 ### Takeoff speed held for
 How long that speed must be kept.
@@ -734,7 +734,7 @@ For example, at 5 s, a quick sprint does not count; a proper run does. Default: 
 ### Takeoff height gain
 How much you must also climb, as well as the speed.
 
-For example, at 10 ft (3 m), "Take off" is announced once you have held takeoff speed and risen that far. Default: 10 ft.
+For example, at 10 ft (3 m), "Take off" is announced once you have held takeoff speed and risen that far. Default: 15 ft.
 
 ### Landed by ground speed
 The ground speed below which you count as stopped, so you have landed.
@@ -832,7 +832,7 @@ Landing support times the first two turns of the circuit (from "Turn now" until 
 ### Off-heading warning
 How far off a leg's heading you may drift before being told.
 
-For example, at 30°, "Steer left" or "Steer right" is said if you are off by more than 30° for a few seconds. It is also the limit used in emergency glide. Default: 30°.
+For example, at 30°, "Steer left" or "Steer right" is said if you are off by more than 30° for a few seconds. It is also the limit used in emergency glide. Default: 15°.
 
 ### Guidance update every
 How often distance and direction are repeated on the way to the circuit start.

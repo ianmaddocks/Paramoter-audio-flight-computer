@@ -12,6 +12,9 @@
 #ifndef PV_GIT
 #define PV_GIT ""
 #endif
+#ifndef PV_RELEASE
+#define PV_RELEASE "dev"  // the newest git tag, e.g. "1.0" (see tools/pio_ota.py)
+#endif
 
 // Where the Help tab gets the guides: the docs folder of the project on GitHub, always the latest
 // version. The page fetches the Markdown from PV_HELP_RAW_URL (GitHub's raw file server) and shows
