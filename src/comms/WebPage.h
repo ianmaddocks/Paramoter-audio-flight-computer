@@ -799,14 +799,17 @@ function parseIgc(text){
 }
 const rpDist=(a,b)=>Math.hypot((b.lat-a.lat)*111320,(b.lon-a.lon)*111320*Math.cos(a.lat*Math.PI/180));
 const rpBrg=(a,b)=>(Math.atan2((b.lon-a.lon)*Math.cos(a.lat*Math.PI/180),b.lat-a.lat)*180/Math.PI+360)%360;
-function rpSpeed(F,i){const j=Math.max(0,i-3);return i>j?rpDist(F[j],F[i])/Math.max(1,F[i].t-F[j].t):0}
-function rpTrack(F,i){for(let k=i;k>=1;k--){const j=Math.max(0,k-3);if(rpDist(F[j],F[k])>3)return rpBrg(F[j],F[k])}return 0}
+// Windows are in seconds, not fixes: stretches of a long flight may have been thinned to one fix in 5 or in 20 to make room.
+const rpBack=(F,i,sec)=>{let j=i-1;while(j>0&&F[i].t-F[j].t<sec)j--;return Math.max(0,j)};  // the fix at least sec before i (or the one before it)
+const rpAt=(F,t)=>{let lo=0,hi=F.length-1;while(lo<hi){const m=(lo+hi+1)>>1;if(F[m].t<=t)lo=m;else hi=m-1}return lo};  // the last fix at or before t
+function rpSpeed(F,i){if(i<1)return 0;const j=rpBack(F,i,3);return rpDist(F[j],F[i])/Math.max(1,F[i].t-F[j].t)}
+function rpTrack(F,i){for(let k=i;k>=1&&k>i-60;k--){const j=rpBack(F,k,3);if(rpDist(F[j],F[k])>3)return rpBrg(F[j],F[k])}return 0}
 // "A direction of travel exists": the vario's hysteresis (show above one speed, hide below a lower one, each held), run over the
 // seconds before this one so jumping the slider gives the same answer as playing up to it.
 function rpMoving(F,i){
   const show=cfg.moveShowMs!=null?cfg.moveShowMs:2,hide=Math.min(cfg.moveHideMs!=null?cfg.moveHideMs:1,show),hold=cfg.moveHoldS!=null?cfg.moveHoldS:3;
   let on=false,since=0;
-  for(let k=Math.max(0,i-40);k<=i;k++){
+  for(let k=rpAt(F,F[i].t-40);k<=i;k++){
     if(!F[k].ok){on=false;since=0;continue}
     const v=rpSpeed(F,k),ch=on?v<hide:v>=show;
     if(!ch){since=0;continue}
@@ -815,14 +818,14 @@ function rpMoving(F,i){
   return on;
 }
 function rpGlide(F,i,w){
-  const j=Math.max(0,i-w);if(j===i)return null;
+  if(i<1)return null;const j=rpBack(F,i,w);
   const drop=F[j].alt-F[i].alt,dist=rpDist(F[j],F[i]);
   return drop>1&&F[i].t-F[j].t>=2?Math.min(99,dist/drop):null;
 }
 function replayStatus(i){
   const d=rp.d,F=d.fix,f=F[i],sl=f.slow||d.first||{flags:8,wd:-1,ws:-1,bv:0,bp:0,bm:-1,sats:0,hdop:99,noise:0};
   const gnd=d.gnd!=null?d.gnd:F[0].alt,flying=i>=d.start&&(d.end<0||i<d.end),landed=d.end>=0&&i>=d.end;
-  const speed=rpSpeed(F,i),track=rpTrack(F,i),j=Math.max(0,i-5);
+  const speed=rpSpeed(F,i),track=rpTrack(F,i),j=i>0?rpBack(F,i,5):0;
   const gs=cfg.glideShortS||3,gl=cfg.glideLongS||20;
   const s={hw:rp.hw||{gps:true,mic:true,spectrum:true},flying,flights:(flying||landed)?1:0,
     flightTime:flying?f.t-F[d.start].t:landed?F[d.end].t-F[d.start].t:0,
@@ -847,7 +850,7 @@ function rpVolChart(i){
   if(c.width!==Math.round(W*dpr)||c.height!==Math.round(H*dpr)){c.width=Math.round(W*dpr);c.height=Math.round(H*dpr)}
   const g=c.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
   const cs=getComputedStyle(document.body),acc=cs.getPropertyValue('--acc'),mut=cs.getPropertyValue('--mut'),bd=cs.getPropertyValue('--bd'),fg=cs.getPropertyValue('--fg');
-  const n=F.length,X=k=>k*(W-1)/Math.max(1,n-1),Y=v=>H-3-Math.max(0,Math.min(100,v))/100*(H-14);
+  const n=F.length,tot=Math.max(1,F[n-1].t-F[0].t),X=k=>(F[Math.min(n-1,Math.max(0,k))].t-F[0].t)*(W-1)/tot,Y=v=>H-3-Math.max(0,Math.min(100,v))/100*(H-14);
   g.strokeStyle=bd;g.lineWidth=1;[0,50,100].forEach(v=>{g.beginPath();g.moveTo(0,Math.round(Y(v))+.5);g.lineTo(W,Math.round(Y(v))+.5);g.stroke()});
   const slowAt=k=>F[k].slow||d.first;
   // background noise as a grey area (louder = higher), scaled between the quiet and the loud limit
@@ -870,21 +873,22 @@ function rpVolChart(i){
   }else txt('rpVolTxt','this log has no volume record');
 }
 function rpFrame(){
-  const d=rp.d,F=d.fix,i=Math.max(0,Math.min(F.length-1,Math.floor(rp.pos)));rp.i=i;
+  const d=rp.d,F=d.fix,tot=F[F.length-1].t-F[0].t,i=rpAt(F,F[0].t+Math.max(0,Math.min(tot,rp.pos)));rp.i=i;
   try{
     renderStatus(replayStatus(i),true);
-    const a=[];for(let k=Math.max(d.start,i-599);k<=i;k+=2)a.push(F[k].alt-(d.gnd!=null?d.gnd:F[0].alt));
+    const a=[],g0=d.gnd!=null?d.gnd:F[0].alt;for(let tt=Math.max(F[d.start].t,F[i].t-598);tt<=F[i].t;tt+=2)a.push(F[rpAt(F,tt)].alt-g0);
     hgData={step:2,a};drawHeight();
   }catch(e){}
-  $('#rpSlider').value=i;
+  $('#rpSlider').value=Math.round(rp.pos);
   rpVolChart(i);
-  const rel=F[i].t-F[0].t,tot=F[F.length-1].t-F[0].t,tk=d.start>0?' · takeoff at '+fT(F[d.start].t-F[0].t):'';
+  const rel=F[i].t-F[0].t,tk=d.start>0?' · takeoff at '+fT(F[d.start].t-F[0].t):'';
   txt('rpTime',fT(rel)+' / '+fT(tot)+tk);
 }
 function rpTick(){
   if(!rp||!rp.playing)return;
   rp.pos+=rp.speed*0.25;
-  if(rp.pos>=rp.d.fix.length-1){rp.pos=rp.d.fix.length-1;rp.playing=false;txt('rpPlay','Play')}
+  const tot=rp.d.fix[rp.d.fix.length-1].t-rp.d.fix[0].t;
+  if(rp.pos>=tot){rp.pos=tot;rp.playing=false;txt('rpPlay','Play')}
   rpFrame();
 }
 async function replayStart(name){
@@ -892,9 +896,9 @@ async function replayStart(name){
     const t=await fetch('/api/log?name='+encodeURIComponent(name)).then(r=>r.text());
     const d=parseIgc(t);if(d.fix.length<2){toast('Nothing to replay in '+name);return}
     if(rp)clearInterval(rp.timer);
-    rp={name,d,pos:Math.max(0,d.start-5),i:0,playing:true,speed:1,hw:hwNow,timer:0};
+    rp={name,d,pos:Math.max(0,d.fix[d.start].t-d.fix[0].t-5),i:0,playing:true,speed:1,hw:hwNow,timer:0};
     document.body.classList.add('replay');$('#replayBar').hidden=false;
-    txt('rpName',name);$('#rpSlider').max=d.fix.length-1;txt('rpPlay','Pause');txt('rpSpeed','1×');
+    txt('rpName',name);$('#rpSlider').max=d.fix[d.fix.length-1].t-d.fix[0].t;txt('rpPlay','Pause');txt('rpSpeed','1×');
     selectTab('flight');rpFrame();rp.timer=setInterval(rpTick,250);
   }catch(e){toast('Could not load the log')}
 }
@@ -903,7 +907,7 @@ function replayExit(){
   document.body.classList.remove('replay');$('#replayBar').hidden=true;hgData=null;
   poll();pollHeight();
 }
-$('#rpPlay').onclick=()=>{if(!rp)return;if(!rp.playing&&rp.pos>=rp.d.fix.length-1)rp.pos=Math.max(0,rp.d.start-5);rp.playing=!rp.playing;txt('rpPlay',rp.playing?'Pause':'Play')};
+$('#rpPlay').onclick=()=>{if(!rp)return;if(!rp.playing&&rp.pos>=rp.d.fix[rp.d.fix.length-1].t-rp.d.fix[0].t)rp.pos=Math.max(0,rp.d.fix[rp.d.start].t-rp.d.fix[0].t-5);rp.playing=!rp.playing;txt('rpPlay',rp.playing?'Pause':'Play')};
 $('#rpSpeed').onclick=()=>{if(!rp)return;rp.speed=rp.speed===1?4:rp.speed===4?16:1;txt('rpSpeed',rp.speed+'×')};
 $('#rpSlider').oninput=()=>{if(!rp)return;rp.pos=+$('#rpSlider').value;rpFrame()};
 $('#rpExit').onclick=replayExit;

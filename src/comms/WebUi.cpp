@@ -23,6 +23,7 @@
 #include "audio/Speech.h"
 #include "audio/Volume.h"
 #include "comms/AppIcon.h"
+#include "logging/LogStore.h"
 #include "comms/WebPage.h"
 #include "nav/Geo.h"
 #include "sensors/Mic.h"
@@ -600,13 +601,13 @@ bool validLogName(const String& name) {
 void handleLogs() {
   JsonDocument doc;
   JsonArray files = doc["files"].to<JsonArray>();
-  File dir = fsExists("/logs") ? LittleFS.open("/logs") : File();  // created at first takeoff
-  if (dir) {
-    for (File f = dir.openNextFile(); f; f = dir.openNextFile()) {
-      JsonObject o = files.add<JsonObject>();
-      o["n"] = f.name();
-      o["s"] = f.size();
-    }
+  std::vector<logstore::Flight> flights;
+  logstore::list(flights);
+  for (const logstore::Flight& f : flights) {
+    JsonObject o = files.add<JsonObject>();
+    o["n"] = f.id + ".igc";  // a flight is one IGC file to the owner, however it is stored
+    o["s"] = f.size;
+    o["p"] = f.pieces.size();  // how many files it is stored in (for the tests)
   }
   doc["free"] = LittleFS.totalBytes() - LittleFS.usedBytes();
   doc["total"] = LittleFS.totalBytes();
@@ -619,15 +620,18 @@ void handleLogDownload() {
     sendError(400, "bad name");
     return;
   }
-  String path = "/logs/" + name;
-  File f = fsExists(path) ? LittleFS.open(path, "r") : File();
-  if (!f) {
+  logstore::Reader rd;
+  if (!rd.open(name)) {
     sendError(404, "not found");
     return;
   }
   server.sendHeader("Content-Disposition", "attachment; filename=\"" + name + "\"");
-  server.streamFile(f, "application/octet-stream");
-  f.close();
+  server.setContentLength(rd.total());
+  server.send(200, "application/octet-stream", "");
+  uint8_t buf[512];
+  int n;
+  while ((n = rd.read(buf, sizeof(buf))) > 0) server.sendContent((const char*)buf, n);
+  rd.close();
 }
 
 void handleLogDelete() {
@@ -636,7 +640,7 @@ void handleLogDelete() {
     sendError(400, "bad name");
     return;
   }
-  if (!LittleFS.remove("/logs/" + name)) {
+  if (!logstore::remove(name)) {
     sendError(404, "not found");
     return;
   }

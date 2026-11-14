@@ -2355,6 +2355,124 @@ def t_igc_two_flights(v, a):
             v._open("/api/log?name=" + urllib.parse.quote(f), method="DELETE")
 
 
+def log_list(v):
+    return {f["n"]: f for f in v.get_json("/api/logs")["files"]}
+
+
+def log_text(v, name):
+    code, body = v._open("/api/log?name=" + urllib.parse.quote(name))
+    return body.decode("ascii", "replace")
+
+
+def clear_logs(v):
+    for n in log_list(v):
+        v._open("/api/log?name=" + urllib.parse.quote(n), method="DELETE")
+
+
+def igc_b_times(text):
+    return [int(m.group(1)[:2]) * 3600 + int(m.group(1)[2:4]) * 60 + int(m.group(1)[4:]) for r in text.split("\r\n") if (m := B_RE.match(r))]
+
+
+def t_igc_segments(v, a):
+    """A flight is stored in stretches (a header file and .s000, .s001 ... of 32 kB, 2 kB here) and is still one IGC file to the
+    owner: one entry in the list, one download with the header and every fix in order."""
+    try:
+        clear_logs(v)
+        v.sim(igcLimits="2048,0,0")
+        short_flight(v, climb_s=40)
+        logs = log_list(v)
+        if len(logs) != 1:
+            raise Fail(f"{len(logs)} entries in the log list for one flight: {list(logs)}")
+        name, info = next(iter(logs.items()))
+        if info["p"] < 3:
+            raise Fail(f"the flight is stored in {info['p']} file(s), expected a header and at least 2 stretches")
+        text = log_text(v, name)
+        rows = text.split("\r\n")
+        times = igc_b_times(text)
+        if rows[0] != "AXPVParaVario" or "I033639RPM4042VVL4345SVL" not in rows or rows.count("LXPVSTART") != 1 or rows.count("LXPVEND") != 1:
+            raise Fail("the downloaded flight lacks its header, or has a takeoff / landing mark other than once")
+        if len(times) < 40 or any(t2 != t1 + 1 for t1, t2 in zip(times, times[1:])):
+            raise Fail(f"the fixes across the stretches are not one fix a second in order ({len(times)} fixes)")
+        if len(text) != info["s"]:
+            raise Fail(f"the download is {len(text)} bytes, the list says {info['s']}")
+        return f"{info['p']} files, {len(times)} fixes in order, {len(text)} bytes, one entry in the list"
+    finally:
+        v.sim(igcLimits="0,0,0")
+        clear_logs(v)
+
+
+def fake_logs(v, specs):
+    for fid, seconds, start in specs:
+        v.sim(fakeLog=f"{fid},{seconds},{start}")
+
+
+def t_igc_room(v, a):
+    """Making room for a new flight, as the owner wants it: logs of earlier days go first (they are downloaded at the end of each
+    day); then today's older logs are thinned (1 fix in 5, then 1 in 20) before any is deleted; and when the current flight itself
+    runs short the START of it is trimmed: it never stops recording."""
+    notes = []
+    try:
+        # 1. an earlier day's log is deleted, today's older log is left whole
+        clear_logs(v)
+        fake_logs(v, [("201231-100000", 600, 36000), ("210101-090000", 600, 32400)])
+        base = log_list(v)
+        v.sim(fillFs=30000)  # free about 30 kB: under the 60 kB wanted at takeoff, but deleting the earlier day's log (about 36 kB) is enough
+        short_flight(v, climb_s=6)
+        logs = log_list(v)
+        if "201231-100000.igc" in logs:
+            raise Fail("the log of an earlier day was kept while room was needed")
+        if "210101-090000.igc" not in logs or logs["210101-090000.igc"]["s"] != base["210101-090000.igc"]["s"]:
+            raise Fail(f"today's older log was changed although deleting the earlier day's log was enough: {logs.get('210101-090000.igc')}")
+        notes.append("an earlier day's log goes first, today's older log is untouched")
+
+        # 2. only today's logs: thinned, not deleted
+        clear_logs(v)
+        v.sim(fillFs="off")
+        fake_logs(v, [("210101-090000", 600, 32400)])
+        full = log_list(v)["210101-090000.igc"]["s"]
+        v.sim(fillFs=40000)  # free about 40 kB: thinning the log to 1 fix in 5 (it gives back about 23 kB) is enough
+        short_flight(v, climb_s=6)
+        logs = log_list(v)
+        t5 = logs.get("210101-090000.igc")
+        if not t5 or not t5["s"] < full * 0.6:
+            raise Fail(f"today's older log was not thinned: {full} -> {t5 and t5['s']}")
+        notes.append(f"today's older log thinned {full} -> {t5['s']} bytes, not deleted")
+
+        # 3. the start of the current flight is trimmed: it keeps recording to the landing
+        clear_logs(v)
+        v.sim(fillFs="off")
+        v.sim(igcLimits="2048,0,0")
+        free = v.get_json("/api/logs")["free"]
+        v.sim(igcLimits=f"2048,0,{free + 30000}")  # more kept free in flight than there is: every check has to make room
+        m = on_ground_with_fix(v)
+        take_off(v, climb_to=GROUND_M + 60, vz=4.0)
+        time.sleep(100)
+        v.sim(speed=0, vz=-4.0, to=GROUND_M + 2)
+        v.expect("APP", r"Landed after", m, timeout=90, what="landing")
+        time.sleep(3)
+        logs = log_list(v)
+        if len(logs) != 1:
+            raise Fail(f"{len(logs)} logs after the flight: {list(logs)}")
+        name = next(iter(logs))
+        text = log_text(v, name)
+        times = igc_b_times(text)
+        rows = text.split("\r\n")
+        if "LXPVEND" not in rows or rows[0] != "AXPVParaVario":
+            raise Fail("the trimmed flight lacks its header or the landing mark: it stopped recording?")
+        if "LXPVSTART" in rows:
+            notes.append("the start was trimmed (the takeoff mark is gone)")
+        else:
+            raise Fail("nothing was trimmed from the start although the flight was always short of room")
+        if len(times) < 10 or times[-1] - times[0] < 5:
+            raise Fail(f"only {len(times)} fixes were kept")
+        notes.append(f"{len(times)} fixes kept to the landing, from {times[0] - 12 * 3600} s after the simulated midday")
+        return "; ".join(notes)
+    finally:
+        v.sim(igcLimits="0,0,0")
+        v.sim(fillFs="off")
+        clear_logs(v)
+
+
 def t_vario_only_flying(v, a):
     """With 'Only when flying' on (the default), the vario makes no sound on the ground, even when the height changes (carried
     upstairs, a lift): the tones start once the takeoff has been detected."""
@@ -4567,7 +4685,7 @@ TESTS = [
     ("boot", t_boot), ("settings", t_settings), ("vario_climb", t_vario_climb),
     ("vario_sink", t_vario_sink), ("vario_thresholds", t_vario_thresholds), ("vario_logic", t_vario_logic),
     ("mute", t_mute), ("auto_volume", t_auto_volume), ("rpm_logic", t_rpm_logic), ("rpm", t_rpm), ("rpm_speech", t_rpm_speech), ("rpm_glitch", t_rpm_glitch), ("geo_logic", t_geo_logic), ("wind_logic", t_wind_logic),
-    ("circuit_logic", t_circuit_logic), ("battery_logic", t_battery_logic), ("flight_logic", t_flight_logic), ("button_logic", t_button_logic), ("factory_reset", t_factory_reset), ("ble_info", t_ble_info), ("voice_pack", t_voice_pack), ("igc_two_flights", t_igc_two_flights), ("vario_only_flying", t_vario_only_flying), ("ui_replay", t_ui_replay), ("height_logic", t_height_logic), ("moving_logic", t_moving_logic), ("height_trace", t_height_trace), ("maint_voice", t_maint_voice), ("names_default", t_names_default), ("status_logic", t_status_logic), ("alerts_logic", t_alerts_logic), ("resume_logic", t_resume_logic), ("audio_logic", t_audio_logic), ("rpmtrack_logic", t_rpmtrack_logic), ("baro_logic", t_baro_logic), ("wind", t_wind), ("wind_faults", t_wind_faults), ("wind_change", t_wind_change), ("circuit_right", t_circuit_right), ("circuit_slow_pilot", t_circuit_slow_pilot), ("circuit_left_wind", t_circuit_left_wind),
+    ("circuit_logic", t_circuit_logic), ("battery_logic", t_battery_logic), ("flight_logic", t_flight_logic), ("button_logic", t_button_logic), ("factory_reset", t_factory_reset), ("ble_info", t_ble_info), ("voice_pack", t_voice_pack), ("igc_two_flights", t_igc_two_flights), ("vario_only_flying", t_vario_only_flying), ("igc_segments", t_igc_segments), ("igc_room", t_igc_room), ("ui_replay", t_ui_replay), ("height_logic", t_height_logic), ("moving_logic", t_moving_logic), ("height_trace", t_height_trace), ("maint_voice", t_maint_voice), ("names_default", t_names_default), ("status_logic", t_status_logic), ("alerts_logic", t_alerts_logic), ("resume_logic", t_resume_logic), ("audio_logic", t_audio_logic), ("rpmtrack_logic", t_rpmtrack_logic), ("baro_logic", t_baro_logic), ("wind", t_wind), ("wind_faults", t_wind_faults), ("wind_change", t_wind_change), ("circuit_right", t_circuit_right), ("circuit_slow_pilot", t_circuit_slow_pilot), ("circuit_left_wind", t_circuit_left_wind),
     ("circuit_events", t_circuit_events),
     ("fault_baro", t_fault_baro), ("fault_gps", t_fault_gps), ("fault_battery", t_fault_battery), ("landing_gps_quality", t_landing_gps_quality), ("landing_hover", t_landing_hover), ("button_actions", t_button_actions), ("alerts_flight", t_alerts_flight), ("resume_flight", t_resume_flight), ("battery_flight", t_battery_flight),
     ("memory_events", t_memory_events), ("soak", t_soak),

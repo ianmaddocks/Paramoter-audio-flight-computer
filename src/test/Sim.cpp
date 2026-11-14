@@ -2,10 +2,13 @@
 
 #if PV_TEST
 
+#include <LittleFS.h>
 #include <Preferences.h>
 
 #include "Hardware.h"
 #include "Log.h"
+#include "logging/IgcLogger.h"
+#include "logging/LogStore.h"
 #include "nav/Geo.h"
 
 namespace sim {
@@ -365,7 +368,29 @@ bool set(const String& key, const String& value) {
     s.micNoise = f;
   } else if (key == "hasMic") {
     s.hasMic = on;
+  } else if (key == "igcLimits") {  // "segBytes,minFree,keepFree": smaller limits for the tests of making room in the flight log (0 = normal)
+    const int c1 = value.indexOf(','), c2 = value.indexOf(',', c1 + 1);
+    if (c1 > 0 && c2 > c1) igctest::set((uint32_t)value.substring(0, c1).toInt(), (uint32_t)value.substring(c1 + 1, c2).toInt(), (uint32_t)value.substring(c2 + 1).toInt());
+  } else if (key == "fillFs") {  // leave about this many bytes of the storage free by writing /fill.bin (0 or off: remove it)
+    LittleFS.remove("/fill.bin");
+    const long want = value == "off" ? 0 : value.toInt();
+    if (want > 0) {
+      long toWrite = (long)(LittleFS.totalBytes() - LittleFS.usedBytes()) - want;
+      File f = LittleFS.open("/fill.bin", "w");
+      static uint8_t chunk[1024];
+      while (f && toWrite > 0) {
+        const int n = toWrite > 1024 ? 1024 : (int)toWrite;
+        if (f.write(chunk, n) != (size_t)n) break;
+        toWrite -= n;
+      }
+      if (f) f.close();
+    }
+  } else if (key == "fakeLog") {  // "id,seconds,startSecOfDay": a made-up flight log (see LogStore.h) for the tests
+    const int c1 = value.indexOf(','), c2 = value.indexOf(',', c1 + 1);
+    if (c1 > 0 && c2 > c1) logstore::makeFake(value.substring(0, c1), value.substring(c1 + 1, c2).toInt(), value.substring(c2 + 1).toInt());
   } else if (key == "off") {
+    LittleFS.remove("/fill.bin");
+    igctest::set(0, 0, 0);
     uint32_t epoch = s.baroEpoch + 1;  // always a new value, so the barometer filter restarts
     s = State();
     s.baroEpoch = epoch;

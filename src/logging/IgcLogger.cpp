@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "App.h"
+#include "LogStore.h"
 #include "Hardware.h"
 #include "Settings.h"
 #include "sensors/GpsData.h"
@@ -14,31 +15,27 @@
 #include "sensors/Mic.h"
 
 namespace {
-// Free space kept for a new flight when it starts: about 20 minutes of recording. The oldest logs are deleted, oldest first,
-// only as far as needed to get there (never more). (This was 300 kB, which is more than the whole free space left beside the
-// voice clips: every new flight deleted every earlier one.)
+// Free space kept for a new flight when it starts (about 20 minutes of recording) and while it is recorded (checked every 30 s).
+// Space is made as logstore::makeRoom says: logs of earlier days first, then today's thinned, then today's older logs, and
+// last the start of this flight is trimmed: a flight never stops recording for want of room.
 constexpr size_t kMinFreeBytes = 60 * 1024;
-constexpr size_t kKeepFreeInFlight = 40 * 1024;  // checked every 30 s while recording: older logs go before the flight stops
-constexpr size_t kStopFreeBytes = 6 * 1024;      // under this the file would not close cleanly: recording stops
+constexpr size_t kKeepFreeInFlight = 40 * 1024;
+constexpr size_t kStopFreeBytes = 3 * 1024;       // under this even trimming found nothing to free (nothing but the stretch being written is left)
+constexpr uint32_t kSegmentBytes = 32 * 1024;     // a stretch of a flight: about 10 minutes
 const char* kDir = "/logs";
+uint32_t gSegBytes = kSegmentBytes;
+size_t gMinFree = kMinFreeBytes, gKeepFree = kKeepFreeInFlight;
 }  // namespace
 
-// Deletes the oldest logs (not `keep`) until minFreeBytes are free.
-void IgcLogger::pruneOldLogs(size_t minFreeBytes, const char* keep) {
-  std::vector<String> names;
-  File dir = LittleFS.open(kDir);
-  if (!dir) return;
-  for (File f = dir.openNextFile(); f; f = dir.openNextFile()) names.push_back(f.name());
-  dir.close();
-  std::sort(names.begin(), names.end());
-  for (const String& n : names) {
-    if (LittleFS.totalBytes() - LittleFS.usedBytes() >= minFreeBytes) break;
-    if (keep && n == keep) continue;
-    LittleFS.remove(String(kDir) + "/" + n);
-    LOGI("IGC", "Deleted old log %s to make room (%u kB free)", n.c_str(),
-         (unsigned)((LittleFS.totalBytes() - LittleFS.usedBytes()) / 1024));
-  }
+#if PV_TEST
+namespace igctest {
+void set(uint32_t segBytes, uint32_t minFree, uint32_t keepFree) {
+  gSegBytes = segBytes ? segBytes : kSegmentBytes;
+  gMinFree = minFree ? minFree : kMinFreeBytes;
+  gKeepFree = keepFree ? keepFree : kKeepFreeInFlight;
 }
+}  // namespace igctest
+#endif
 
 void IgcLogger::start(const GpsData& gps) {
   if (!g_cfg.igcEnabled || file_) return;
@@ -55,38 +52,39 @@ void IgcLogger::start(const GpsData& gps) {
 void IgcLogger::open(const GpsData& gps) {
   pending_ = false;
   LittleFS.mkdir(kDir);
-  pruneOldLogs(kMinFreeBytes, nullptr);
-
-  char path[40];
   if (gps.dateValid && gps.timeValid) {
-    snprintf(path, sizeof(path), "%s/%02d%02d%02d-%02d%02d%02d.igc", kDir, gps.year % 100, gps.month, gps.day,
-             gps.hour, gps.minute, gps.second);
+    snprintf(id_, sizeof(id_), "%02d%02d%02d-%02d%02d%02d", gps.year % 100, gps.month, gps.day, gps.hour, gps.minute, gps.second);
   } else {
-    snprintf(path, sizeof(path), "%s/nodate-%08lu.igc", kDir, (unsigned long)millis());
+    snprintf(id_, sizeof(id_), "nodate-%08lu", (unsigned long)millis());
   }
-  strlcpy(path_, path, sizeof(path_));
-  file_ = LittleFS.open(path, "w");
-  if (!file_) {
-    LOGE("IGC", "Cannot create %s", path);
-    return;
-  }
-  file_.print("AXPVParaVario\r\n");
-  if (gps.dateValid) file_.printf("HFDTEDATE:%02d%02d%02d,01\r\n", gps.day, gps.month, gps.year % 100);
-  file_.printf("HFPLTPILOTINCHARGE:%s\r\n", g_cfg.pilotName);
-  file_.printf("HFGTYGLIDERTYPE:%s\r\n", g_cfg.gliderType);
-  file_.print("HFDTMGPSDATUM:WGS84\r\n");
-  file_.print("HFFTYFRTYPE:ParaVario,XIAO ESP32C3\r\n");
-  file_.print("HFGPSRECEIVER:u-blox,M10\r\n");
-  file_.print("HFPRSPRESSALTSENSOR:Infineon,DPS310\r\n");
-  file_.print("I033639RPM4042VVL4345SVL\r\n");  // each B record ends with the engine RPM (4 digits), the vario and speech volume applied (3 digits each, %)
-  file_.printf("LXPVVOL,%d,%d,%d,%d\r\n", (int)lroundf(g_cfg.noiseQuietDb), (int)lroundf(g_cfg.noiseLoudDb), g_cfg.autoVolume ? 1 : 0,
-               (int)g_cfg.volumeRampPctS);  // how the loudness adjustment was set: quiet / loud noise limits (dBFS), automatic, ramp (%/s)
-  {  // what the Flight screen needs that is not in the fixes: the ground height and the landing zone
+  logstore::makeRoom(gMinFree, id_, "");
+  // The header goes in a file of its own (<id>.hdr), the fixes in stretches after it (<id>.s000, .s001 ...): see LogStore.h
+  {
+    File h = LittleFS.open(String(kDir) + "/" + id_ + ".hdr", "w");
+    if (!h) {
+      LOGE("IGC", "Cannot create the log %s", id_);
+      return;
+    }
+    h.print("AXPVParaVario\r\n");
+    if (gps.dateValid) h.printf("HFDTEDATE:%02d%02d%02d,01\r\n", gps.day, gps.month, gps.year % 100);
+    h.printf("HFPLTPILOTINCHARGE:%s\r\n", g_cfg.pilotName);
+    h.printf("HFGTYGLIDERTYPE:%s\r\n", g_cfg.gliderType);
+    h.print("HFDTMGPSDATUM:WGS84\r\n");
+    h.print("HFFTYFRTYPE:ParaVario,XIAO ESP32C3\r\n");
+    h.print("HFGPSRECEIVER:u-blox,M10\r\n");
+    h.print("HFPRSPRESSALTSENSOR:Infineon,DPS310\r\n");
+    h.print("I033639RPM4042VVL4345SVL\r\n");
+    h.printf("LXPVVOL,%d,%d,%d,%d\r\n", (int)lroundf(g_cfg.noiseQuietDb), (int)lroundf(g_cfg.noiseLoudDb), g_cfg.autoVolume ? 1 : 0,
+             (int)g_cfg.volumeRampPctS);
     const NavState& n = app.nav;
-    file_.printf("LXPVGND,%d\r\n", (int)lroundf(n.altMslM - n.aglM));
-    if (n.lzValid) file_.printf("LXPVLZ,%.6f,%.6f,%d\r\n", n.lzLat, n.lzLon, (int)lroundf(n.lzElevM));
-    else file_.print("LXPVLZ,none\r\n");
+    h.printf("LXPVGND,%d\r\n", (int)lroundf(n.altMslM - n.aglM));
+    if (n.lzValid) h.printf("LXPVLZ,%.6f,%.6f,%d\r\n", n.lzLat, n.lzLon, (int)lroundf(n.lzElevM));
+    else h.print("LXPVLZ,none\r\n");
+    h.close();
   }
+  seg_ = 0;
+  openSegment();
+  if (!file_) return;
   // lastRecordMs_ is kept: the 1 Hz rhythm carries on from the buffered fixes, so the first live
   // record cannot share a second with the last buffered one.
   lastFlushMs_ = 0;
@@ -97,7 +95,20 @@ void IgcLogger::open(const GpsData& gps) {
   file_.print("LXPVSTART\r\n");  // the pre-takeoff history ends here: this is takeoff
   lastSlowMs_ = 0;
   lastSpaceCheckMs_ = millis();
-  LOGI("IGC", "Logging to %s (%d s of pre-takeoff history)", path, n);
+  LOGI("IGC", "Logging to %s (%d s of pre-takeoff history)", id_, n);
+}
+
+// Opens the next stretch of the flight: <id>.s000, .s001 ...
+void IgcLogger::openSegment() {
+  snprintf(activePiece_, sizeof(activePiece_), "%s.s%03d", id_, seg_);
+  file_ = LittleFS.open(String(kDir) + "/" + activePiece_, "w");
+  if (!file_) LOGE("IGC", "Cannot create %s", activePiece_);
+}
+
+void IgcLogger::rollSegment() {
+  file_.close();
+  ++seg_;
+  openSegment();
 }
 
 void IgcLogger::writeSample(const Sample& s) {
@@ -176,12 +187,15 @@ void IgcLogger::update(const NavState& nav, const GpsData& gps) {
     lastSlowMs_ = nav.ms;
     writeSlow(nav);
   }
-  if (nav.ms - lastSpaceCheckMs_ >= 30000) {  // a long flight: older logs make way before this one runs out of room
-    lastSpaceCheckMs_ = nav.ms;
-    const char* slash = strrchr(path_, '/');
-    if (LittleFS.totalBytes() - LittleFS.usedBytes() < kKeepFreeInFlight) pruneOldLogs(kKeepFreeInFlight, slash ? slash + 1 : path_);
-    if (LittleFS.totalBytes() - LittleFS.usedBytes() < kStopFreeBytes) {
-      LOGW("IGC", "No room left: recording stopped");
+  if (file_.size() >= gSegBytes) {  // a stretch is full: the next one
+    rollSegment();
+    if (!file_) return;
+  }
+  if (nav.ms - lastSpaceCheckMs_ >= 30000) {  // a long flight: room is made before this one runs out of it, by thinning and deleting
+    lastSpaceCheckMs_ = nav.ms;  // older logs, and in the end by trimming the start of this flight; it does not stop recording
+    if (logstore::freeBytes() < gKeepFree) logstore::makeRoom(gKeepFree, id_, activePiece_);
+    if (logstore::freeBytes() < kStopFreeBytes) {
+      LOGE("IGC", "No room at all, recording stopped");
       file_.print("LXPVEND\r\n");
       file_.close();
       return;

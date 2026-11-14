@@ -5,6 +5,13 @@
 
 struct GpsData;
 
+#if PV_TEST
+// Test build: smaller limits so that making room can be tested in minutes (0 = the normal value).
+namespace igctest {
+void set(uint32_t segBytes, uint32_t minFree, uint32_t keepFree);
+}
+#endif
+
 // Writes a 1 Hz IGC track to /logs on LittleFS from takeoff to landing. Until then it keeps the
 // last few seconds of fixes in a RAM ring buffer (never flash) and writes them at the start of
 // the log, so the file does not miss the takeoff run. Records need GPS time: on a vario with no
@@ -39,13 +46,16 @@ class IgcLogger {
   };
 
   void open(const GpsData& gps);
-  void pruneOldLogs(size_t minFreeBytes, const char* keep);
+  void openSegment();
+  void rollSegment();
   void writeSlow(const NavState& nav);
   void writeSample(const Sample& s);
   void pushPre(const Sample& s);
 
   File file_;
-  char path_[40] = "";
+  char id_[24] = "";             // the flight: yymmdd-hhmmss
+  char activePiece_[32] = "";    // the stretch being written
+  int seg_ = 0;
   uint32_t lastSlowMs_ = 0;
   uint32_t lastSpaceCheckMs_ = 0;
   bool pending_ = false;  // flight started, file not yet opened (waiting for GPS time)

@@ -502,7 +502,15 @@ The list of recorded flights.
 Flight logs (IGC files) are made only when a GPS is fitted, so a Basic vario shows "No flights recorded yet".
 
 ### Flight log space
-The storage holds the voice clips (all in one file, `voice.pak`, about 410 kB: the clips are stored at 11 kHz and played up to the speaker's 16 kHz) and the flight logs. A flight log takes about 53 bytes a second, or 190 kB an hour, and about 600 kB is left for logs, so around three hours of flying are kept. When a new flight starts and less than 60 kB would be free, the oldest logs are deleted, oldest first and only as many as needed; in a very long flight older logs make way before it stops. The log list says how many more minutes of flight fit. Download the logs you want to keep.
+The storage holds the voice clips (all in one file, `voice.pak`, about 410 kB: the clips are stored at 11 kHz and played up to the speaker's 16 kHz) and the flight logs. A flight log takes about 53 bytes a second, or 190 kB an hour, and about 600 kB is left for logs, so around three hours of flying are kept before anything has to go.
+
+When room is needed (when a flight starts with less than 60 kB free, and every 30 seconds in flight with less than 40 kB free) the vario makes it in this order, stopping as soon as there is enough:
+1. **Logs from earlier days are deleted**, oldest first. Download each day's logs at the end of the day.
+2. **Today's older logs are thinned**, oldest first: first to one fix every 5 seconds (about a third of the size), and if that is not enough to one every 20 seconds. They are still valid IGC files and the replay reads them (it uses the time of each fix).
+3. **Today's older logs are deleted**, oldest first.
+4. **The start of the flight being recorded is trimmed** (its oldest finished stretches go, after being thinned): a flight never stops recording for want of room.
+
+A flight is stored in stretches of about 10 minutes (a header and `.s000`, `.s001` and so on), which is what makes trimming the start, and thinning, cheap. To you it is still one `.igc` file in the list and in a download. The log list says how many more minutes of flight fit. Pressing *Delete* removes the whole flight.
 
 ### Logging
 A live view of what the vario is doing, useful when something does not work as expected.
