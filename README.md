@@ -64,7 +64,7 @@ The pin assignments are in [src/Pins.h](src/Pins.h).
 2. **Set your own update password**: change `custom_ota_password` in [platformio.ini](platformio.ini). It is
    asked for whenever new firmware is sent to the vario over Wi-Fi, so do not leave the shared one.
 3. **First install, over the USB cable:** `pio run -e release_usb -t upload`, for a vario with or without a
-   GPS module. Then install the voice clips (they are in `data/`): `pio run -e release_usb -t uploadfs`.
+   GPS module. Then install the voice clips (the one file `data/voice.pak`): `pio run -e release_usb -t uploadfs`.
 4. **Join the vario's Wi-Fi** (named `ParaVario-` followed by four characters unique to your unit; the
    default password is `paramotor`) and the page opens on your phone, or go to `http://192.168.4.1`.
 5. **Later updates go over Wi-Fi**: `pio run -e release -t upload`, from a PC joined to

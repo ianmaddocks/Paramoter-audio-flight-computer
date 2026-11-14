@@ -2373,6 +2373,21 @@ def t_vario_only_flying(v, a):
         v.sim(speed=0, vz=0, fly=0)
 
 
+def t_voice_pack(v, a):
+    """The voice clips are in one pack file (the old one-file-per-clip layout used 200 kB of the 1 MB in rounding). The Audio
+    test and the spoken calls play from the pack with no "Missing voice clip", and the storage has room for logs again."""
+    m = v.mark()
+    v.action("test_voice")
+    v.expect("SAY", r"\[urgent\] system_ready ", m, timeout=6, what="the Audio test")
+    v.never("AUD", r"Missing voice clip", m, 6)
+    info = v.get_json("/api/logs")
+    used_by_logs = sum(-(-f["s"] // 4096) * 4096 for f in info["files"])
+    room = info["free"] + used_by_logs
+    if room < 380 * 1024:
+        raise Fail(f"free space {info['free'] // 1024} kB plus {used_by_logs // 1024} kB of logs = {room // 1024} kB, expected at least 380 kB (the voice clips should be one file of about 600 kB)")
+    return f"clips play from the pack with no missing clip; {room // 1024} kB of the storage is free or logs"
+
+
 def t_ble_info(v, a):
     """The Bluetooth Device Information is the maker and "ParaVario <release>", the release being the newest git tag. The
     status reports that release (the Bluetooth read itself is not available here), and it must match the repository's tag."""
@@ -4542,7 +4557,7 @@ TESTS = [
     ("boot", t_boot), ("settings", t_settings), ("vario_climb", t_vario_climb),
     ("vario_sink", t_vario_sink), ("vario_thresholds", t_vario_thresholds), ("vario_logic", t_vario_logic),
     ("mute", t_mute), ("auto_volume", t_auto_volume), ("rpm_logic", t_rpm_logic), ("rpm", t_rpm), ("rpm_speech", t_rpm_speech), ("rpm_glitch", t_rpm_glitch), ("geo_logic", t_geo_logic), ("wind_logic", t_wind_logic),
-    ("circuit_logic", t_circuit_logic), ("battery_logic", t_battery_logic), ("flight_logic", t_flight_logic), ("button_logic", t_button_logic), ("factory_reset", t_factory_reset), ("ble_info", t_ble_info), ("igc_two_flights", t_igc_two_flights), ("vario_only_flying", t_vario_only_flying), ("ui_replay", t_ui_replay), ("height_logic", t_height_logic), ("moving_logic", t_moving_logic), ("height_trace", t_height_trace), ("maint_voice", t_maint_voice), ("names_default", t_names_default), ("status_logic", t_status_logic), ("alerts_logic", t_alerts_logic), ("resume_logic", t_resume_logic), ("audio_logic", t_audio_logic), ("rpmtrack_logic", t_rpmtrack_logic), ("baro_logic", t_baro_logic), ("wind", t_wind), ("wind_faults", t_wind_faults), ("wind_change", t_wind_change), ("circuit_right", t_circuit_right), ("circuit_slow_pilot", t_circuit_slow_pilot), ("circuit_left_wind", t_circuit_left_wind),
+    ("circuit_logic", t_circuit_logic), ("battery_logic", t_battery_logic), ("flight_logic", t_flight_logic), ("button_logic", t_button_logic), ("factory_reset", t_factory_reset), ("ble_info", t_ble_info), ("voice_pack", t_voice_pack), ("igc_two_flights", t_igc_two_flights), ("vario_only_flying", t_vario_only_flying), ("ui_replay", t_ui_replay), ("height_logic", t_height_logic), ("moving_logic", t_moving_logic), ("height_trace", t_height_trace), ("maint_voice", t_maint_voice), ("names_default", t_names_default), ("status_logic", t_status_logic), ("alerts_logic", t_alerts_logic), ("resume_logic", t_resume_logic), ("audio_logic", t_audio_logic), ("rpmtrack_logic", t_rpmtrack_logic), ("baro_logic", t_baro_logic), ("wind", t_wind), ("wind_faults", t_wind_faults), ("wind_change", t_wind_change), ("circuit_right", t_circuit_right), ("circuit_slow_pilot", t_circuit_slow_pilot), ("circuit_left_wind", t_circuit_left_wind),
     ("circuit_events", t_circuit_events),
     ("fault_baro", t_fault_baro), ("fault_gps", t_fault_gps), ("fault_battery", t_fault_battery), ("landing_gps_quality", t_landing_gps_quality), ("landing_hover", t_landing_hover), ("button_actions", t_button_actions), ("alerts_flight", t_alerts_flight), ("resume_flight", t_resume_flight), ("battery_flight", t_battery_flight),
     ("memory_events", t_memory_events), ("soak", t_soak),

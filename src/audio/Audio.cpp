@@ -7,6 +7,7 @@
 #include <freertos/semphr.h>
 
 #include "Pins.h"
+#include "VoicePack.h"
 
 namespace audio {
 namespace {
@@ -127,8 +128,8 @@ bool openClip(const char* name) {
     return true;
   }
   char path[40];
-  snprintf(path, sizeof(path), "/v/%s.adp", name);
-  spFile = LittleFS.open(path, "r");
+  snprintf(path, sizeof(path), "/v/%s.adp", name);  // the old layout, still used by a vario that has not packed its clips
+  if (!voicepack::open(name, spFile)) spFile = LittleFS.open(path, "r");
   if (!spFile) {
     LOGW("AUD", "Missing voice clip %s", path);
     return false;

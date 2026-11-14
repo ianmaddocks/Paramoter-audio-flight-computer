@@ -124,7 +124,7 @@ The Battery tile shows the percentage, the voltage, and an estimate of the time 
 - **Updates over Wi-Fi from the computer:** join the vario's Wi-Fi (or, if you have switched on the *maintenance server connection*, just power the vario on near your computer), then `pio run -e release -t upload`. The vario restarts when it is done.
 - **Updates from the phone:** build with `pio run -e release`, copy `.pio/build/release/firmware.bin` to the phone, join the vario's Wi-Fi, open **http://192.168.4.1** in the normal browser, go to **Settings → Advanced settings → Firmware Update**, choose the file, enter the update password and tap **Install update**. Keep the phone close and the page open until it says *Installed*. A failed or interrupted upload leaves the old program running. Updates are refused while the vario is flying.
 - **One program for every vario.** The same `firmware.bin` goes on a vario with and without a GPS module.
-- **Voice clips:** edit `tools/vocab.txt`, run `python tools/make_voice.py`, then `pio run -e release -t uploadfs`. This erases stored flight logs (there are none on this version). Settings are kept.
+- **Voice clips:** edit `tools/vocab.txt`, run `python tools/make_voice.py` (it writes the one file `data/voice.pak` holding every clip), then `pio run -e release -t uploadfs`. This erases stored flight logs. Settings are kept.
 - **Factory defaults:** web page, Logs & system tab, *Factory defaults*.
 
 ## Troubleshooting

@@ -29,6 +29,7 @@
 #include "app/VarioSound.h"
 #include "audio/Audio.h"
 #include "audio/Speech.h"
+#include "audio/VoicePack.h"
 #include "audio/Volume.h"
 #include "comms/WebUi.h"
 #include "sensors/Mic.h"
@@ -349,6 +350,10 @@ void appSetup() {
        PV_HAS_MIC ? "fitted" : "not fitted");
   settings::load();
   if (!LittleFS.begin(true)) LOGE("APP", "LittleFS mount failed");
+  else {
+    voicepack::begin();
+    voicepack::migrate();  // clips from the old one-file-each layout are packed into one file, once
+  }
 
   audio::begin();
   volume::update(millis());  // sets the starting volume before the first sound

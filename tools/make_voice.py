@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Generate ParaVario voice clips (data/v/<id>.adp) from tools/vocab.txt.
+"""Generate the ParaVario voice pack (data/voice.pak, all the clips in one file) from tools/vocab.txt.
 
 Speech comes from the Windows built-in speech engine (SAPI) unless a recording exists at
-tools/voice_custom/<id>.wav, which always wins. Output is 16 kHz mono IMA ADPCM:
+tools/voice_custom/<id>.wav, which always wins. Each clip is 16 kHz mono IMA ADPCM:
   "IMA1" | u32 sample rate | u32 sample count | 4-bit codes, low nibble first.
+They are stored in one file, data/voice.pak: "PVP1", then for each clip 20 bytes of name (zero padded), a u32 size and the clip
+(see src/audio/VoicePack.h). One file instead of one per clip saves about a quarter of the flash, which the filesystem would
+spend rounding every clip up to whole 4 kB blocks.
 
 Usage:
   python tools/make_voice.py                  # build all clips with the default voice
@@ -23,7 +26,8 @@ import wave
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VOCAB = os.path.join(ROOT, "tools", "vocab.txt")
 CUSTOM_DIR = os.path.join(ROOT, "tools", "voice_custom")
-OUT_DIR = os.path.join(ROOT, "data", "v")
+OUT_FILE = os.path.join(ROOT, "data", "voice.pak")
+OLD_DIR = os.path.join(ROOT, "data", "v")  # the old layout, removed
 RATE = 16000
 
 INDEX_TABLE = [-1, -1, -1, -1, 2, 4, 6, 8, -1, -1, -1, -1, 2, 4, 6, 8]
@@ -173,7 +177,7 @@ def main():
         return
 
     vocab = read_vocab()
-    os.makedirs(OUT_DIR, exist_ok=True)
+    os.makedirs(os.path.dirname(OUT_FILE), exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
         jobs = []
         sources = {}
@@ -192,20 +196,23 @@ def main():
             print(f"Synthesising {len(jobs)} clips with SAPI {args.voice or '(default voice)'}...")
             run_ps(PS_SYNTH, "-JobFile", job_file, "-Voice", args.voice, "-Rate", str(args.rate))
 
-        wanted = set()
         total = 0
+        pack = bytearray(b"PVP1")
         for clip, _ in vocab:
+            if len(clip.encode()) >= 20:
+                sys.exit(f"clip name {clip!r} is too long for the pack (19 characters at most)")
             samples = trim_and_normalise(read_wav(sources[clip]))
-            data = adpcm_encode(samples)
-            with open(os.path.join(OUT_DIR, clip + ".adp"), "wb") as f:
-                f.write(b"IMA1" + struct.pack("<II", RATE, len(samples)) + data)
-            wanted.add(clip + ".adp")
-            total += 12 + len(data)
+            data = b"IMA1" + struct.pack("<II", RATE, len(samples)) + adpcm_encode(samples)
+            pack += clip.encode().ljust(20, b"\0") + struct.pack("<I", len(data)) + data
+            total += len(data)
+        with open(OUT_FILE, "wb") as f:
+            f.write(pack)
 
-    for name in os.listdir(OUT_DIR):
-        if name.endswith(".adp") and name not in wanted:
-            os.remove(os.path.join(OUT_DIR, name))
-    print(f"Wrote {len(vocab)} clips to {os.path.relpath(OUT_DIR, ROOT)} ({total / 1024:.0f} kB)")
+    if os.path.isdir(OLD_DIR):  # one file per clip is the old layout: it must not be uploaded next to the pack
+        for name in os.listdir(OLD_DIR):
+            os.remove(os.path.join(OLD_DIR, name))
+        os.rmdir(OLD_DIR)
+    print(f"Wrote {len(vocab)} clips ({total / 1024:.0f} kB) to {os.path.relpath(OUT_FILE, ROOT)} ({len(pack) / 1024:.0f} kB)")
 
 
 if __name__ == "__main__":
