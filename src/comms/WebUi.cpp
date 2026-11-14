@@ -87,7 +87,18 @@ char serverSsidUsed[33] = "";
 char serverPassUsed[65] = "";
 bool maintUsed = false;  // the maintenance-connection switch as it was at power-up
 
+// Giving up the search for the maintenance network (to keep the vario's own network steady, see serverUpdate) used to last until the
+// next restart: one drop of the router link, a router that was slow, and the vario stayed off your network until you restarted it.
+// A router that was joined earlier in this power-up is known to be there, so it is looked for again every serverRetryMs, on the
+// ground only (searching disturbs the vario's own Wi-Fi: never in flight). A network that was never found (away from home) is not
+// searched for again until a restart.
+constexpr uint32_t kServerRetryMs = 5 * 60 * 1000;
+bool serverEverConnected = false;
+uint32_t serverStoppedMs = 0;
+uint32_t serverRetryMs = kServerRetryMs;
+
 void serverStop(const char* why) {
+  serverStoppedMs = millis();
   WiFi.disconnect();
   WiFi.mode(WIFI_AP);
   serverWifi = ServerWifi::Off;
@@ -101,9 +112,19 @@ void serverUpdate(uint32_t now) {
     LOGW("WEB", "Wi-Fi dropped (reason %u), %u drops since power-up, free heap %u", (unsigned)diagStaReason, (unsigned)diagStaDisc,
          (unsigned)ESP.getFreeHeap());
   }
-  if (serverWifi == ServerWifi::Off) return;
+  if (serverWifi == ServerWifi::Off) {
+    if (maintUsed && serverEverConnected && serverSsidUsed[0] && !app.nav.flying && now - serverStoppedMs >= serverRetryMs) {
+      LOGI("WEB", "Looking for the maintenance network '%s' again (it was joined earlier)", serverSsidUsed);
+      WiFi.mode(WIFI_AP_STA);
+      WiFi.begin(serverSsidUsed, serverPassUsed);
+      serverWifi = ServerWifi::Connecting;
+      serverAttemptStartedMs = now;
+    }
+    return;
+  }
   bool up = WiFi.status() == WL_CONNECTED;
   if (serverWifi == ServerWifi::Connecting && up) {
+    serverEverConnected = true;
     serverWifi = ServerWifi::Connected;
     LOGI("WEB", "Joined server network '%s' as %s (http://paravario.local)", g_cfg.serverSsid,
          WiFi.localIP().toString().c_str());
@@ -779,6 +800,14 @@ void route(const char* path, HTTPMethod method, void (*handler)()) {
 #endif
   });
 }
+
+#if PV_TEST
+// Test build: give up on the maintenance network now, and look for it again after retryMs (0 = the normal 5 minutes).
+void testMaintGiveUp(uint32_t retryMs) {
+  serverRetryMs = retryMs ? retryMs : kServerRetryMs;
+  serverStop("test: gave up");
+}
+#endif
 
 void begin() {
   WiFi.onEvent(onWifiEvent);

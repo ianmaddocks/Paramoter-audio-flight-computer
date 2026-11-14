@@ -444,7 +444,7 @@ While the vario is searching for that network, its own network can be less relia
 ### Stop looking after (0=never)
 How long the vario looks for the maintenance network before giving up.
 
-Away from home the vario would otherwise keep searching, which makes its own network unreliable. After this time (30 s) it stops. A restart tries again. 0 keeps trying. Default: 30 s.
+Away from home the vario would otherwise keep searching, which makes its own network unreliable. After this time (30 s) it stops. If the router was joined earlier in this power-up (so it is known to be there), the vario looks for it again every 5 minutes, but only on the ground, because searching disturbs its own network; a network that was never found (away from home) is not searched for again until a restart. 0 keeps trying. Default: 30 s.
 
 <a id="basic-settings-battery"></a>
 ## Settings: Battery

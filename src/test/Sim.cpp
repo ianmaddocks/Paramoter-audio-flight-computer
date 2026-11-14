@@ -7,6 +7,7 @@
 
 #include "Hardware.h"
 #include "Log.h"
+#include "comms/WebUi.h"
 #include "logging/IgcLogger.h"
 #include "logging/LogStore.h"
 #include "nav/Geo.h"
@@ -371,6 +372,8 @@ bool set(const String& key, const String& value) {
   } else if (key == "igcLimits") {  // "segBytes,minFree,keepFree": smaller limits for the tests of making room in the flight log (0 = normal)
     const int c1 = value.indexOf(','), c2 = value.indexOf(',', c1 + 1);
     if (c1 > 0 && c2 > c1) igctest::set((uint32_t)value.substring(0, c1).toInt(), (uint32_t)value.substring(c1 + 1, c2).toInt(), (uint32_t)value.substring(c2 + 1).toInt());
+  } else if (key == "maintGiveUp") {  // give up on the maintenance network now and look for it again after this many ms
+    webui::testMaintGiveUp((uint32_t)f);
   } else if (key == "fillFs") {  // leave about this many bytes of the storage free by writing /fill.bin (0 or off: remove it)
     LittleFS.remove("/fill.bin");
     const long want = value == "off" ? 0 : value.toInt();

@@ -8,4 +8,7 @@ namespace webui {
 void begin();
 // Serves pending requests. Call every pass of the main loop.
 void update();
+#if PV_TEST
+void testMaintGiveUp(uint32_t retryMs);  // test build: give up on the maintenance network now, look again after retryMs
+#endif
 }  // namespace webui
