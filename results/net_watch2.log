@@ -1,0 +1,23 @@
+watching paravario.local and 192.168.68.66 every 10 s; log S:\PlatformIOProjects\Paramoter audio flight computer\results\net_watch.csv; Ctrl+C to stop
+23:28:38  UP    via name, uptime 23 s, reset reason: software restart, rssi -67, channel 6, drops 0 (last reason 0)
+23:28:51  DOWN  TimeoutError: timed out; ping 192.168.68.66: no reply; neighbour table: no entry; PC Wi-Fi: Glenwoods 75% ch 6; last seen uptime 23, drops 0
+23:29:33  UP    via name, uptime 10 s, reset reason: task watchdog, rssi -61, channel 6, drops 1 (last reason 202)  after 30 s down
+23:29:33  REBOOT  uptime 23 -> 10 s; reset reason: task watchdog
+23:29:33  DROPS   router link dropped 1 time(s) (reason code 202, 9 s ago), rssi -61, heap 49524 (lowest 39636)
+23:29:43  DOWN  URLError: <urlopen error timed out>; ping 192.168.68.66: no reply; neighbour table: ac-27-6e-81-12-b8 (dynamic); PC Wi-Fi: Glenwoods 75% ch 6; last seen uptime 10, drops 1
+23:30:25  UP    via name, uptime 7 s, reset reason: task watchdog, rssi -62, channel 6, drops 1 (last reason 202)  after 34 s down
+23:31:24  DOWN  URLError: <urlopen error timed out>; ping 192.168.68.66: no reply; neighbour table: no entry; PC Wi-Fi: Glenwoods 75% ch 6; last seen uptime 52, drops 1
+23:31:45  UP    via name, uptime 83 s, reset reason: task watchdog, rssi -63, channel 6, drops 1 (last reason 202)  after 10 s down
+23:37:23  REBOOT  uptime 411 -> 5 s; reset reason: software restart
+23:39:20  REBOOT  uptime 106 -> 9 s; reset reason: software restart
+23:39:31  DOWN  URLError: <urlopen error timed out>; ping 192.168.68.66: no reply; neighbour table: no entry; PC Wi-Fi: Glenwoods 72% ch 6; last seen uptime 9, drops 0
+23:40:32  UP    via address, uptime 74 s, reset reason: software restart, rssi -67, channel 6, drops 1 (last reason 200)  after 59 s down
+23:40:32  DROPS   router link dropped 1 time(s) (reason code 200, 2 s ago), rssi -67, heap 49616 (lowest 40368)
+00:35:31  REBOOT  uptime 3352 -> 9 s; reset reason: software restart
+00:36:15  REBOOT  uptime 43 -> 10 s; reset reason: software restart
+00:36:49  REBOOT  uptime 31 -> 6 s; reset reason: software restart
+00:37:38  REBOOT  uptime 43 -> 11 s; reset reason: software restart
+00:38:25  REBOOT  uptime 45 -> 7 s; reset reason: software restart
+00:39:09  REBOOT  uptime 41 -> 9 s; reset reason: software restart
+00:43:00  REBOOT  uptime 230 -> 8 s; reset reason: software restart
+01:18:00  REBOOT  uptime 2094 -> 6 s; reset reason: software restart
