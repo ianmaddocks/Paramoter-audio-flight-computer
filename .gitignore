@@ -4,3 +4,7 @@
 .vscode/launch.json
 .vscode/ipch
 __pycache__/
+
+# live output of tools/net_watch.py (changes while it runs)
+results/net_watch.csv
+results/net_watch*.log
