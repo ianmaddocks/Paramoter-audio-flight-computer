@@ -117,6 +117,7 @@ body.replay #flightActions,body.replay #groundActions,body.replay #b-fs{display:
 .rprow{display:flex;gap:8px;align-items:center;margin:8px 0 4px}
 .rprow input[type=range]{flex:1;min-width:0}
 .rprow button{min-width:56px}
+#rpVol{width:100%;height:84px;display:block;margin-top:6px}
 #helpDoc{font-size:14px;line-height:1.5;overflow-wrap:anywhere}
 #helpDoc h1{font-size:20px;margin:14px 0 6px}#helpDoc h2{font-size:17px;margin:18px 0 6px}#helpDoc h3{font-size:15px;margin:14px 0 4px}
 #helpDoc h4,#helpDoc h5,#helpDoc h6{font-size:14px;margin:10px 0 4px}
@@ -156,7 +157,8 @@ R"HTML(
 <div id="flightPage" class="page" role="tabpanel">
 <section class="card" id="replayBar" hidden><b>Replay</b> <span class="mut" id="rpName"></span>
 <div class="rprow"><button id="rpPlay">Pause</button><input type="range" id="rpSlider" min="0" max="1" value="0" step="1" aria-label="Position in the flight"><button id="rpSpeed">1×</button><button id="rpExit" class="dng">Exit</button></div>
-<div class="mut" id="rpTime"></div></section>
+<div class="mut" id="rpTime"></div>
+<canvas id="rpVol" height="84"></canvas><div class="mut" id="rpVolTxt"></div></section>
 <div id="ready" class="ready wait"><b id="ready-t">Checking…</b><span id="ready-s"></span></div>
 <div id="alerts" class="alerts" role="alert" aria-live="assertive"></div>
 <section class="tiles" id="tilesMain">
@@ -549,7 +551,7 @@ function renderStatus(s,replay){
       txt('t-rpm',!s.mic.ok?'no mic':s.mic.rpm>0?Math.round(s.mic.rpm)+' rpm':'off');
       txt('t-rpms',s.mic.ok&&cfg.showEngTiles?'est '+Math.round(s.mic.raw)+' · conf '+s.mic.conf.toFixed(1):'');
       txt('t-noise',s.mic.noise!=null?s.mic.noise.toFixed(0)+' dBFS':'–');
-      txt('t-noises',s.mic.ok?'vario vol '+s.vol.vario+'%':'');
+      txt('t-noises',s.mic.ok?'vario vol '+s.vol.vario+'%'+(replay&&s.vol.speech!=null?' · speech '+s.vol.speech+'%':''):'');
     }
     if(!replay){
     txt('fwver','Installed: '+(s.version||'unknown')+(s.git?' · git '+s.git:'')+(s.debug?' (debug build)':' (release build)'));
@@ -783,12 +785,13 @@ function parseIgc(text){
     if(l[0]==='B'&&l.length>=35){
       let t=+l.slice(1,3)*3600+ +l.slice(3,5)*60+ +l.slice(5,7);if(prev>=0&&t<prev-43200)day+=86400;prev=t;
       d.fix.push({t:t+day,lat:(+l.slice(7,9)+ +l.slice(9,14)/60000)*(l[14]==='S'?-1:1),lon:(+l.slice(15,18)+ +l.slice(18,23)/60000)*(l[23]==='W'?-1:1),
-        ok:l[24]==='A',alt:+l.slice(25,30),rpm:l.length>=39?+l.slice(35,39):0,slow});
+        ok:l[24]==='A',alt:+l.slice(25,30),rpm:l.length>=39?+l.slice(35,39):0,vv:l.length>=42?+l.slice(39,42):null,sv:l.length>=45?+l.slice(42,45):null,slow});
     }else if(l.startsWith('LXPVD,')){
-      const q=l.slice(6).split(',').map(Number);slow={flags:q[0],wd:q[1],ws:q[2],bv:q[3],bp:q[4],bm:q[5],sats:q[6],hdop:q[7],noise:q[8]};
+      const q=l.slice(6).split(',').map(Number);slow={flags:q[0],wd:q[1],ws:q[2],bv:q[3],bp:q[4],bm:q[5],sats:q[6],hdop:q[7],noise:q[8],ss:q[9],vs:q[10]};
       if(!d.first)d.first=slow;if(d.fix.length)d.fix[d.fix.length-1].slow=slow;
     }else if(l.startsWith('LXPVGND,'))d.gnd=+l.slice(8);
     else if(l.startsWith('LXPVLZ,')&&!l.endsWith('none')){const q=l.slice(7).split(',').map(Number);d.lz={lat:q[0],lon:q[1],elev:q[2]}}
+    else if(l.startsWith('LXPVVOL,')){const q=l.slice(8).split(',').map(Number);d.vol={quiet:q[0],loud:q[1],auto:q[2]===1,ramp:q[3]}}
     else if(l==='LXPVSTART')d.start=d.fix.length;
     else if(l==='LXPVEND')d.end=d.fix.length-1;
   }
@@ -830,9 +833,41 @@ function replayStatus(i){
     wind:sl.wd>=0?{valid:true,from:sl.wd,speed:sl.ws/10,src:'log'}:{valid:false},
     ready:true,notReady:'',minSats:cfg.readyMinSats||6,
     batt:{v:sl.bv/100,pct:sl.bp,min:sl.bm>=0?sl.bm:null},
-    mic:{ok:!!(sl.flags&16),rpm:f.rpm,raw:f.rpm,conf:5,noise:-sl.noise},vol:{vario:cfg.varioVolume||0},
+    mic:{ok:!!(sl.flags&16),rpm:f.rpm,raw:f.rpm,conf:5,noise:-sl.noise},vol:{vario:f.vv!=null?f.vv:(cfg.varioVolume||0),speech:f.sv,varioSet:sl.vs,speechSet:sl.ss},
     baro:{ok:!!(sl.flags&8),pressure:101325},wifi:null};
   return s;
+}
+// The volume chart: the volume applied to the vario (solid) and to speech (dashed) over the whole flight, the volumes the
+// settings asked for (thin lines), the volume the loudness adjustment wanted (dotted: the setting raised towards 100 % as the
+// background noise rises from the quiet to the loud limit, before the speed limit on changes), and the background noise (grey);
+// a vertical line marks where the replay is.
+function rpVolChart(i){
+  const c=$('#rpVol');if(!c||!c.clientWidth)return;
+  const d=rp.d,F=d.fix,dpr=window.devicePixelRatio||1,W=c.clientWidth,H=c.clientHeight;
+  if(c.width!==Math.round(W*dpr)||c.height!==Math.round(H*dpr)){c.width=Math.round(W*dpr);c.height=Math.round(H*dpr)}
+  const g=c.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+  const cs=getComputedStyle(document.body),acc=cs.getPropertyValue('--acc'),mut=cs.getPropertyValue('--mut'),bd=cs.getPropertyValue('--bd'),fg=cs.getPropertyValue('--fg');
+  const n=F.length,X=k=>k*(W-1)/Math.max(1,n-1),Y=v=>H-3-Math.max(0,Math.min(100,v))/100*(H-14);
+  g.strokeStyle=bd;g.lineWidth=1;[0,50,100].forEach(v=>{g.beginPath();g.moveTo(0,Math.round(Y(v))+.5);g.lineTo(W,Math.round(Y(v))+.5);g.stroke()});
+  const slowAt=k=>F[k].slow||d.first;
+  // background noise as a grey area (louder = higher), scaled between the quiet and the loud limit
+  const vol=d.vol||{quiet:-52,loud:-30,auto:true};
+  const line=(fn,color,w,dash)=>{g.strokeStyle=color;g.lineWidth=w;g.setLineDash(dash||[]);g.beginPath();let st=false;
+    for(let k=0;k<n;k++){const v=fn(k);if(v==null||isNaN(v)){st=false;continue}if(!st){g.moveTo(X(k),Y(v));st=true}else g.lineTo(X(k),Y(v))}g.stroke();g.setLineDash([])};
+  g.globalAlpha=.18;g.fillStyle=mut;g.beginPath();g.moveTo(0,Y(0));
+  for(let k=0;k<n;k++){const sl=slowAt(k);const nz=sl?-sl.noise:vol.quiet;g.lineTo(X(k),Y(100*(nz-vol.quiet)/Math.max(1,vol.loud-vol.quiet)))}
+  g.lineTo(X(n-1),Y(0));g.closePath();g.fill();g.globalAlpha=1;
+  line(k=>{const sl=slowAt(k);return sl?sl.vs:null},mut,1);
+  line(k=>{const sl=slowAt(k);return sl?sl.ss:null},mut,1,[3,3]);
+  line(k=>{const sl=slowAt(k);if(!sl||!vol.auto)return sl?sl.vs:null;const f=Math.max(0,Math.min(1,(-sl.noise-vol.quiet)/Math.max(1,vol.loud-vol.quiet)));return sl.vs+(100-sl.vs)*f},fg,1,[1,3]);
+  line(k=>F[k].sv,acc,1.5,[5,3]);
+  line(k=>F[k].vv,acc,2);
+  g.strokeStyle=fg;g.lineWidth=1;g.beginPath();g.moveTo(Math.round(X(i))+.5,0);g.lineTo(Math.round(X(i))+.5,H);g.stroke();
+  const f=F[i],sl=slowAt(i);
+  if(f.vv!=null){
+    const want=sl&&vol.auto?sl.vs+(100-sl.vs)*Math.max(0,Math.min(1,(-sl.noise-vol.quiet)/Math.max(1,vol.loud-vol.quiet))):(sl?sl.vs:null);
+    txt('rpVolTxt','volume now: vario '+f.vv+'%'+(sl?' (set '+sl.vs+'%, wanted '+Math.round(want)+'%)':'')+' · speech '+f.sv+'%'+(sl?' (set '+sl.ss+'%)':'')+(sl?' · noise '+(-sl.noise)+' dBFS (quiet '+vol.quiet+', loud '+vol.loud+')':'')+' — solid vario, dashed speech, dotted wanted, grey noise');
+  }else txt('rpVolTxt','this log has no volume record');
 }
 function rpFrame(){
   const d=rp.d,F=d.fix,i=Math.max(0,Math.min(F.length-1,Math.floor(rp.pos)));rp.i=i;
@@ -842,6 +877,7 @@ function rpFrame(){
     hgData={step:2,a};drawHeight();
   }catch(e){}
   $('#rpSlider').value=i;
+  rpVolChart(i);
   const rel=F[i].t-F[0].t,tot=F[F.length-1].t-F[0].t,tk=d.start>0?' · takeoff at '+fT(F[d.start].t-F[0].t):'';
   txt('rpTime',fT(rel)+' / '+fT(tot)+tk);
 }

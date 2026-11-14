@@ -11,8 +11,9 @@ struct GpsData;
 // GPS (or no reception all flight) no file is created.
 //
 // The file is a normal IGC file (any viewer reads it) that also holds what the Flight screen shows, so the screen can be
-// replayed from it: every B record ends with the engine RPM (declared by an I record, extension RPM), and a comment record
-// LXPVD every 5 s carries the slow values (flags, wind, battery, satellites, HDOP, noise). Header comment records give the
+// replayed from it: every B record ends with the engine RPM and the two volumes actually applied (declared by an I record:
+// extensions RPM, VVL = vario volume %, SVL = speech volume %), and a comment record LXPVD every 5 s carries the slow values
+// (flags, wind, battery, satellites, HDOP, noise, and the two volume settings). Header comment records give the
 // ground height (LXPVGND) and the landing zone (LXPVLZ); LXPVSTART marks the takeoff (the pre-takeoff history comes first)
 // and LXPVEND the landing. Ground speed, track, vario and glide are worked out by the replay from the fixes.
 class IgcLogger {
@@ -31,6 +32,7 @@ class IgcLogger {
     uint8_t hour, min, sec;
     uint8_t sats;
     uint16_t rpm;
+    uint8_t vVol, sVol;  // the volumes being applied (setting plus the loudness adjustment), percent
     bool valid;
     int32_t latMin, lonMin;
     int32_t altStd, altGps;

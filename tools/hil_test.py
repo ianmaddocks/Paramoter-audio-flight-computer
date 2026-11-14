@@ -37,7 +37,7 @@ import urllib.parse
 import urllib.request
 
 LINE_RE = re.compile(r"^\[\s*(\d+\.\d+)\] (\w) (\w+): (.*)$")
-B_RE = re.compile(r"^B(\d{6})(\d{2})(\d{5})([NS])(\d{3})(\d{5})([EW])([AV])(\d{5})(\d{5})(\d{4})$")  # ... then the engine RPM
+B_RE = re.compile(r"^B(\d{6})(\d{2})(\d{5})([NS])(\d{3})(\d{5})([EW])([AV])(\d{5})(\d{5})(\d{4})(\d{3})(\d{3})$")  # ... then the engine RPM, the vario volume and the speech volume applied (%)
 
 
 class Fail(Exception):
@@ -2233,7 +2233,7 @@ REPLAY_JS_CHECK = r"""(()=>{
   rp={name:'test',d,pos:0,i:0,playing:false,speed:1,hw:hwNow,timer:0};
   document.body.classList.add('replay');
   const snap=(pos)=>{rp.pos=pos;rpFrame();const g=id=>document.getElementById(id).textContent;
-    return {flight:g('t-flight'),ftime:g('t-ftime'),agl:g('t-agl'),vario:g('t-vario'),speed:g('t-speedv'),wind:g('t-wind'),winds:g('t-winds'),
+    return {vol:g('rpVolTxt'),noises:g('t-noises'),flight:g('t-flight'),ftime:g('t-ftime'),agl:g('t-agl'),vario:g('t-vario'),speed:g('t-speedv'),wind:g('t-wind'),winds:g('t-winds'),
       batt:g('t-batt'),batts:g('t-batts'),rpm:g('t-rpm'),lz:g('t-lzv'),gps:g('t-gps'),gpss:g('t-gpss'),time:g('rpTime'),
       slider:document.getElementById('rpSlider').value,compass:!document.querySelector('#tile-speed .cmp').hidden}};
   out.before=snap(2);out.fly=snap(80);out.late=snap(d.fix.length-1);
@@ -2243,7 +2243,7 @@ REPLAY_JS_CHECK = r"""(()=>{
 def synthetic_igc():
     """A made-up flight in the vario's log format: 20 s standing, a takeoff run, a climb to 100 m, wind from 250 at 4 m/s,
     engine at 3000 rpm, battery 3.90 V, then a descent and landing. 1 fix a second, a slow record every 5 s."""
-    rows = ["AXPVParaVario", "HFDTEDATE:140126,01", "HFPLTPILOTINCHARGE:", "I013639RPM", "LXPVGND,10", "LXPVLZ,51.500000,0.500000,10"]
+    rows = ["AXPVParaVario", "HFDTEDATE:140126,01", "HFPLTPILOTINCHARGE:", "I033639RPM4042VVL4345SVL", "LXPVGND,10", "LXPVLZ,51.500000,0.500000,10", "LXPVVOL,-52,-30,1,40"]
     t0 = 10 * 3600
     lat0, lon0 = 51.5, 0.5
     for k in range(0, 140):
@@ -2257,9 +2257,9 @@ def synthetic_igc():
         la = int(round(lat0 * 60000))
         lo = int(round(lon * 60000))
         rows.append("B%02d%02d%02d%02d%05d%s%03d%05d%s%s%05d%05d%04d" % (t // 3600, t // 60 % 60, t % 60, la // 60000, la % 60000, "N",
-                                                                       lo // 60000, lo % 60000, "E", "A", alt, alt, rpm))
+                                                                       lo // 60000, lo % 60000, "E", "A", alt, alt, rpm) + "%03d%03d" % (20 + k // 2, 30))
         if k % 5 == 0:
-            rows.append("LXPVD,%d,250,40,390,70,150,10,12,62" % (1 | 8 | 16 if 20 <= k < 125 else 8 | 16))
+            rows.append("LXPVD,%d,250,40,390,70,150,10,12,40,20,20" % (1 | 8 | 16 | 32 if 20 <= k < 125 else 8 | 16 | 32))
     rows.append("LXPVEND")
     return "\r\n".join(rows) + "\r\n"
 
@@ -2295,8 +2295,15 @@ def t_ui_replay(v, a):
             raise Fail(f"in flight: landing zone {f['lz']!r}, GPS {f['gps']!r} / {f['gpss']!r}")
         if f["time"].split(" / ")[0] != "1:20" or int(f["slider"]) != 80:
             raise Fail(f"time label {f['time']!r} / slider {f['slider']}")
+        # the volume record: the volumes applied, the settings they rise from, the volume the loudness adjustment wanted
+        if "vario 60% (set 20%, wanted 64%)" not in f["vol"] or "speech 30% (set 20%)" not in f["vol"] or "noise -40 dBFS" not in f["vol"]:
+            raise Fail(f"volume readout in the replay: {f['vol']!r}")
+        if f["noises"] != "vario vol 60% · speech 30%":
+            raise Fail(f"noise tile in the replay reads {f['noises']!r}")
         # the controls: pause / play, speed, slider, exit
         p.wait("document.getElementById('rpPlay')!==null", 3)
+        p.js("(()=>{document.getElementById('replayBar').hidden=false;rp.pos=80;rpFrame()})()")
+        p.check_fits("flight tab in replay (replay bar with the volume chart)")
         p.js("rp.playing=true;txt('rpPlay','Pause')")
         p.click("#rpPlay")
         if p.js("rp.playing") or p.js("document.getElementById('rpPlay').textContent") != "Play":
@@ -3090,16 +3097,19 @@ def t_flight(v, a):
         raise Fail(f"expected a few 'V' (no fix) records from the GPS loss, found {voids}")
     # Everything the Flight screen shows is in the file, so it can be replayed: RPM on every fix, the slow values every 5 s,
     # the ground height and the landing zone in the header, takeoff and landing marked.
-    for need in ("I013639RPM", "LXPVSTART", "LXPVEND"):
+    for need in ("I033639RPM4042VVL4345SVL", "LXPVSTART", "LXPVEND"):
         if need not in rows:
             raise Fail(f"IGC file lacks {need}")
-    if not any(r.startswith("LXPVGND,") for r in rows) or not any(r.startswith("LXPVLZ,") for r in rows):
-        raise Fail("IGC header lacks the ground height / landing zone records")
+    if not any(r.startswith("LXPVGND,") for r in rows) or not any(r.startswith("LXPVLZ,") for r in rows) or not any(r.startswith("LXPVVOL,") for r in rows):
+        raise Fail("IGC header lacks the ground height / landing zone / volume adjustment records")
+    vols = [(int(x.group(11)), int(x.group(12))) for x in b]
+    if not all(0 <= vv <= 100 and 0 <= sv <= 100 for vv, sv in vols) or max(vv for vv, sv in vols) == 0:
+        raise Fail(f"the volumes in the B records are not percentages of a working vario: {vols[:3]} ... {vols[-3:]}")
     slow = [r for r in rows if r.startswith("LXPVD,")]
     if len(slow) < len(b) // 7:
         raise Fail(f"only {len(slow)} slow-value records for {len(b)} fixes (expected one every 5 s)")
     sp = slow[len(slow) // 2].split(",")
-    if len(sp) != 10 or not all(re.fullmatch(r"-?\d+", x) for x in sp[1:]):
+    if len(sp) != 12 or not all(re.fullmatch(r"-?\d+", x) for x in sp[1:]):
         raise Fail(f"slow-value record malformed: {slow[len(slow) // 2]}")
     if rows.index("LXPVSTART") > rows.index("LXPVEND") or not any(r.startswith("B") for r in rows[rows.index("LXPVSTART"):]):
         raise Fail("takeoff / landing markers out of order")

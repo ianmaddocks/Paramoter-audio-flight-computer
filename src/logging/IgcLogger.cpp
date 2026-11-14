@@ -10,6 +10,7 @@
 #include "Hardware.h"
 #include "Settings.h"
 #include "sensors/GpsData.h"
+#include "audio/Volume.h"
 #include "sensors/Mic.h"
 
 namespace {
@@ -77,7 +78,9 @@ void IgcLogger::open(const GpsData& gps) {
   file_.print("HFFTYFRTYPE:ParaVario,XIAO ESP32C3\r\n");
   file_.print("HFGPSRECEIVER:u-blox,M10\r\n");
   file_.print("HFPRSPRESSALTSENSOR:Infineon,DPS310\r\n");
-  file_.print("I013639RPM\r\n");  // each B record ends with the engine RPM (4 digits)
+  file_.print("I033639RPM4042VVL4345SVL\r\n");  // each B record ends with the engine RPM (4 digits), the vario and speech volume applied (3 digits each, %)
+  file_.printf("LXPVVOL,%d,%d,%d,%d\r\n", (int)lroundf(g_cfg.noiseQuietDb), (int)lroundf(g_cfg.noiseLoudDb), g_cfg.autoVolume ? 1 : 0,
+               (int)g_cfg.volumeRampPctS);  // how the loudness adjustment was set: quiet / loud noise limits (dBFS), automatic, ramp (%/s)
   {  // what the Flight screen needs that is not in the fixes: the ground height and the landing zone
     const NavState& n = app.nav;
     file_.printf("LXPVGND,%d\r\n", (int)lroundf(n.altMslM - n.aglM));
@@ -99,22 +102,24 @@ void IgcLogger::open(const GpsData& gps) {
 
 void IgcLogger::writeSample(const Sample& s) {
   int32_t alat = abs(s.latMin), alon = abs(s.lonMin);
-  file_.printf("B%02u%02u%02u%02d%05d%c%03d%05d%c%c%05d%05d%04u\r\n", s.hour, s.min, s.sec, (int)(alat / 60000),
+  file_.printf("B%02u%02u%02u%02d%05d%c%03d%05d%c%c%05d%05d%04u%03u%03u\r\n", s.hour, s.min, s.sec, (int)(alat / 60000),
                (int)(alat % 60000), s.latMin < 0 ? 'S' : 'N', (int)(alon / 60000), (int)(alon % 60000),
-               s.lonMin < 0 ? 'W' : 'E', s.valid ? 'A' : 'V', (int)s.altStd, (int)s.altGps, (unsigned)s.rpm);
+               s.lonMin < 0 ? 'W' : 'E', s.valid ? 'A' : 'V', (int)s.altStd, (int)s.altGps, (unsigned)s.rpm, (unsigned)s.vVol, (unsigned)s.sVol);
 }
 
-// The slow values, every 5 s: flags (1 flying, 2 muted, 4 GPS good, 8 barometer ok, 16 microphone), wind from (degrees) and
-// speed (0.1 m/s) or -1, -1; battery (0.01 V, percent, minutes left or -1); satellites; HDOP x 10; background noise (dB below full scale).
+// The slow values, every 5 s: flags (1 flying, 2 muted, 4 GPS good, 8 barometer ok, 16 microphone, 32 automatic volume), wind from
+// (degrees) and speed (0.1 m/s) or -1, -1; battery (0.01 V, percent, minutes left or -1); satellites; HDOP x 10; background noise
+// (dB below full scale); the speech and vario volume settings (percent), which the applied volumes in the B records rise from.
 void IgcLogger::writeSlow(const NavState& nav) {
   const bool wind = app.wind.valid();
   const int flags = (nav.flying ? 1 : 0) | (app.varioMuted ? 2 : 0) | (nav.gpsGood ? 4 : 0) | (nav.baroOk ? 8 : 0) |
-                    (hw::hasMic() ? 16 : 0);
+                    (hw::hasMic() ? 16 : 0) | (g_cfg.autoVolume ? 32 : 0);
   const float noise = hw::hasMic() ? mic::noiseDb() : NAN;
-  file_.printf("LXPVD,%d,%d,%d,%d,%d,%d,%u,%d,%d\r\n", flags, wind ? (int)lroundf(app.wind.fromDeg()) : -1,
+  file_.printf("LXPVD,%d,%d,%d,%d,%d,%d,%u,%d,%d,%d,%d\r\n", flags, wind ? (int)lroundf(app.wind.fromDeg()) : -1,
                wind ? (int)lroundf(app.wind.speedMs() * 10.0f) : -1, (int)lroundf(app.battery.volts() * 100.0f),
                (int)app.battery.percent(), (int)app.battery.minutesLeftOrUnknown(), (unsigned)nav.sats,
-               (int)lroundf(constrain(nav.hdop, 0.0f, 99.0f) * 10.0f), isfinite(noise) ? (int)lroundf(-noise) : 0);
+               (int)lroundf(constrain(nav.hdop, 0.0f, 99.0f) * 10.0f), isfinite(noise) ? (int)lroundf(-noise) : 0,
+               (int)g_cfg.speechVolume, (int)g_cfg.varioVolume);
 }
 
 // Keeps only the newest igcPreS samples; the buffer lives in RAM and is never written to flash.
@@ -152,6 +157,8 @@ void IgcLogger::update(const NavState& nav, const GpsData& gps) {
     const float r = hw::hasMic() ? mic::rpm() : 0.0f;
     s.rpm = (uint16_t)constrain(isfinite(r) ? lroundf(r) : 0L, 0L, 9999L);
   }
+  s.vVol = min<uint8_t>(100, volume::varioPct());
+  s.sVol = min<uint8_t>(100, volume::speechPct());
   s.valid = nav.fix;
   s.latMin = (int32_t)lround(lastLat_ * 60000.0);
   s.lonMin = (int32_t)lround(lastLon_ * 60000.0);
