@@ -114,3 +114,60 @@ ParaVario 20261114-210457 (bd99b7d) at paravario.local, 77 tests
         WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
   PASS  circuit_slow_pilot 350.3 s  measured (6.0, 1.9, 3.0) and (8.0, 0.8, 9.2); lead 9.2 s; base turn 86 m earlier than the setting would call it
         WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  circuit_left_wind 288.7 s  crosswind turn at x=277 (expected 277); downwind turn at y=-374 (expected -374); base turn at x=-254 for 163 m (expected -256; final 297 m); final turn at y=-29, 78 m up; touchdown 5 m from the field; no steering call during any called turn
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  circuit_events   316.1 s  crosswind turn at x=226 (expected 225); downwind turn at y=371 (expected 370); base turn at x=-215 for 163 m (expected -214; final 258 m); final turn at y=29, 75 m up; touchdown 7 m from the field; 2 steering calls (a turn was ignored on purpose); start point called 4 times while flying away, no leg change during the 6 s GPS loss, 2 steer right calls while the turn was ignored
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  fault_baro       255.9 s  dead: detected, banner, silent, recovered; range: detected, banner, silent, recovered; NaN pressure: detected, silent, recovered; frozen value: detected after 5 s, banner, silent, recovered; one 30 m wild sample: held back, no tone, vario unmoved; -30 m and +12 m single samples: held back too; two wild samples in a row: accepted as a step, no tone; a 25 m step that stays: accepted as a step, no tone; intermittent: 1.2 s dropouts ignored, 3 s dropouts detected and recovered x3; 0.4 m noise: vario reads within +-0.09 m/s
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  fault_gps         98.5 s  position 0, 0 on the ground: no fix, back after; dropout: announced after 5 s, flight kept, approach refused, fix back without reboot; 3 satellites: no fix; back with 10; weak fix (4 satellites, hdop 4.2) for 14 s in flight: flight kept; latitude 95 / -91 and longitude 200: no fix each time, flight kept, fix back
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  fault_battery     68.8 s  flickering 3.4/3.6 V: 0 call(s) in 40 s; 0.0 V: 3 %, no call; 6.0 V: 100 %, no call
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  landing_gps_quality 694.5 s  weak fix, +0.0 m/s at about 200 m, 29 s; weak fix, +0.2 m/s at about 200 m, 29 s; weak fix, -0.2 m/s at about 200 m, 29 s; no GPS for 70 s at 200 m; landing with no GPS found 11 s after touchdown; landing with a weak fix found (13 cases kept the flight)
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  landing_hover    214.4 s  hovering at 60 m for 16 s: still flying; declared landed after about 25 s (landingHighMult 5); multiplier 1: landed after the normal time, as before; near the ground: landed 6 s after stopping
+  PASS  button_actions    37.6 s  click and hold cues; single: tell me, starts nothing; double: approach on and off; a single never cancels; hold: emergency on and off; a single never cancels; triple: mute and unmute; no GPS: single tells height and battery, double/hold mute
+  PASS  alerts_flight    131.6 s  barometer failed / back spoken in flight; routine height calls: 2+ in 26 s normally, none during the approach
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  FAIL  resume_flight    654.1 s  vario not reachable (/api/settings): <urlopen error [Errno 11001] getaddrinfo failed>
+        state: could not read the status (vario not reachable (/api/status): <urlopen error [Errno 11001] getaddrinfo failed>)
+        sim: could not read (vario not reachable (/api/sim): <urlopen error [Errno 11001] getaddrinfo failed>)
+        log: could not read (vario not reachable (/api/debuglog?since=1363): <urlopen error [Errno 11001] getaddrinfo failed>)
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: unknown): its timing, memory and log results may be affected
+  FAIL  battery_flight   could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  memory_events    could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  soak             could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  gps_states       could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  flight           could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  baro_only        could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  guidance         could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  battery          could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  battery_learner  could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  speech           could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  volume_ramp      could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  glide            could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  variant_no_gps   could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  variant_no_mic   could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  gps_detect       could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_flight        could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_pilot         could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_layout        could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_actions       could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_guidance      could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_settings      could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_spectrum      could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  spectrum_setting could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_system        could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_help          could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ota_guard        could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  memory           could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+Cleanup: close the browser;
+WARNING: cleanup step 'simulation off' failed: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+WARNING: cleanup step 'flight logic reset' failed: vario not reachable (/api/sim?reset=1): <urlopen error [Errno 11001] getaddrinfo failed>
+WARNING: cleanup step 'settings restored' failed: vario not reachable (/api/settings): <urlopen error [Errno 11001] getaddrinfo failed>
+WARNING: cleanup step 'leftover test logs' failed: vario not reachable (/api/logs): <urlopen error [Errno 11001] getaddrinfo failed>
+
+NOTE: 20 test(s) ran while a phone, browser or BLE client was connected: boot, vario_climb, vario_sink, rpm_speech, rpm_glitch, maint_voice, names_default, wind, wind_faults, wind_change, circuit_right, circuit_slow_pilot, circuit_left_wind, circuit_events, fault_baro, fault_gps, fault_battery, landing_gps_quality, alerts_flight, resume_flight
+
+46 passed, 31 failed, 654 log lines missed

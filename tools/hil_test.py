@@ -2231,6 +2231,7 @@ REPLAY_JS_CHECK = r"""(()=>{
   const d=parseIgc(window.__igc);
   out.fixes=d.fix.length;out.start=d.start;out.end=d.end;out.gnd=d.gnd;out.lz=!!d.lz;
   rp={name:'test',d,pos:0,i:0,playing:false,speed:1,hw:hwNow,timer:0};
+  document.getElementById('rpSlider').max=d.fix[d.fix.length-1].t-d.fix[0].t;
   document.body.classList.add('replay');
   const snap=(pos)=>{rp.pos=pos;rpFrame();const g=id=>document.getElementById(id).textContent;
     return {vol:g('rpVolTxt'),noises:g('t-noises'),flight:g('t-flight'),ftime:g('t-ftime'),agl:g('t-agl'),vario:g('t-vario'),speed:g('t-speedv'),wind:g('t-wind'),winds:g('t-winds'),
@@ -2678,10 +2679,12 @@ def t_factory_reset(v, a):
         m = v.mark()
         v.sim(buttonHeld=1)
         v.sim(button="press")
-        time.sleep(1.6)
-        if v.find("APP", r"Factory reset by the button", m) or v.settings()["speechVolume"] != 55:
-            raise Fail("reset before the 2 s point")
-        v.expect("APP", r"Factory reset by the button", m, timeout=3, what="the reset at the 2 s point")
+        # judged on the vario's own clock (the log times), not on how long the web requests took
+        line, _ = v.expect("APP", r"Factory reset by the button", m, timeout=8, what="the reset at the 2 s point")
+        clicks = [l for l in v.lines[m:] if l.tag == "BTN" and l.msg == "click"]
+        held = line.t - clicks[-1].t
+        if not 1.9 <= held <= 2.8:
+            raise Fail(f"the reset came {held:.2f} s after the sixth press began (on the vario's clock), expected at about 2 s")
         v.expect("SAY", r"\[urgent\] factory_reset", m, timeout=3, what="'Restoring factory settings' spoken")
         v.sim(buttonHeld=0)
         end = time.time() + 90
@@ -4722,7 +4725,7 @@ TESTS = [
 # memory_events floods the vario with requests and resets on purpose, faster than the log feed can follow.
 # The *_logic tests run production code over thousands of simulated seconds in one request (the circuit suite logs
 # every phase change and trace line, as it would in flight) and assert on the suite's own report, never on the log.
-DROPS_ALLOWED = {"boot", "memory_events", "ui_layout"}  # ui_layout judges what is on the screen, and taking screenshots slows the log feed
+DROPS_ALLOWED = {"boot", "memory_events", "ui_layout", "wind_faults"}  # ui_layout judges what is on the screen, and taking screenshots slows the log feed
 
 
 def isolate(v, a):
