@@ -3,7 +3,6 @@
 #include <LittleFS.h>
 
 #include <algorithm>
-#include <map>
 
 #include "Log.h"
 
@@ -137,32 +136,38 @@ void list(std::vector<Flight>& out) {
   out.clear();
   File dir = LittleFS.open(kDir);
   if (!dir) return;
-  std::map<String, Flight> byId;
-  for (File f = dir.openNextFile(); f; f = dir.openNextFile()) {
+  struct Tagged {
     String id;
     Piece p;
-    if (!parseName(String(f.name()), id, p)) continue;
-    p.size = f.size();
-    Flight& fl = byId[id];
-    fl.id = id;
-    fl.size += p.size;
-    fl.pieces.push_back(p);
+  };
+  std::vector<Tagged> all;
+  for (File f = dir.openNextFile(); f; f = dir.openNextFile()) {
+    Tagged t;
+    if (!parseName(String(f.name()), t.id, t.p)) continue;
+    t.p.size = f.size();
+    all.push_back(t);
   }
   dir.close();
-  for (auto& kv : byId) {
-    Flight& fl = kv.second;
-    std::sort(fl.pieces.begin(), fl.pieces.end(), [](const Piece& a, const Piece& b) {
-      const int ra = a.kind == 'h' ? -1 : a.index, rb = b.kind == 'h' ? -1 : b.index;
-      return ra < rb;
-    });
-    out.push_back(fl);
-  }
-  // std::map orders by id: dates first, so oldest first ("nodate" ids sort after the digits: put them first)
-  std::stable_sort(out.begin(), out.end(), [](const Flight& a, const Flight& b) {
-    const bool na = a.id.startsWith("nodate"), nb = b.id.startsWith("nodate");
-    if (na != nb) return na;
-    return a.id < b.id;
+  // by flight, then header first and the stretches in order
+  std::sort(all.begin(), all.end(), [](const Tagged& a, const Tagged& b) {
+    if (a.id != b.id) return a.id < b.id;
+    const int ra = a.p.kind == 'h' ? -1 : a.p.index, rb = b.p.kind == 'h' ? -1 : b.p.index;
+    return ra < rb;
   });
+  // oldest first: logs with no date (the "nodate" ids) before the dated ones
+  std::vector<Flight> dated, nodate;
+  for (const Tagged& t : all) {
+    std::vector<Flight>& dst = t.id.startsWith("nodate") ? nodate : dated;
+    if (dst.empty() || dst.back().id != t.id) {
+      Flight f;
+      f.id = t.id;
+      dst.push_back(f);
+    }
+    dst.back().pieces.push_back(t.p);
+    dst.back().size += t.p.size;
+  }
+  out = nodate;
+  out.insert(out.end(), dated.begin(), dated.end());
 }
 
 bool find(const String& idIn, Flight& out) {
