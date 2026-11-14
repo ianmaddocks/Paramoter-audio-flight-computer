@@ -9,6 +9,12 @@ struct GpsData;
 // last few seconds of fixes in a RAM ring buffer (never flash) and writes them at the start of
 // the log, so the file does not miss the takeoff run. Records need GPS time: on a vario with no
 // GPS (or no reception all flight) no file is created.
+//
+// The file is a normal IGC file (any viewer reads it) that also holds what the Flight screen shows, so the screen can be
+// replayed from it: every B record ends with the engine RPM (declared by an I record, extension RPM), and a comment record
+// LXPVD every 5 s carries the slow values (flags, wind, battery, satellites, HDOP, noise). Header comment records give the
+// ground height (LXPVGND) and the landing zone (LXPVLZ); LXPVSTART marks the takeoff (the pre-takeoff history comes first)
+// and LXPVEND the landing. Ground speed, track, vario and glide are worked out by the replay from the fixes.
 class IgcLogger {
  public:
   void start(const GpsData& gps);
@@ -24,17 +30,22 @@ class IgcLogger {
   struct Sample {
     uint8_t hour, min, sec;
     uint8_t sats;
+    uint16_t rpm;
     bool valid;
     int32_t latMin, lonMin;
     int32_t altStd, altGps;
   };
 
   void open(const GpsData& gps);
-  void pruneOldLogs();
+  void pruneOldLogs(size_t minFreeBytes, const char* keep);
+  void writeSlow(const NavState& nav);
   void writeSample(const Sample& s);
   void pushPre(const Sample& s);
 
   File file_;
+  char path_[40] = "";
+  uint32_t lastSlowMs_ = 0;
+  uint32_t lastSpaceCheckMs_ = 0;
   bool pending_ = false;  // flight started, file not yet opened (waiting for GPS time)
   uint32_t lastRecordMs_ = 0;
   uint32_t lastFlushMs_ = 0;

@@ -37,7 +37,7 @@ import urllib.parse
 import urllib.request
 
 LINE_RE = re.compile(r"^\[\s*(\d+\.\d+)\] (\w) (\w+): (.*)$")
-B_RE = re.compile(r"^B(\d{6})(\d{2})(\d{5})([NS])(\d{3})(\d{5})([EW])([AV])(\d{5})(\d{5})$")
+B_RE = re.compile(r"^B(\d{6})(\d{2})(\d{5})([NS])(\d{3})(\d{5})([EW])([AV])(\d{5})(\d{5})(\d{4})$")  # ... then the engine RPM
 
 
 class Fail(Exception):
@@ -2226,6 +2226,180 @@ def t_button_logic(v, a):
     return f"{n} cases passed: single/double/triple clicks, gloved gaps, hold with cue, abandoned hold, bounce"
 
 
+REPLAY_JS_CHECK = r"""(()=>{
+  const out={};
+  const d=parseIgc(window.__igc);
+  out.fixes=d.fix.length;out.start=d.start;out.end=d.end;out.gnd=d.gnd;out.lz=!!d.lz;
+  rp={name:'test',d,pos:0,i:0,playing:false,speed:1,hw:hwNow,timer:0};
+  document.body.classList.add('replay');
+  const snap=(pos)=>{rp.pos=pos;rpFrame();const g=id=>document.getElementById(id).textContent;
+    return {flight:g('t-flight'),ftime:g('t-ftime'),agl:g('t-agl'),vario:g('t-vario'),speed:g('t-speedv'),wind:g('t-wind'),winds:g('t-winds'),
+      batt:g('t-batt'),batts:g('t-batts'),rpm:g('t-rpm'),lz:g('t-lzv'),gps:g('t-gps'),gpss:g('t-gpss'),time:g('rpTime'),
+      slider:document.getElementById('rpSlider').value,compass:!document.querySelector('#tile-speed .cmp').hidden}};
+  out.before=snap(2);out.fly=snap(80);out.late=snap(d.fix.length-1);
+  return out})()"""
+
+
+def synthetic_igc():
+    """A made-up flight in the vario's log format: 20 s standing, a takeoff run, a climb to 100 m, wind from 250 at 4 m/s,
+    engine at 3000 rpm, battery 3.90 V, then a descent and landing. 1 fix a second, a slow record every 5 s."""
+    rows = ["AXPVParaVario", "HFDTEDATE:140126,01", "HFPLTPILOTINCHARGE:", "I013639RPM", "LXPVGND,10", "LXPVLZ,51.500000,0.500000,10"]
+    t0 = 10 * 3600
+    lat0, lon0 = 51.5, 0.5
+    for k in range(0, 140):
+        t = t0 + k
+        if k == 20:
+            rows.append("LXPVSTART")
+        moving = k >= 20
+        lon = lon0 + (max(0, k - 20) * 8.0) / (111320 * math.cos(math.radians(lat0))) if moving else lon0
+        alt = 10 if k < 30 else min(110, 10 + (k - 30) * 2) if k < 80 else max(10, 110 - (k - 80) * 2)
+        rpm = 3000 if 20 <= k < 100 else 0
+        la = int(round(lat0 * 60000))
+        lo = int(round(lon * 60000))
+        rows.append("B%02d%02d%02d%02d%05d%s%03d%05d%s%s%05d%05d%04d" % (t // 3600, t // 60 % 60, t % 60, la // 60000, la % 60000, "N",
+                                                                       lo // 60000, lo % 60000, "E", "A", alt, alt, rpm))
+        if k % 5 == 0:
+            rows.append("LXPVD,%d,250,40,390,70,150,10,12,62" % (1 | 8 | 16 if 20 <= k < 125 else 8 | 16))
+    rows.append("LXPVEND")
+    return "\r\n".join(rows) + "\r\n"
+
+
+def t_ui_replay(v, a):
+    """Replay: the Flight screen driven by a log. A made-up log is loaded into the page's replay (no log needed on the vario) and
+    the tiles are read at three places: before takeoff (Ready), in flight (height, vario, ground speed, wind, battery, RPM,
+    landing zone, flight time) and after landing (Landed). The slider, pause / play, speed and exit are then used."""
+    m = reset(v, baro="on", alt=GROUND_M, vz=0, baroOffset=150, gps="fix", sats=10, hdop=0.9, speed=0, lat=51.5, lon=0.5)
+    p = v.page()
+    try:
+        p.tab("flight")
+        p.wait("hwNow!=null && !document.body.classList.contains('loading')", 8, "page loaded")
+        p.js("window.__igc=" + json.dumps(synthetic_igc()))
+        r = p.js(REPLAY_JS_CHECK)
+        if r["fixes"] != 140 or r["start"] != 20 or r["end"] != 139 or r["gnd"] != 10 or not r["lz"]:
+            raise Fail(f"the made-up log was read as {r}")
+        b, f, l = r["before"], r["fly"], r["late"]
+        if b["flight"] != "Ready" or f["flight"] == "Ready" or l["flight"] != "Landed":
+            raise Fail(f"flight time tile: before takeoff {b['flight']!r}, in flight {f['flight']!r}, after landing {l['flight']!r}")
+        if not re.fullmatch(r"\d+:\d\d", f["flight"]) or not f["ftime"].startswith("Flying"):
+            raise Fail(f"in flight the flight time reads {f['flight']!r} / {f['ftime']!r}")
+        if not l["ftime"].startswith("last flight"):
+            raise Fail(f"after landing the second line reads {l['ftime']!r}")
+        agl_ft = int(f["agl"].split()[0])
+        if not 150 <= agl_ft <= 330:  # 100 m is 328 ft: at position 80 the climb has reached about 90 to 100 m
+            raise Fail(f"height in flight {f['agl']}")
+        if f["rpm"] != "3000 rpm" or "250" not in f["winds"] or not f["wind"].startswith("14 km/h") or not f["batt"].startswith("~2h") or "3.90 V" not in f["batts"]:
+            raise Fail(f"in flight: rpm {f['rpm']!r}, wind {f['wind']!r} / {f['winds']!r}, battery {f['batt']!r} / {f['batts']!r}")
+        if not f["compass"] or not f["speed"].startswith("29 km/h"):
+            raise Fail(f"in flight: speed {f['speed']!r}, compass shown {f['compass']}")
+        if not re.fullmatch(r"\d+ m|\d\.\d km", f["lz"]) or f["gps"] != "strong" or not f["gpss"].startswith("12 satellites"):
+            raise Fail(f"in flight: landing zone {f['lz']!r}, GPS {f['gps']!r} / {f['gpss']!r}")
+        if f["time"].split(" / ")[0] != "1:20" or int(f["slider"]) != 80:
+            raise Fail(f"time label {f['time']!r} / slider {f['slider']}")
+        # the controls: pause / play, speed, slider, exit
+        p.wait("document.getElementById('rpPlay')!==null", 3)
+        p.js("rp.playing=true;txt('rpPlay','Pause')")
+        p.click("#rpPlay")
+        if p.js("rp.playing") or p.js("document.getElementById('rpPlay').textContent") != "Play":
+            raise Fail("Pause did not pause the replay")
+        p.click("#rpSpeed")
+        if p.js("rp.speed") != 4 or p.js("document.getElementById('rpSpeed').textContent") != "4×":
+            raise Fail("the speed button did not step to 4x")
+        p.js("(()=>{const s=document.getElementById('rpSlider');s.value=30;s.dispatchEvent(new Event('input'))})()")
+        if p.js("rp.i") != 30 or not p.js("document.getElementById('rpTime').textContent").startswith("0:30 / 2:19"):
+            raise Fail(f"moving the slider gave position {p.js('rp.i')}, label {p.js('document.getElementById(' + chr(34) + 'rpTime' + chr(34) + ').textContent')!r}")
+        if p.js("getComputedStyle(document.getElementById('flightActions')).display") != "none":
+            raise Fail("the Actions buttons (they act on the real vario) are shown during a replay")
+        p.click("#rpExit")
+        p.wait("rp===null && document.getElementById('replayBar').hidden && !document.body.classList.contains('replay')", 4, "replay left")
+        # and the live screen is back, driven by the vario again
+        p.wait_text("t-flight", r"^Ready$", 8, "live screen back after the replay")
+        return "made-up log read; Ready / flight time / Landed, height, rpm 3000, wind 250 at 14 km/h, battery, speed, landing zone follow the log; pause, speed, slider, exit work; the buttons are hidden meanwhile"
+    finally:
+        p.js("window.__igc=null")
+
+
+def short_flight(v, climb_s=12):
+    """One short simulated flight: takeoff, a few seconds up, landing. Returns the log position from before the takeoff."""
+    m = on_ground_with_fix(v)
+    take_off(v, climb_to=GROUND_M + 60, vz=4.0)
+    time.sleep(climb_s)
+    v.sim(speed=0, vz=-4.0, to=GROUND_M + 2)
+    v.expect("APP", r"Landed after", m, timeout=90, what="landing")
+    time.sleep(3)
+    return m
+
+
+def t_igc_two_flights(v, a):
+    """A new flight must not delete the logs of earlier ones (the free-space target used to be larger than all the free space, so
+    every new flight deleted every earlier log: the first flight of the day was gone). Two flights, both logs must be there."""
+    before = {f["n"] for f in v.get_json("/api/logs")["files"]}
+    made = []
+    try:
+        for n in (1, 2):
+            short_flight(v)
+            now = {f["n"] for f in v.get_json("/api/logs")["files"]} - before
+            made = sorted(now)
+            if len(made) != n:
+                raise Fail(f"after flight {n} the new logs are {made}, expected {n}")
+        info = v.get_json("/api/logs")
+        return f"both flights are in the log list ({made}); {info['free'] // 1024} kB free"
+    finally:
+        for f in made:
+            v._open("/api/log?name=" + urllib.parse.quote(f), method="DELETE")
+
+
+def t_height_persist(v, a):
+    """The height trace survives a power cycle: after a flight and a restart the trace is still there, and the next flight
+    continues it after a gap."""
+    short_flight(v)
+    tr1, _ = height_trace(v)
+    if len(tr1) < 5:
+        raise Fail(f"the first flight left only {len(tr1)} samples")
+    time.sleep(2)
+    restart_vario(v, "height persist")
+    time.sleep(3)
+    tr2, _ = height_trace(v)
+    if len(tr2) != len(tr1) or tr2 != tr1:
+        raise Fail(f"after the restart the trace has {len(tr2)} samples (before: {len(tr1)}) or differs")
+    # (not on_ground_with_fix: its reset would clear the trace this test is about)
+    m = v.mark()
+    v.sim(baro="on", alt=GROUND_M, vz=0, baroOffset=150, gps="fix", sats=10, hdop=0.9, speed=0, track=90, lat=51.5, lon=0.5)
+    v.expect("RDY", r"^ready$", m, timeout=40, what="ready to fly with a good fix after the restart")
+    take_off(v, climb_to=GROUND_M + 60, vz=4.0)
+    time.sleep(8)
+    tr3, _ = height_trace(v)
+    gaps = sum(x is None for x in tr3)
+    if gaps < 10 or tr3[: len(tr1)] != tr1:
+        raise Fail(f"after the restart and a second takeoff: {len(tr3)} samples, {gaps} gap markers, first flight kept: {tr3[:len(tr1)] == tr1}")
+    v.sim(speed=0, vz=0, fly=0)
+    return f"{len(tr1)} samples kept over a restart, the next flight continues after a gap of {gaps}"
+
+
+def t_vario_only_flying(v, a):
+    """With 'Only when flying' on (the default), the vario makes no sound on the ground, even when the height changes (carried
+    upstairs, a lift): the tones start once the takeoff has been detected."""
+    saved = v.settings()["varioOnlyInFlight"]
+    try:
+        v.set(varioOnlyInFlight=True)
+        m = on_ground_with_fix(v)
+        m2 = v.mark()
+        v.sim(vz=3.0, to=GROUND_M + 25)
+        v.expect("SIM", r"reached target", m2, timeout=30, what="up 25 m on the ground")
+        v.never("TONE", r"^(climb|sink)", m2, 4)
+        if v.status()["flying"]:
+            raise Fail("the vario took a climb on the ground with a good GPS and no speed for a takeoff")
+        m3 = v.mark()
+        v.sim(speed=8, track=90)
+        time.sleep(5)
+        v.sim(vz=3.0, to=GROUND_M + 60)
+        v.expect("FLT", r"^takeoff \(gps\)", m3, timeout=15, what="takeoff")
+        v.expect("TONE", r"^climb", m3, timeout=15, what="the climb tone once flying")
+        return "silent on the ground while climbing 25 m, climb tone after takeoff"
+    finally:
+        v.set(varioOnlyInFlight=saved)
+        v.sim(speed=0, vz=0, fly=0)
+
+
 def t_ble_info(v, a):
     """The Bluetooth Device Information is the maker and "ParaVario <release>", the release being the newest git tag. The
     status reports that release (the Bluetooth read itself is not available here), and it must match the repository's tag."""
@@ -2926,6 +3100,21 @@ def t_flight(v, a):
     voids = sum(1 for x in b if x.group(8) == "V")
     if not 3 <= voids <= 12:
         raise Fail(f"expected a few 'V' (no fix) records from the GPS loss, found {voids}")
+    # Everything the Flight screen shows is in the file, so it can be replayed: RPM on every fix, the slow values every 5 s,
+    # the ground height and the landing zone in the header, takeoff and landing marked.
+    for need in ("I013639RPM", "LXPVSTART", "LXPVEND"):
+        if need not in rows:
+            raise Fail(f"IGC file lacks {need}")
+    if not any(r.startswith("LXPVGND,") for r in rows) or not any(r.startswith("LXPVLZ,") for r in rows):
+        raise Fail("IGC header lacks the ground height / landing zone records")
+    slow = [r for r in rows if r.startswith("LXPVD,")]
+    if len(slow) < len(b) // 7:
+        raise Fail(f"only {len(slow)} slow-value records for {len(b)} fixes (expected one every 5 s)")
+    sp = slow[len(slow) // 2].split(",")
+    if len(sp) != 10 or not all(re.fullmatch(r"-?\d+", x) for x in sp[1:]):
+        raise Fail(f"slow-value record malformed: {slow[len(slow) // 2]}")
+    if rows.index("LXPVSTART") > rows.index("LXPVEND") or not any(r.startswith("B") for r in rows[rows.index("LXPVSTART"):]):
+        raise Fail("takeoff / landing markers out of order")
     v._open("/api/log?name=" + urllib.parse.quote(files[0]), method="DELETE")
     return f"{len(b)} IGC records, {still} s before takeoff, alt {min(press)}..{max(press)} m, {voids} without fix"
 
@@ -3685,7 +3874,7 @@ def t_ui_flight(v, a):
     p.wait_text("t-vario", r"^[+-]0\.[01] m/s$")
     p.wait_text("t-speedv", r"^0 km/h$")
     p.wait_text("t-track", r"^track \d+°$")
-    p.wait_text("t-flight", r"^Grounded$")
+    p.wait_text("t-flight", r"^Ready$")  # powered up, no flight yet
     near(p.wait_text("t-lz", r"^\d+ m$", what="distance to the landing zone").split()[0], 0, 6, "LZ distance")
     p.wait_text("t-lzs", r"ft MSL$")
     p.wait_text("t-wind", r"^unknown$")
@@ -4039,7 +4228,7 @@ def t_ui_guidance(v, a):
     p.check_fits("flight tab in flight")
 
     v.sim(speed=0, vz=-8, to=GROUND_M)
-    p.wait_text("t-flight", r"^Grounded$", 20)
+    p.wait_text("t-flight", r"^Landed$", 20)  # a flight has taken place since power-up
     p.wait_text("t-ftime", r"^last flight \d+:\d\d$", 6, "length of the last flight after landing")
     # Only the log this test created is touched: the vario may hold real flight logs.
     fresh = [f["n"] for f in v.get_json("/api/logs")["files"] if f["n"] not in logs_before]
@@ -4314,6 +4503,12 @@ def t_ui_system(v, a):
     p.click("#dbgclear")
     if p.js("document.getElementById('dbglog').childElementCount") > 12:
         raise Fail("web page: Clear did not empty the debug log")
+    # Nothing that may not be fitted flashes up before the vario has said what is: the page starts hidden for it ("loading")
+    code, body = v._open("/")
+    if b'<body class="loading">' not in body or b"body.loading .needspec" not in body:
+        raise Fail("web page: no 'loading' state hiding the Spectrum tab and the GPS / microphone parts until the first status")
+    if p.js("document.body.classList.contains('loading')"):
+        raise Fail("web page: still 'loading' after the status has arrived")
     if p.js("document.querySelector('#systemPage #fwgo, #systemPage #fwfile')"):
         raise Fail("web page: the firmware update box is still on the Logs & system tab")
     p.check_fits("logs & system tab")
@@ -4374,7 +4569,7 @@ TESTS = [
     ("boot", t_boot), ("settings", t_settings), ("vario_climb", t_vario_climb),
     ("vario_sink", t_vario_sink), ("vario_thresholds", t_vario_thresholds), ("vario_logic", t_vario_logic),
     ("mute", t_mute), ("auto_volume", t_auto_volume), ("rpm_logic", t_rpm_logic), ("rpm", t_rpm), ("rpm_speech", t_rpm_speech), ("rpm_glitch", t_rpm_glitch), ("geo_logic", t_geo_logic), ("wind_logic", t_wind_logic),
-    ("circuit_logic", t_circuit_logic), ("battery_logic", t_battery_logic), ("flight_logic", t_flight_logic), ("button_logic", t_button_logic), ("factory_reset", t_factory_reset), ("ble_info", t_ble_info), ("height_logic", t_height_logic), ("moving_logic", t_moving_logic), ("height_trace", t_height_trace), ("maint_voice", t_maint_voice), ("names_default", t_names_default), ("status_logic", t_status_logic), ("alerts_logic", t_alerts_logic), ("resume_logic", t_resume_logic), ("audio_logic", t_audio_logic), ("rpmtrack_logic", t_rpmtrack_logic), ("baro_logic", t_baro_logic), ("wind", t_wind), ("wind_faults", t_wind_faults), ("wind_change", t_wind_change), ("circuit_right", t_circuit_right), ("circuit_slow_pilot", t_circuit_slow_pilot), ("circuit_left_wind", t_circuit_left_wind),
+    ("circuit_logic", t_circuit_logic), ("battery_logic", t_battery_logic), ("flight_logic", t_flight_logic), ("button_logic", t_button_logic), ("factory_reset", t_factory_reset), ("ble_info", t_ble_info), ("igc_two_flights", t_igc_two_flights), ("height_persist", t_height_persist), ("vario_only_flying", t_vario_only_flying), ("ui_replay", t_ui_replay), ("height_logic", t_height_logic), ("moving_logic", t_moving_logic), ("height_trace", t_height_trace), ("maint_voice", t_maint_voice), ("names_default", t_names_default), ("status_logic", t_status_logic), ("alerts_logic", t_alerts_logic), ("resume_logic", t_resume_logic), ("audio_logic", t_audio_logic), ("rpmtrack_logic", t_rpmtrack_logic), ("baro_logic", t_baro_logic), ("wind", t_wind), ("wind_faults", t_wind_faults), ("wind_change", t_wind_change), ("circuit_right", t_circuit_right), ("circuit_slow_pilot", t_circuit_slow_pilot), ("circuit_left_wind", t_circuit_left_wind),
     ("circuit_events", t_circuit_events),
     ("fault_baro", t_fault_baro), ("fault_gps", t_fault_gps), ("fault_battery", t_fault_battery), ("landing_gps_quality", t_landing_gps_quality), ("landing_hover", t_landing_hover), ("button_actions", t_button_actions), ("alerts_flight", t_alerts_flight), ("resume_flight", t_resume_flight), ("battery_flight", t_battery_flight),
     ("memory_events", t_memory_events), ("soak", t_soak),

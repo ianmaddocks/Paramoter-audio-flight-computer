@@ -221,6 +221,7 @@ void handleStatus() {
   doc["git"] = PV_GIT;
   doc["release"] = PV_RELEASE;  // the newest git tag, also in the Bluetooth model name ("ParaVario <release>")
   doc["flying"] = n.flying;
+  doc["flights"] = app.flights;
   doc["flightTime"] = n.flightTimeS;
   doc["agl"] = n.aglM;
   doc["altMsl"] = n.altMslM;

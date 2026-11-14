@@ -109,6 +109,14 @@ R"HTML(#specCv{width:100%;height:280px;display:block}
 #endif
 R"HTML(
 body.nogps .needgps,body.nomic .needmic,body.nospec .needspec{display:none}
+/* Until the vario has said which parts are fitted (and whether the Spectrum tab is on), hide what may not be there, so it does not flash up and go. */
+body.loading .needgps,body.loading .needmic,body.loading .needspec{display:none}
+/* Replay: the screen shows a log, so the buttons that act on the vario are hidden */
+body.replay #flightActions,body.replay #groundActions,body.replay #b-fs{display:none!important}
+#replayBar{border:2px solid var(--acc)}
+.rprow{display:flex;gap:8px;align-items:center;margin:8px 0 4px}
+.rprow input[type=range]{flex:1;min-width:0}
+.rprow button{min-width:56px}
 #helpDoc{font-size:14px;line-height:1.5;overflow-wrap:anywhere}
 #helpDoc h1{font-size:20px;margin:14px 0 6px}#helpDoc h2{font-size:17px;margin:18px 0 6px}#helpDoc h3{font-size:15px;margin:14px 0 4px}
 #helpDoc h4,#helpDoc h5,#helpDoc h6{font-size:14px;margin:10px 0 4px}
@@ -132,7 +140,7 @@ summary .help a{margin-left:12px;color:var(--acc)}
 #hgCv{width:100%;height:56px;display:block;margin-top:2px}
 .tiles.more{margin-top:10px}
 .badge{font-size:11px;background:var(--warn);color:#000;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle}
-</style></head><body>
+</style></head><body class="loading">
 <nav class="tabs" role="tablist" aria-label="Main views">
 <button type="button" role="tab" aria-selected="true" data-tab="flight">Flight</button>
 <button type="button" role="tab" aria-selected="false" data-tab="system">Logs &amp; system</button>
@@ -146,6 +154,9 @@ R"HTML(
 <button type="button" role="tab" aria-selected="false" data-tab="help">Help</button>
 </nav>
 <div id="flightPage" class="page" role="tabpanel">
+<section class="card" id="replayBar" hidden><b>Replay</b> <span class="mut" id="rpName"></span>
+<div class="rprow"><button id="rpPlay">Pause</button><input type="range" id="rpSlider" min="0" max="1" value="0" step="1" aria-label="Position in the flight"><button id="rpSpeed">1×</button><button id="rpExit" class="dng">Exit</button></div>
+<div class="mut" id="rpTime"></div></section>
 <div id="ready" class="ready wait"><b id="ready-t">Checking…</b><span id="ready-s"></span></div>
 <div id="alerts" class="alerts" role="alert" aria-live="assertive"></div>
 <section class="tiles" id="tilesMain">
@@ -421,6 +432,7 @@ $('#helpDoc').onclick=e=>{
 // between flights), fetched every few seconds.
 let hgData=null,hgBusy=false;
 async function pollHeight(){
+  if(rp)return;
   if(hgBusy||document.hidden||$('#flightPage').hidden)return;hgBusy=true;
   try{
     const b=await fetch('/api/height',{cache:'no-store'}).then(r=>r.arrayBuffer());
@@ -471,13 +483,21 @@ function setAlerts(s,G,hw,bm){
   el.dataset.k=key;el.innerHTML='';
   al.forEach(a=>{const d=document.createElement('div');d.className='alert '+a[0];d.textContent=a[1];el.appendChild(d)});
 }
+setTimeout(()=>document.body.classList.remove('loading'),4000);  // a vario that does not answer: show the page as it is
 async function poll(){
   try{
     const r=await fetch('/api/status',{cache:'no-store'});const s=await r.json();
+    if(rp){rp.hw=s.hw||rp.hw;return}  // replaying a log: the screen follows the log, not the vario
+    renderStatus(s,false);
+  }catch(e){}
+}
+function renderStatus(s,replay){
+  {
     // Optional hardware: tiles, buttons and tabs for parts that are not fitted are hidden.
     const hw=s.hw||{gps:true,mic:true,spectrum:true},G=s.gps||{};
     document.body.classList.toggle('nogps',!hw.gps);document.body.classList.toggle('nomic',!hw.mic);document.body.classList.toggle('nospec',hw.spectrum===false);
     hwNow=hw;
+    document.body.classList.remove('loading');
     const k=hw.gps+'/'+hw.mic;if(k!==layKey){layKey=k;layout();buildHelp();addGroupHelp()}
     if(schemaKey&&k!==schemaKey&&!saveInFlight&&!settingsBusy){settingsBusy=true;loadSettings().catch(()=>{}).finally(()=>{settingsBusy=false})}
     document.body.classList.toggle('flying',!!s.flying);
@@ -486,10 +506,10 @@ async function poll(){
     txt('t-vario',(s.vario>=0?'+':'')+s.vario.toFixed(1)+' m/s');txt('t-mute',s.muted?'muted':'');
     txt('t-speedv',G.fix?fS(G.speed):'–');
     const L=s.glide||{};txt('t-glide',L.now!=null?fR(L.now):'–');txt('t-glides',(cfg.glideLongS||60)+' s avg '+(L.avg!=null?fR(L.avg):'–'));txt('t-track',G.fix?'track '+Math.round(G.track)+'°':'');
-    // Flight time: the elapsed time is the main value while flying; on the ground it says Grounded and,
-    // after a flight, the length of the last one.
-    txt('t-flight',s.flying?fT(s.flightTime):'Grounded');
-    txt('t-ftime',s.flying?'Flying'+(s.logging?' · logging':''):s.flightTime?'last flight '+fT(s.flightTime):'');
+    // Flight time: the elapsed time is the main value while flying; on the ground it says Ready from power-up, and Landed
+    // once a flight has taken place since power-up (with the length of that flight).
+    txt('t-flight',s.flying?fT(s.flightTime):s.flights>0?'Landed':'Ready');
+    txt('t-ftime',s.flying?'Flying'+(s.logging?' · logging':''):s.flights>0&&s.flightTime?'last flight '+fT(s.flightTime):'');
     $('#b-approach').classList.toggle('on',s.mode=='approach');$('#b-emergency').classList.toggle('on',s.mode=='emergency');
     document.querySelectorAll('.b-mute').forEach(b=>{b.textContent=s.muted?'Unmute vario':'Mute vario'});
     // Directions are arrows relative to the way the pilot is travelling (up = straight ahead) once the GPS
@@ -531,13 +551,15 @@ async function poll(){
       txt('t-noise',s.mic.noise!=null?s.mic.noise.toFixed(0)+' dBFS':'–');
       txt('t-noises',s.mic.ok?'vario vol '+s.vol.vario+'%':'');
     }
+    if(!replay){
     txt('fwver','Installed: '+(s.version||'unknown')+(s.git?' · git '+s.git:'')+(s.debug?' (debug build)':' (release build)'));
     txt('hver','v'+(s.version||'unknown')+(s.debug?' debug':''));
     txt('sys','Uptime '+fT(s.uptime)+' · heap '+Math.round(s.heap/1024)+' kB · BLE clients '+s.ble+' · baro '+(s.baro.ok?(s.baro.pressure/100).toFixed(1)+' hPa':'missing'));
     wifiInfo=s.wifi;showWifi();
     // At the bottom of Settings, only while a change that needs a restart is waiting (the vario says so, so it survives a page reload).
     $('#restartBar').hidden=!(s.restartNeeded||(s.wifi&&s.wifi.restart));
-  }catch(e){}
+    }
+  }
 }
 
 function syncInputs(f){
@@ -744,11 +766,111 @@ async function loadLogs(){
       const sz=document.createElement('span');sz.className='mut';sz.textContent=Math.round(f.s/1024)+' kB';
       const del=document.createElement('button');del.textContent='Delete';del.className='dng';
       del.onclick=async()=>{if(!confirm('Delete '+f.n+'?'))return;await fetch('/api/log?name='+encodeURIComponent(f.n),{method:'DELETE'});loadLogs()};
-      row.append(a,sz,del);el.appendChild(row);
+      const rb=document.createElement('button');rb.textContent='Replay';rb.onclick=()=>replayStart(f.n);
+      row.append(a,sz,rb,del);el.appendChild(row);
     }
-    const p=document.createElement('p');p.className='mut';p.textContent=Math.round(j.free/1024)+' kB free';el.appendChild(p);
+    const p=document.createElement('p');p.className='mut';p.textContent=Math.round(j.free/1024)+' kB free: room for about '+Math.max(0,Math.round((j.free-61440)/50/60))+' more minutes of flight before the oldest logs are deleted';el.appendChild(p);
   }catch(e){$('#logs').textContent='Could not load logs'}
 }
+
+// ---- Replay: the Flight screen driven by a flight log. The log holds a fix every second (position, height, engine RPM) and the
+// slow values every 5 s (wind, battery, satellites, noise, flags); ground speed, track, vario and glide are worked out here.
+let rp=null;
+function parseIgc(text){
+  const d={fix:[],start:0,end:-1,gnd:null,lz:null,first:null};let slow=null,day=0,prev=-1;
+  for(const raw of text.split('\n')){
+    const l=raw.trim();
+    if(l[0]==='B'&&l.length>=35){
+      let t=+l.slice(1,3)*3600+ +l.slice(3,5)*60+ +l.slice(5,7);if(prev>=0&&t<prev-43200)day+=86400;prev=t;
+      d.fix.push({t:t+day,lat:(+l.slice(7,9)+ +l.slice(9,14)/60000)*(l[14]==='S'?-1:1),lon:(+l.slice(15,18)+ +l.slice(18,23)/60000)*(l[23]==='W'?-1:1),
+        ok:l[24]==='A',alt:+l.slice(25,30),rpm:l.length>=39?+l.slice(35,39):0,slow});
+    }else if(l.startsWith('LXPVD,')){
+      const q=l.slice(6).split(',').map(Number);slow={flags:q[0],wd:q[1],ws:q[2],bv:q[3],bp:q[4],bm:q[5],sats:q[6],hdop:q[7],noise:q[8]};
+      if(!d.first)d.first=slow;if(d.fix.length)d.fix[d.fix.length-1].slow=slow;
+    }else if(l.startsWith('LXPVGND,'))d.gnd=+l.slice(8);
+    else if(l.startsWith('LXPVLZ,')&&!l.endsWith('none')){const q=l.slice(7).split(',').map(Number);d.lz={lat:q[0],lon:q[1],elev:q[2]}}
+    else if(l==='LXPVSTART')d.start=d.fix.length;
+    else if(l==='LXPVEND')d.end=d.fix.length-1;
+  }
+  return d;
+}
+const rpDist=(a,b)=>Math.hypot((b.lat-a.lat)*111320,(b.lon-a.lon)*111320*Math.cos(a.lat*Math.PI/180));
+const rpBrg=(a,b)=>(Math.atan2((b.lon-a.lon)*Math.cos(a.lat*Math.PI/180),b.lat-a.lat)*180/Math.PI+360)%360;
+function rpSpeed(F,i){const j=Math.max(0,i-3);return i>j?rpDist(F[j],F[i])/Math.max(1,F[i].t-F[j].t):0}
+function rpTrack(F,i){for(let k=i;k>=1;k--){const j=Math.max(0,k-3);if(rpDist(F[j],F[k])>3)return rpBrg(F[j],F[k])}return 0}
+// "A direction of travel exists": the vario's hysteresis (show above one speed, hide below a lower one, each held), run over the
+// seconds before this one so jumping the slider gives the same answer as playing up to it.
+function rpMoving(F,i){
+  const show=cfg.moveShowMs!=null?cfg.moveShowMs:2,hide=Math.min(cfg.moveHideMs!=null?cfg.moveHideMs:1,show),hold=cfg.moveHoldS!=null?cfg.moveHoldS:3;
+  let on=false,since=0;
+  for(let k=Math.max(0,i-40);k<=i;k++){
+    if(!F[k].ok){on=false;since=0;continue}
+    const v=rpSpeed(F,k),ch=on?v<hide:v>=show;
+    if(!ch){since=0;continue}
+    if(!since)since=F[k].t;if(F[k].t-since>=hold){on=!on;since=0}
+  }
+  return on;
+}
+function rpGlide(F,i,w){
+  const j=Math.max(0,i-w);if(j===i)return null;
+  const drop=F[j].alt-F[i].alt,dist=rpDist(F[j],F[i]);
+  return drop>1&&F[i].t-F[j].t>=2?Math.min(99,dist/drop):null;
+}
+function replayStatus(i){
+  const d=rp.d,F=d.fix,f=F[i],sl=f.slow||d.first||{flags:8,wd:-1,ws:-1,bv:0,bp:0,bm:-1,sats:0,hdop:99,noise:0};
+  const gnd=d.gnd!=null?d.gnd:F[0].alt,flying=i>=d.start&&(d.end<0||i<d.end),landed=d.end>=0&&i>=d.end;
+  const speed=rpSpeed(F,i),track=rpTrack(F,i),j=Math.max(0,i-5);
+  const gs=cfg.glideShortS||3,gl=cfg.glideLongS||20;
+  const s={hw:rp.hw||{gps:true,mic:true,spectrum:true},flying,flights:(flying||landed)?1:0,
+    flightTime:flying?f.t-F[d.start].t:landed?F[d.end].t-F[d.start].t:0,
+    agl:f.alt-gnd,altMsl:f.alt,vario:i>j?(f.alt-F[j].alt)/Math.max(1,f.t-F[j].t):0,muted:!!(sl.flags&2),
+    gps:{link:true,fix:f.ok,sats:sl.sats,hdop:sl.hdop/10,speed,track,moving:rpMoving(F,i)},
+    glide:{now:rpGlide(F,i,Math.max(3,gs)),avg:rpGlide(F,i,gl)},mode:'none',logging:false,
+    lz:d.lz?{valid:true,dist:rpDist(f,d.lz),brg:rpBrg(f,d.lz),elev:d.lz.elev}:{valid:false},
+    wind:sl.wd>=0?{valid:true,from:sl.wd,speed:sl.ws/10,src:'log'}:{valid:false},
+    ready:true,notReady:'',minSats:cfg.readyMinSats||6,
+    batt:{v:sl.bv/100,pct:sl.bp,min:sl.bm>=0?sl.bm:null},
+    mic:{ok:!!(sl.flags&16),rpm:f.rpm,raw:f.rpm,conf:5,noise:-sl.noise},vol:{vario:cfg.varioVolume||0},
+    baro:{ok:!!(sl.flags&8),pressure:101325},wifi:null};
+  return s;
+}
+function rpFrame(){
+  const d=rp.d,F=d.fix,i=Math.max(0,Math.min(F.length-1,Math.floor(rp.pos)));rp.i=i;
+  try{
+    renderStatus(replayStatus(i),true);
+    const a=[];for(let k=Math.max(d.start,i-599);k<=i;k+=2)a.push(F[k].alt-(d.gnd!=null?d.gnd:F[0].alt));
+    hgData={step:2,a};drawHeight();
+  }catch(e){}
+  $('#rpSlider').value=i;
+  const rel=F[i].t-F[0].t,tot=F[F.length-1].t-F[0].t,tk=d.start>0?' · takeoff at '+fT(F[d.start].t-F[0].t):'';
+  txt('rpTime',fT(rel)+' / '+fT(tot)+tk);
+}
+function rpTick(){
+  if(!rp||!rp.playing)return;
+  rp.pos+=rp.speed*0.25;
+  if(rp.pos>=rp.d.fix.length-1){rp.pos=rp.d.fix.length-1;rp.playing=false;txt('rpPlay','Play')}
+  rpFrame();
+}
+async function replayStart(name){
+  try{
+    const t=await fetch('/api/log?name='+encodeURIComponent(name)).then(r=>r.text());
+    const d=parseIgc(t);if(d.fix.length<2){toast('Nothing to replay in '+name);return}
+    if(rp)clearInterval(rp.timer);
+    rp={name,d,pos:Math.max(0,d.start-5),i:0,playing:true,speed:1,hw:hwNow,timer:0};
+    document.body.classList.add('replay');$('#replayBar').hidden=false;
+    txt('rpName',name);$('#rpSlider').max=d.fix.length-1;txt('rpPlay','Pause');txt('rpSpeed','1×');
+    selectTab('flight');rpFrame();rp.timer=setInterval(rpTick,250);
+  }catch(e){toast('Could not load the log')}
+}
+function replayExit(){
+  if(!rp)return;clearInterval(rp.timer);rp=null;
+  document.body.classList.remove('replay');$('#replayBar').hidden=true;hgData=null;
+  poll();pollHeight();
+}
+$('#rpPlay').onclick=()=>{if(!rp)return;if(!rp.playing&&rp.pos>=rp.d.fix.length-1)rp.pos=Math.max(0,rp.d.start-5);rp.playing=!rp.playing;txt('rpPlay',rp.playing?'Pause':'Play')};
+$('#rpSpeed').onclick=()=>{if(!rp)return;rp.speed=rp.speed===1?4:rp.speed===4?16:1;txt('rpSpeed',rp.speed+'×')};
+$('#rpSlider').oninput=()=>{if(!rp)return;rp.pos=+$('#rpSlider').value;rpFrame()};
+$('#rpExit').onclick=replayExit;
 
 let dbgNext=0,dbgPaused=false,dbgText=[],dbgBusy=false;
 const DBG_MAX=1500;

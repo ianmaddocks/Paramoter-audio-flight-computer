@@ -1,0 +1,82 @@
+ParaVario 20261114-175858 (b8f5414-dirty) at paravario.local, 18 tests
+  PASS  vario_climb       21.3 s  tone 800 Hz, heard at -31 dBFS (+48 dB on silence)
+        WARNING: somebody else was using the vario during this test (before: web pages 2, Wi-Fi stations 1, BLE 0; after: web pages 1, Wi-Fi stations 1, BLE 0): its timing, memory and log results may be affected
+  PASS  vario_logic        1.1 s  43 cases passed: thresholds exact (>= climb, <= sink), formulas and limits, all silencing conditions
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 1, BLE 0; after: web pages 1, Wi-Fi stations 1, BLE 0): its timing, memory and log results may be affected
+  PASS  flight_logic       1.0 s  46 cases passed: speed rule unchanged, no landing from a missing or weak GPS at height, limits exact
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 1, BLE 0; after: web pages 1, Wi-Fi stations 1, BLE 0): its timing, memory and log results may be affected
+  PASS  ble_info           1.5 s  release 1.0: the Bluetooth model reads 'ParaVario 1.0', the manufacturer 'Ian Maddocks' (read over Bluetooth is not tested here)
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 1, BLE 0; after: web pages 1, Wi-Fi stations 1, BLE 0): its timing, memory and log results may be affected
+  PASS  igc_two_flights   91.7 s  both flights are in the log list (['210101-120105.igc', '210101-120154.igc']); 156 kB free
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 1, BLE 0; after: web pages 0, Wi-Fi stations 1, BLE 0): its timing, memory and log results may be affected
+  FAIL  height_persist    79.3 s  after the restart and a second takeoff: 5 samples, 0 gap markers, first flight kept: False
+        state: uptime 33 s, flying True, agl 41 m, vario +3.99, baro ok True, fix True, wind takeoff 90/0.0, heap 38520 (lowest 23912)
+        sim: {"baro": 1, "alt": 142.2, "vz": 4.0, "gps": "fix", "lat": 51.5, "lon": 0.501821, "speed": 8.0, "track": 90.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [   29.590] D NAV: baro=1 p=101601 t=20.0 std=-22.9 msl=127.1 agl=27.1 vs=+3.99 fly=1 ft=8
+          [   29.591] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=3.56V heap=44260
+          [   30.191] D VOL: noise -41.6 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [   30.592] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.501489 gs=8.0 trk=90 gpsAlt=130.7
+          [   30.593] D NAV: baro=1 p=101553 t=20.0 std=-18.9 msl=131.0 agl=31.0 vs=+3.99 fly=1 ft=9
+          [   30.593] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=3.56V heap=44260
+          [   30.693] D SAY: [normal] gps_fix
+          [   30.820] D MIC: noise=-41.3 (blk -40.5) dBFS rpm=8822 raw=8855 conf=8.2 fs=1960 tone=1100 clear=0 ovf=791
+          [   31.194] D ANN: climbed through boundary 30.5 m (agl 33.5 m, band 2)
+          [   31.194] D SAY: [normal] n1 hundred feet
+          [   31.596] D BAT: v=3.558 pct=9 min=26 learned=0
+          [   31.596] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.501605 gs=8.0 trk=90 gpsAlt=134.7
+          [   31.596] D NAV: baro=1 p=101505 t=20.0 std=-14.9 msl=135.0 agl=35.1 vs=+4.01 fly=1 ft=10
+          [   31.597] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=3.56V heap=39092
+          [   32.599] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.501721 gs=8.0 trk=90 gpsAlt=138.7
+          [   32.600] D NAV: baro=1 p=101456 t=20.0 std=-10.9 msl=139.0 agl=39.1 vs=+3.99 fly=1 ft=11
+          [   32.600] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=3.56V heap=39092
+          [   32.865] D MIC: noise=-41.3 (blk -47.1) dBFS rpm=8822 raw=4685 conf=2.2 fs=2012 tone=1099 clear=0 ovf=1047
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 1, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  vario_only_flying  30.1 s  silent on the ground while climbing 25 m, climb tone after takeoff
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  FAIL  ui_replay         14.9 s  flight time tile: before takeoff '–', in flight '–', after landing '–'
+        state: uptime 79 s, flying False, agl -0 m, vario -0.01, baro ok True, fix True, wind none 0/0.0, heap 46300 (lowest 16928)
+        sim: {"baro": 1, "alt": 100.0, "vz": 0.0, "gps": "fix", "lat": 51.5, "lon": 0.5, "speed": 0.0, "track": 0.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [   74.746] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=none 0/0.0 mode=none/off mute=0 batt=3.55V heap=43144
+          [   75.565] D VOL: noise -59.4 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [   75.767] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.500000 gs=0.0 trk=0 gpsAlt=100.0
+          [   75.768] D NAV: baro=1 p=101927 t=20.0 std=-50.0 msl=100.0 agl=0.0 vs=-0.01 fly=0 ft=0
+          [   75.768] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=none 0/0.0 mode=none/off mute=0 batt=3.55V heap=47580
+          [   76.275] D MIC: noise=-59.4 (blk -59.2) dBFS rpm=0 raw=1435 conf=1.7 fs=2003 tone=0 clear=1 ovf=6391
+          [   76.798] D BAT: v=3.553 pct=9 min=25 learned=0
+          [   76.799] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.500000 gs=0.0 trk=0 gpsAlt=100.0
+          [   76.799] D NAV: baro=1 p=101927 t=20.0 std=-50.0 msl=100.0 agl=0.0 vs=+0.03 fly=0 ft=0
+          [   76.799] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=none 0/0.0 mode=none/off mute=0 batt=3.55V heap=46164
+          [   77.802] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.500000 gs=0.0 trk=0 gpsAlt=100.0
+          [   77.802] D NAV: baro=1 p=101927 t=20.0 std=-50.0 msl=100.0 agl=-0.0 vs=-0.02 fly=0 ft=0
+          [   77.803] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=none 0/0.0 mode=none/off mute=0 batt=3.55V heap=48848
+          [   78.019] D MIC: noise=-59.4 (blk -59.8) dBFS rpm=0 raw=2635 conf=1.5 fs=1839 tone=0 clear=1 ovf=6615
+          [   78.804] D BAT: v=3.554 pct=9 min=26 learned=0
+          [   78.804] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.500000 gs=0.0 trk=0 gpsAlt=100.0
+          [   78.805] D NAV: baro=1 p=101928 t=20.0 std=-50.0 msl=100.0 agl=-0.0 vs=-0.01 fly=0 ft=0
+          [   78.805] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=none 0/0.0 mode=none/off mute=0 batt=3.55V heap=43864
+  PASS  height_logic       1.3 s  10 cases passed: no samples on the ground, trace kept after landing, one gap between flights, ring
+  PASS  moving_logic       1.5 s  14 cases passed: show limit with hold, hide limit with hold, flicker ignored, no fix hides at once
+  PASS  alerts_flight    132.6 s  barometer failed / back spoken in flight; routine height calls: 2+ in 26 s normally, none during the approach
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  FAIL  resume_flight    400.1 s  vario not reachable (/api/settings): <urlopen error [Errno 11001] getaddrinfo failed>
+        state: could not read the status (vario not reachable (/api/status): <urlopen error [Errno 11001] getaddrinfo failed>)
+        sim: could not read (vario not reachable (/api/sim): <urlopen error [Errno 11001] getaddrinfo failed>)
+        log: could not read (vario not reachable (/api/debuglog?since=346): <urlopen error [Errno 11001] getaddrinfo failed>)
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: unknown): its timing, memory and log results may be affected
+  FAIL  battery_flight   could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  flight           could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_flight        could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_layout        could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_settings      could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_system        could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+Cleanup: close the browser;
+WARNING: cleanup step 'simulation off' failed: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+WARNING: cleanup step 'flight logic reset' failed: vario not reachable (/api/sim?reset=1): <urlopen error [Errno 11001] getaddrinfo failed>
+WARNING: cleanup step 'settings restored' failed: vario not reachable (/api/settings): <urlopen error [Errno 11001] getaddrinfo failed>
+WARNING: cleanup step 'leftover test logs' failed: vario not reachable (/api/logs): <urlopen error [Errno 11001] getaddrinfo failed>
+
+NOTE: 9 test(s) ran while a phone, browser or BLE client was connected: vario_climb, vario_logic, flight_logic, ble_info, igc_two_flights, height_persist, vario_only_flying, alerts_flight, resume_flight
+
+9 passed, 9 failed

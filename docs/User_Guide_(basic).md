@@ -34,7 +34,7 @@ A rising tone 0.8 s into a hold says "keep holding"; let go before 1.5 s and not
 
 Heights are measured from where you took off, not from sea level and not from the ground below you.
 
-> **No beeps on the ground?** That is intended. With the default setting *Only when flying* the beeps start once takeoff is detected. To hear the beeps while testing the vario on the ground, turn that setting off, or just wait until you are airborne.
+> **No beeps on the ground?** That is intended: the beeps start once takeoff is detected and stop after landing, and there is no setting to change that.
 
 ## What you will hear
 
@@ -131,7 +131,7 @@ The Battery tile shows the percentage, the voltage, and an estimate of the time 
 
 | What happens | Likely reason |
 |---|---|
-| No beeps on the ground | *Only when flying* is on and takeoff has not been detected yet. |
+| No beeps on the ground | The beeps only sound while flying, and takeoff has not been detected yet. |
 | No beeps in flight | The beeps are muted (the Vario tile says `muted`; press the button), or *Vario beeps enabled* / *Climb beeps* is off, or the volume is 0. |
 | Banner says `Vario settling` for a long time | The vario is being moved or is in a draught. Keep it still for a few seconds. |
 | Banner says `Barometer not working` | The barometer is not detected; check its wiring. |

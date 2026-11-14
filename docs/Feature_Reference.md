@@ -261,10 +261,8 @@ The master switch for the beeps.
 
 Turn off to have no beeps and no sink alarm at all. Spoken calls are not affected. Default: On.
 
-### Only when flying
-Keep the beeps off on the ground.
-
-With this on, the vario is silent while you walk to the launch and during the takeoff run, and starts once takeoff has been detected. On a Basic vario that is after you have climbed about 50 feet. Turn it off to hear beeps all the time, for example to test the vario by lifting it. Default: On.
+### The beeps only sound while flying
+There is no setting for this: the vario makes **no beeps and no sink alarm on the ground**, however the height changes (walking up to the launch, lifting it, a lift), and starts once takeoff has been detected. On a Basic vario that is after you have climbed about 20 feet. After landing the beeps stop again. (Earlier versions had a setting, *Only when flying*; it is gone, and a stored value for it is ignored.) Spoken calls are not affected.
 
 ### Climb beeps
 Switch the climb beeps on or off.

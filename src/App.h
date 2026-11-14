@@ -44,6 +44,7 @@ struct App {
   IgcLogger logger;
 
   bool varioMuted = false;
+  int flights = 0;  // takeoffs (and resumed flights) since power-up: the Flight time tile says Ready before the first, Landed after
 };
 
 extern App app;
