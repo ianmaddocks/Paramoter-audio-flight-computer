@@ -2291,7 +2291,7 @@ def t_ui_replay(v, a):
             raise Fail(f"in flight: rpm {f['rpm']!r}, wind {f['wind']!r} / {f['winds']!r}, battery {f['batt']!r} / {f['batts']!r}")
         if not f["compass"] or not f["speed"].startswith("29 km/h"):
             raise Fail(f"in flight: speed {f['speed']!r}, compass shown {f['compass']}")
-        if not re.fullmatch(r"\d+ m|\d\.\d km", f["lz"]) or f["gps"] != "strong" or not f["gpss"].startswith("12 satellites"):
+        if not re.fullmatch(r"\d+ m|\d\.\d km", f["lz"]) or f["gps"] != "strong" or not f["gpss"].startswith("10 satellites"):
             raise Fail(f"in flight: landing zone {f['lz']!r}, GPS {f['gps']!r} / {f['gpss']!r}")
         if f["time"].split(" / ")[0] != "1:20" or int(f["slider"]) != 80:
             raise Fail(f"time label {f['time']!r} / slider {f['slider']}")
@@ -3102,7 +3102,7 @@ def t_flight(v, a):
             raise Fail(f"IGC file lacks {need}")
     if not any(r.startswith("LXPVGND,") for r in rows) or not any(r.startswith("LXPVLZ,") for r in rows) or not any(r.startswith("LXPVVOL,") for r in rows):
         raise Fail("IGC header lacks the ground height / landing zone / volume adjustment records")
-    vols = [(int(x.group(11)), int(x.group(12))) for x in b]
+    vols = [(int(x.group(12)), int(x.group(13))) for x in b]  # vario and speech volume applied (group 11 is the RPM)
     if not all(0 <= vv <= 100 and 0 <= sv <= 100 for vv, sv in vols) or max(vv for vv, sv in vols) == 0:
         raise Fail(f"the volumes in the B records are not percentages of a working vario: {vols[:3]} ... {vols[-3:]}")
     slow = [r for r in rows if r.startswith("LXPVD,")]
@@ -4249,7 +4249,7 @@ def t_ui_guidance(v, a):
         raise Fail(f"web page: log download link is {href}")
     if not re.search(r"^\d+ kB$", p.js(f"{row}.querySelector('span').textContent")):
         raise Fail("web page: log size not shown")
-    if not re.search(r"^\d+ kB free$", p.js("document.querySelector('#logs p').textContent")):
+    if not re.search(r"^\d+ kB free: room for about \d+ more minutes of flight before the oldest logs are deleted$", p.js("document.querySelector('#logs p').textContent")):
         raise Fail("web page: free space line wrong")
     p.js(f"{row}.querySelector('button').click()")  # Delete (the confirm box is auto-accepted)
     p.wait(f"!{row}", 6, "log removed from the list after Delete")

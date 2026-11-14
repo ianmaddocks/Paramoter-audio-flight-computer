@@ -64,3 +64,48 @@ ParaVario 20261114-203339 (c17bdde-dirty) at paravario.local, 26 tests
         WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
   PASS  guidance          77.9 s  refusals, emergency 6 o'clock + on course, approach start and cancel
         WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  speech            24.2 s  clip sequence ok, speech peaks +36 dB over the quiet room
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  ui_flight         35.8 s  banner, 11 tiles, height graph and layout correct; speed, vario, battery and GPS changes followed
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  ui_pilot          53.5 s  ground: setup card shown, no alerts, GPS tile says strong; flight: the ground card is gone, the in-flight card holds Landing support, Emergency support, Update me and Mute; Update me speaks; alert strip: low and critical battery, barometer, no GPS; each clears; battery tile '~3h 54m'; noise tile only on request; Quick settings first, same settings as their groups, saved; Reset flight state button ends the flight and brings the ground Actions card back
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  ui_layout         88.3 s  no text cut off, nothing overlapping or off screen in: ground view, flying, 120 km/h, mph and miles, knots and metres, three alerts, 320 px wide, settings and logs tabs (screenshots in results\ui)
+  PASS  ui_actions        25.8 s  mute, test voice, Use current position (refused without a fix, accepted with one), LZ mode back to takeoff in Settings
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  FAIL  ui_guidance       70.9 s  web page: free space line wrong
+        state: uptime 662 s, flying False, agl 0 m, vario -8.00, baro ok True, fix True, wind takeoff 90/0.0, heap 36040 (lowest 1996)
+        sim: {"baro": 1, "alt": 100.0, "vz": 0.0, "gps": "fix", "lat": 51.5, "lon": 0.50461, "speed": 0.0, "track": 90.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [  660.940] D NAV: baro=1 p=101729 t=20.0 std=-33.6 msl=116.5 agl=16.5 vs=-8.00 fly=1 ft=47
+          [  660.940] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.06V heap=27520
+          [  661.161] D SAY: [high] landed flight_time n0 minutes
+          [  661.161] I APP: Landed after 47 s
+          [  661.161] I UI: 2 more tile events in the last minute were not logged (flickering)
+          [  661.161] I UI: grounded: Actions card for the ground, height trace stopped
+          [  661.443] D VOL: noise -59.9 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [  662.070] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.504610 gs=0.0 trk=90 gpsAlt=107.3
+          [  662.071] D NAV: baro=1 p=101838 t=20.0 std=-42.7 msl=107.4 agl=0.0 vs=-7.98 fly=0 ft=47
+          [  662.071] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.06V heap=32524
+          [  662.545] D BAT: v=4.064 pct=94 min=-1 learned=0
+          [  662.984] I SIM: reached target altitude 100.0 m
+          [  663.037] D MIC: noise=-59.9 (blk -47.0) dBFS rpm=0 raw=9468 conf=2.5 fs=2004 tone=190 clear=0 ovf=81728
+          [  663.144] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.504610 gs=0.0 trk=90 gpsAlt=100.0
+          [  663.145] D NAV: baro=1 p=101927 t=20.0 std=-50.8 msl=99.2 agl=0.0 vs=-7.56 fly=0 ft=47
+          [  663.145] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.06V heap=30868
+          [  663.155] D TONE: sink 199 Hz
+          [  663.255] D TONE: sink 210 Hz
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  ui_settings       43.6 s  17 groups, 101 settings; number, feet, list, checkbox gate, unit switch, text
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  ui_spectrum       24.7 s  4.1 updates/s, tone mark and peak at 290 Hz, pause and floor ok
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  ui_system         31.2 s  5 tabs switch, debug log live/pause/clear, version and system line
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  ui_help           28.6 s  13 links on the Help tab, 19 settings groups linked, guides rendered in the page; the guide for a vario without a GPS is offered then
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+Cleanup: close the browser, simulation off, flight logic reset, settings restored, 22 leftover test log(s) deleted, leftover test logs.
+
+NOTE: 16 test(s) ran while a phone, browser or BLE client was connected: mute, rpm_speech, ble_info, voice_pack, igc_two_flights, flight, guidance, speech, ui_flight, ui_pilot, ui_actions, ui_guidance, ui_settings, ui_spectrum, ui_system, ui_help
+
+23 passed, 3 failed
