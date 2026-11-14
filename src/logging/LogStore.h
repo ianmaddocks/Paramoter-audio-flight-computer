@@ -9,7 +9,8 @@
 // A flight is stored in pieces under /logs, all named after the flight (its GPS date and time, "yymmdd-hhmmss"):
 //   <id>.hdr    the file header (the A, H, I and L records), written once when the flight starts
 //   <id>.s000   the first stretch of fixes (about 32 kB, 10 minutes), then .s001, .s002 ... one after the other
-//   .t000       a stretch that was thinned to one fix in 5 (to make room),  .u000 one fix in 20
+//   .t000       a stretch thinned to one fix in 5 (to make room);  .m000 the same with only the minimum an IGC file needs (the
+//               time, position, fix flag and the two altitudes of each fix: no RPM, volumes or slow records), .u000 that at one fix in 20
 //   <id>.igc    a log from older firmware: one whole file
 // Downloading a flight sends the header and then the stretches in order, so it is the same IGC file as ever. Pieces are what
 // make it cheap to make room in the middle of a long flight: the oldest stretch is simply deleted (the start is trimmed), or
@@ -44,9 +45,10 @@ size_t freeBytes();
 
 // Makes at least minFree bytes free, doing as little harm as it can, in this order:
 //   1. delete logs from earlier days (the owner downloads each day's logs at the end of the day),
-//   2. thin today's logs to one fix in 5, oldest first, then to one in 20 (the current flight's finished stretches too),
-//   3. delete today's older logs,
-//   4. trim the start of the current flight (its oldest finished stretches).
+//   2. thin today's logs to one fix in 5, oldest first (the current flight's finished stretches too),
+//   3. cut today's other logs down to the minimum an IGC file needs (at one fix in 5), then to one fix in 20,
+//   4. delete today's older logs,
+//   5. trim the start of the current flight (its oldest finished stretches).
 // currentId is the flight being recorded ("" when none) and activePiece the stretch being written (never touched).
 // Returns true when minFree is free.
 bool makeRoom(size_t minFree, const String& currentId, const String& activePiece);

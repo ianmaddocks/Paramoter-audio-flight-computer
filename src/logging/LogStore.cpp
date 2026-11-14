@@ -27,7 +27,7 @@ bool parseName(const String& name, String& id, Piece& p) {
     p.kind = 'h';
     return true;
   }
-  if (ext.length() == 4 && (ext[0] == 's' || ext[0] == 't' || ext[0] == 'u')) {
+  if (ext.length() == 4 && (ext[0] == 's' || ext[0] == 't' || ext[0] == 'm' || ext[0] == 'u')) {
     p.kind = ext[0];
     p.index = ext.substring(1).toInt();
     return true;
@@ -45,8 +45,9 @@ bool olderDay(const String& id, const String& currentId) {
 }
 
 // Rewrites a stretch keeping one fix in `step` (by the second of the fix) and the slow record that follows a kept fix; the
-// other records (takeoff and landing marks) stay. The new stretch takes the letter `to`. Needs room for about a quarter of the old one.
-bool thin(const Piece& p, char to, int step) {
+// other records (takeoff and landing marks) stay. With strip, each fix is cut to the 35 characters an IGC fix has (the RPM and the
+// volumes after them go) and the slow records are dropped. The new stretch takes the letter `to`. Needs room for about a quarter of the old one.
+bool thin(const Piece& p, char to, int step, bool strip) {
   File in = LittleFS.open(pathOf(p.name), "r");
   if (!in) return false;
   const String tmpPath = pathOf(p.name) + ".tmp";
@@ -69,8 +70,18 @@ bool thin(const Piece& p, char to, int step) {
       keep = !wroteB || (t % step) == 0;  // always the first fix of the stretch
       keepLast = keep;
       if (keep) wroteB = true;
+      if (keep && strip && n > 35) {  // B + time + position + flag + the two altitudes: 35 characters
+        line[35] = '\r';
+        line[36] = '\n';
+        line[37] = 0;
+        if (out.write((const uint8_t*)line, 37) != 37) {
+          ok = false;
+          break;
+        }
+        continue;
+      }
     } else if (strncmp(line, "LXPVD,", 6) == 0) {
-      keep = keepLast;
+      keep = keepLast && !strip;
     }
     if (keep && out.write((const uint8_t*)line, n + 1) != n + 1) {
       ok = false;
@@ -89,6 +100,33 @@ bool thin(const Piece& p, char to, int step) {
   char idx[8];
   snprintf(idx, sizeof(idx), "%c%03d", to, p.index);
   return LittleFS.rename(tmpPath, pathOf(base + idx));
+}
+
+// A flight cut down to the minimum no longer has the extension fields its header declares: take the declaration (the I record) and
+// the volume setup out of the header, so the file stays a valid IGC file.
+void stripHeader(const String& id) {
+  const String path = pathOf(id + ".hdr");
+  File in = LittleFS.open(path, "r");
+  if (!in) return;
+  const String tmp = path + ".tmp";
+  File out = LittleFS.open(tmp, "w");
+  if (!out) {
+    in.close();
+    return;
+  }
+  char line[160];
+  while (in.available()) {
+    const size_t n = in.readBytesUntil('\n', line, sizeof(line) - 2);
+    if (n == 0) continue;
+    line[n] = '\n';
+    line[n + 1] = 0;
+    if (line[0] == 'I' || strncmp(line, "LXPVVOL,", 8) == 0) continue;
+    out.write((const uint8_t*)line, n + 1);
+  }
+  in.close();
+  out.close();
+  LittleFS.remove(path);
+  LittleFS.rename(tmp, path);
 }
 
 }  // namespace
@@ -158,28 +196,42 @@ bool makeRoom(size_t minFree, const String& currentId, const String& activePiece
     LOGI("IGC", "Deleted log %s from an earlier day to make room (%u kB free)", f.id.c_str(), (unsigned)(freeBytes() / 1024));
     if (freeBytes() >= minFree) return true;
   }
-  // 2. thin today's logs: 1 fix in 5, then 1 in 20; oldest first, the current flight's finished stretches too
+  // 2. thin today's logs to one fix in 5, oldest first (the current flight's finished stretches too)
+  for (const Flight& f : all) {
+    if (olderDay(f.id, currentId) && f.id != currentId) continue;  // (gone already)
+    for (const Piece& p : f.pieces) {
+      if (p.kind != 's' || p.name == activePiece) continue;
+      if (thin(p, 't', 5, false)) LOGI("IGC", "Thinned %s to one fix in 5 (%u kB free)", p.name.c_str(), (unsigned)(freeBytes() / 1024));
+      if (freeBytes() >= minFree) return true;
+    }
+  }
+  // 3. today's other logs cut down to the minimum an IGC file needs, still at one fix in 5, then at one in 20. A flight is converted
+  // whole (its header loses the extension declaration), so it is never left half and half.
   for (int pass = 0; pass < 2; ++pass) {
-    const char from = pass == 0 ? 's' : 't', to = pass == 0 ? 't' : 'u';
-    const int step = pass == 0 ? 5 : 20;
     for (const Flight& f : all) {
-      if (olderDay(f.id, currentId) && f.id != currentId) continue;  // (gone already)
+      if (f.id == currentId || olderDay(f.id, currentId)) continue;
+      bool any = false;
       for (const Piece& p : f.pieces) {
-        if (p.kind != from || p.name == activePiece) continue;
-        const uint32_t before = p.size;
-        if (thin(p, to, step)) LOGI("IGC", "Thinned %s to one fix in %d (%u -> less, %u kB free)", p.name.c_str(), step, (unsigned)before, (unsigned)(freeBytes() / 1024));
+        const bool todo = pass == 0 ? (p.kind == 's' || p.kind == 't') : p.kind == 'm';
+        if (!todo || p.kind == 'u') continue;
+        if (!any && pass == 0) stripHeader(f.id);
+        any = true;
+        thin(p, pass == 0 ? 'm' : 'u', pass == 0 ? 5 : 20, true);
+      }
+      if (any) {
+        LOGI("IGC", "Cut %s down to the minimum at one fix in %d (%u kB free)", f.id.c_str(), pass == 0 ? 5 : 20, (unsigned)(freeBytes() / 1024));
         if (freeBytes() >= minFree) return true;
       }
     }
   }
-  // 3. today's older logs
+  // 4. today's older logs
   for (const Flight& f : all) {
     if (f.id == currentId || olderDay(f.id, currentId)) continue;
     remove(f.id);
     LOGI("IGC", "Deleted log %s to make room (%u kB free)", f.id.c_str(), (unsigned)(freeBytes() / 1024));
     if (freeBytes() >= minFree) return true;
   }
-  // 4. the start of the current flight
+  // 5. the start of the current flight
   for (const Flight& f : all) {
     if (f.id != currentId) continue;
     for (const Piece& p : f.pieces) {

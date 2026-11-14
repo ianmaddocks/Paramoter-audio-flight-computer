@@ -506,9 +506,10 @@ The storage holds the voice clips (all in one file, `voice.pak`, about 410 kB: t
 
 When room is needed (when a flight starts with less than 60 kB free, and every 30 seconds in flight with less than 40 kB free) the vario makes it in this order, stopping as soon as there is enough:
 1. **Logs from earlier days are deleted**, oldest first. Download each day's logs at the end of the day.
-2. **Today's older logs are thinned**, oldest first: first to one fix every 5 seconds (about a third of the size), and if that is not enough to one every 20 seconds. They are still valid IGC files and the replay reads them (it uses the time of each fix).
-3. **Today's older logs are deleted**, oldest first.
-4. **The start of the flight being recorded is trimmed** (its oldest finished stretches go, after being thinned): a flight never stops recording for want of room.
+2. **Today's older logs are thinned**, oldest first, to one fix every 5 seconds (about a third of the size). They are still valid IGC files and the replay reads them (it uses the time of each fix).
+3. **Today's other logs are cut down to the minimum an IGC file needs**: only the time, position, fix flag and the two altitudes of each fix, with no engine RPM, volumes, wind, battery or other slow values (the header's declaration of them is taken out too, so the file stays valid), first at one fix in 5 (about 8 B/s) and then at one fix in 20 (under 2 B/s). A cut-down log still shows its track in any viewer and in the replay, but the replay has no RPM, volume or wind for it.
+4. **Today's older logs are deleted**, oldest first.
+5. **The start of the flight being recorded is trimmed** (its oldest finished stretches go, after being thinned to one fix in 5): a flight never stops recording for want of room.
 
 A flight is stored in stretches of about 10 minutes (a header and `.s000`, `.s001` and so on), which is what makes trimming the start, and thinning, cheap. To you it is still one `.igc` file in the list and in a download. The log list says how many more minutes of flight fit. Pressing *Delete* removes the whole flight.
 

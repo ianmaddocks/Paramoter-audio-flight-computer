@@ -2438,6 +2438,24 @@ def t_igc_room(v, a):
             raise Fail(f"today's older log was not thinned: {full} -> {t5 and t5['s']}")
         notes.append(f"today's older log thinned {full} -> {t5['s']} bytes, not deleted")
 
+        # 2b. still short: the log is cut down to the minimum an IGC file needs (no RPM, volumes or slow records, the header's
+        # declaration of them gone), at one fix in 5
+        clear_logs(v)
+        v.sim(fillFs="off")
+        fake_logs(v, [("210101-090000", 600, 32400)])
+        v.sim(fillFs=34000)
+        short_flight(v, climb_s=6)
+        logs = log_list(v)
+        mini = logs.get("210101-090000.igc")
+        if not mini or not mini["s"] < full * 0.35:
+            raise Fail(f"today's older log was not cut down to the minimum: {full} -> {mini and mini['s']}")
+        text = log_text(v, "210101-090000.igc")
+        rows = text.split("\r\n")
+        bs = [r for r in rows if r.startswith("B")]
+        if any(r.startswith("I") for r in rows) or any(len(r) != 35 for r in bs) or any(r.startswith("LXPVD") for r in rows) or rows[0] != "AXPVParaVario":
+            raise Fail(f"the log cut to the minimum still has extension data: I records {[r for r in rows if r.startswith('I')]}, fix lengths {sorted(set(len(r) for r in bs))}")
+        notes.append(f"cut down to the minimum {full} -> {mini['s']} bytes: 35-character fixes, no extension declaration, no slow records")
+
         # 3. the start of the current flight is trimmed: it keeps recording to the landing
         clear_logs(v)
         v.sim(fillFs="off")
