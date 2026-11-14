@@ -28,7 +28,7 @@ VOCAB = os.path.join(ROOT, "tools", "vocab.txt")
 CUSTOM_DIR = os.path.join(ROOT, "tools", "voice_custom")
 OUT_FILE = os.path.join(ROOT, "data", "voice.pak")
 OLD_DIR = os.path.join(ROOT, "data", "v")  # the old layout, removed
-RATE = 16000
+RATE = 11025  # the clips are stored at this rate and played up to the 16 kHz output (src/audio/Resample.h): about two thirds the size; --rate-hz changes it
 
 INDEX_TABLE = [-1, -1, -1, -1, 2, 4, 6, 8, -1, -1, -1, -1, 2, 4, 6, 8]
 STEP_TABLE = [
@@ -165,17 +165,20 @@ def adpcm_encode(samples):
 
 
 def main():
+    global RATE
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--voice", default="Microsoft Hazel Desktop",
                     help="SAPI voice name (see --list-voices); empty string = system default")
     ap.add_argument("--rate", type=int, default=1, help="SAPI speaking rate -10..10")
     ap.add_argument("--list-voices", action="store_true")
+    ap.add_argument("--rate-hz", type=int, default=RATE, help="sample rate the clips are stored at, 8000..16000 (smaller = less flash, duller voice)")
     args = ap.parse_args()
 
     if args.list_voices:
         print(run_ps(PS_LIST))
         return
 
+    RATE = max(8000, min(16000, args.rate_hz))
     vocab = read_vocab()
     os.makedirs(os.path.dirname(OUT_FILE), exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:

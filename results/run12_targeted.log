@@ -1,0 +1,66 @@
+ParaVario 20261114-203339 (c17bdde-dirty) at paravario.local, 26 tests
+  PASS  mute              16.3 s  muted climb silent, tone back after unmute
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  rpm_speech        45.3 s  3 announcements of about 6 s: RPM held at 2500 (+-6 %) throughout, 19 readings each; change to 3500 during speech followed within 5.9 s
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  flight_logic       3.9 s  46 cases passed: speed rule unchanged, no landing from a missing or weak GPS at height, limits exact
+  PASS  ble_info           1.5 s  release 1.0: the Bluetooth model reads 'ParaVario 1.0', the manufacturer 'Ian Maddocks' (read over Bluetooth is not tested here)
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  voice_pack        10.3 s  clips play from the pack with no missing clip; 612 kB of the storage is free or logs
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  igc_two_flights   89.5 s  both flights are in the log list (['210101-120204.igc', '210101-120249.igc']); 596 kB free
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  vario_only_flying  39.3 s  silent on the ground while climbing 25 m, climb tone after takeoff
+  FAIL  ui_replay         14.5 s  in flight: landing zone '480 m', GPS 'strong' / '10 satellites · fix'
+        state: uptime 254 s, flying False, agl 0 m, vario +0.01, baro ok True, fix True, wind none 0/0.0, heap 40536 (lowest 12640)
+        sim: {"baro": 1, "alt": 100.0, "vz": 0.0, "gps": "fix", "lat": 51.5, "lon": 0.5, "speed": 0.0, "track": 0.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [  255.969] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=none 0/0.0 mode=none/off mute=0 batt=3.99V heap=38404
+          [  256.199] D MIC: noise=-64.5 (blk -63.8) dBFS rpm=0 raw=1424 conf=1.6 fs=2003 tone=0 clear=1 ovf=28416
+          [  256.668] D VOL: noise -64.2 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [  256.968] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.500000 gs=0.0 trk=0 gpsAlt=100.0
+          [  256.968] D NAV: baro=1 p=101927 t=20.0 std=-50.0 msl=100.0 agl=0.0 vs=+0.01 fly=0 ft=0
+          [  256.969] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=none 0/0.0 mode=none/off mute=0 batt=3.99V heap=38396
+          [  257.968] D BAT: v=3.992 pct=79 min=-1 learned=0
+          [  257.968] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.500000 gs=0.0 trk=0 gpsAlt=100.0
+          [  257.969] D NAV: baro=1 p=101928 t=20.0 std=-50.0 msl=100.0 agl=-0.0 vs=-0.01 fly=0 ft=0
+          [  257.969] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=none 0/0.0 mode=none/off mute=0 batt=3.99V heap=38396
+          [  258.244] D MIC: noise=-64.8 (blk -64.8) dBFS rpm=0 raw=2871 conf=1.5 fs=1969 tone=0 clear=1 ovf=28672
+          [  258.968] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.500000 gs=0.0 trk=0 gpsAlt=100.0
+          [  258.968] D NAV: baro=1 p=101928 t=20.0 std=-50.0 msl=100.0 agl=-0.0 vs=-0.01 fly=0 ft=0
+          [  258.969] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=none 0/0.0 mode=none/off mute=0 batt=3.99V heap=38396
+          [  259.979] D BAT: v=3.992 pct=79 min=-1 learned=0
+          [  259.980] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.500000 gs=0.0 trk=0 gpsAlt=100.0
+          [  259.980] D NAV: baro=1 p=101927 t=20.0 std=-50.0 msl=100.0 agl=0.0 vs=+0.02 fly=0 ft=0
+          [  259.980] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=none 0/0.0 mode=none/off mute=0 batt=3.99V heap=39452
+  PASS  height_logic       7.1 s  10 cases passed: no samples on the ground, trace kept after landing, one gap between flights, ring
+  PASS  moving_logic       1.1 s  14 cases passed: show limit with hold, hide limit with hold, flicker ignored, no fix hides at once
+  PASS  audio_logic        2.5 s  17 cases passed: urgent calls get the signal tone, nothing else does
+  PASS  alerts_flight    120.0 s  barometer failed / back spoken in flight; routine height calls: 2+ in 26 s normally, none during the approach
+  PASS  resume_flight    514.9 s  30 min off at flying speed: resumed, same LZ, 50 m, flight time 1822 s; resumed flight lands normally; too old (4 h): not resumed; on the ground: not resumed; impossible place: not resumed; resume switched off: not resumed; no GPS within 3 minutes: dropped; reset by the pilot: flight ended, nothing resumed after a restart
+  PASS  battery_flight   149.0 s  3.40 V: ordinary call; 3.20 V: urgent call after 6 s; reading lost in flight (0 V): urgent call; recovered: silent; 0 V on the ground: silent (USB power)
+  FAIL  flight           121.9 s  the volumes in the B records are not percentages of a working vario: [(0, 20), (0, 20), (0, 20)] ... [(0, 20), (0, 20), (0, 20)]
+        state: uptime 284 s, flying False, agl 0 m, vario -0.01, baro ok True, fix True, wind takeoff 90/0.0, heap 41164 (lowest 2884)
+        sim: {"baro": 1, "alt": 102.0, "vz": 0.0, "gps": "fix", "lat": 51.5, "lon": 0.508849, "speed": 0.0, "track": 90.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [  280.339] D NAV: lz=1 51.500000,0.508849 elev=102.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.04V heap=30320
+          [  280.958] D MIC: noise=-59.9 (blk -39.4) dBFS rpm=0 raw=6569 conf=3.7 fs=2009 tone=0 clear=0 ovf=34464
+          [  281.343] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.508849 gs=0.0 trk=90 gpsAlt=102.0
+          [  281.344] D NAV: baro=1 p=101903 t=20.0 std=-48.0 msl=102.0 agl=0.0 vs=+0.00 fly=0 ft=78
+          [  281.344] D NAV: lz=1 51.500000,0.508849 elev=102.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.04V heap=38648
+          [  282.248] D BAT: v=4.042 pct=89 min=-1 learned=0
+          [  282.348] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.508849 gs=0.0 trk=90 gpsAlt=102.0
+          [  282.348] D NAV: baro=1 p=101903 t=20.0 std=-48.0 msl=102.0 agl=0.0 vs=-0.00 fly=0 ft=78
+          [  282.349] D NAV: lz=1 51.500000,0.508849 elev=102.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.04V heap=44380
+          [  282.850] D VOL: noise -59.9 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [  282.988] D MIC: noise=-59.9 (blk -63.5) dBFS rpm=0 raw=1418 conf=1.7 fs=2003 tone=0 clear=0 ovf=34720
+          [  283.425] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.508849 gs=0.0 trk=90 gpsAlt=102.0
+          [  283.426] D NAV: baro=1 p=101903 t=20.0 std=-48.0 msl=102.0 agl=0.0 vs=+0.01 fly=0 ft=78
+          [  283.426] D NAV: lz=1 51.500000,0.508849 elev=102.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.04V heap=44380
+          [  284.415] D BAT: v=4.042 pct=89 min=-1 learned=0
+          [  284.513] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.508849 gs=0.0 trk=90 gpsAlt=102.0
+          [  284.514] D NAV: baro=1 p=101903 t=20.0 std=-48.0 msl=102.0 agl=0.0 vs=-0.01 fly=0 ft=78
+          [  284.514] D NAV: lz=1 51.500000,0.508849 elev=102.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.04V heap=43720
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  guidance          77.9 s  refusals, emergency 6 o'clock + on course, approach start and cancel
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected

@@ -7,6 +7,7 @@
 #include <freertos/semphr.h>
 
 #include "Pins.h"
+#include "Resample.h"
 #include "VoicePack.h"
 
 namespace audio {
@@ -81,7 +82,8 @@ Utterance spCur;
 uint8_t spClip = 0;
 File spFile;
 Adpcm spDec;
-uint32_t spSamplesLeft = 0;
+LinearResampler spRes;  // a clip stored at a lower rate than the output is played through this
+uint32_t spSamplesLeft = 0;  // output samples left in the clip
 uint32_t spGapLeft = 0;
 uint8_t spBuf[128];
 int spBufLen = 0, spBufPos = 0;
@@ -140,7 +142,10 @@ bool openClip(const char* name) {
     spFile.close();
     return false;
   }
-  spSamplesLeft = hdr[8] | (hdr[9] << 8) | (hdr[10] << 16) | ((uint32_t)hdr[11] << 24);
+  const uint32_t clipRate = hdr[4] | (hdr[5] << 8) | (hdr[6] << 16) | ((uint32_t)hdr[7] << 24);
+  const uint32_t clipSamples = hdr[8] | (hdr[9] << 8) | (hdr[10] << 16) | ((uint32_t)hdr[11] << 24);
+  spRes.start(clipRate, kSampleRate, clipSamples);
+  spSamplesLeft = spRes.outSamples();
   spDec = Adpcm();
   spBufLen = spBufPos = 0;
   spHighNibble = false;
@@ -189,27 +194,29 @@ int16_t nextSpeechSample() {
                                                                 : (int32_t)kRampSamples;
     return (int16_t)(((int32_t)gSine[spSynthPhase >> 24] * 10000 / 32000) * env / (int32_t)kRampSamples);
   }
-  if (!spHighNibble && spBufPos >= spBufLen) {
-    spBufLen = spFile.read(spBuf, sizeof(spBuf));
-    spBufPos = 0;
-    if (spBufLen <= 0) {
-      spBufLen = 0;
-      spSamplesLeft = 0;
-      return 0;
-    }
-  }
-  uint8_t byte = spBuf[spBufPos];
-  uint8_t code;
-  if (!spHighNibble) {
-    code = byte & 0x0F;
-    spHighNibble = true;
-  } else {
-    code = byte >> 4;
-    spHighNibble = false;
-    ++spBufPos;
-  }
   --spSamplesLeft;
-  return spDec.decode(code);
+  return spRes.next([]() -> int16_t {
+    if (!spHighNibble && spBufPos >= spBufLen) {
+      spBufLen = spFile.read(spBuf, sizeof(spBuf));
+      spBufPos = 0;
+      if (spBufLen <= 0) {
+        spBufLen = 0;
+        spSamplesLeft = 0;
+        return 0;
+      }
+    }
+    uint8_t byte = spBuf[spBufPos];
+    uint8_t code;
+    if (!spHighNibble) {
+      code = byte & 0x0F;
+      spHighNibble = true;
+    } else {
+      code = byte >> 4;
+      spHighNibble = false;
+      ++spBufPos;
+    }
+    return spDec.decode(code);
+  });
 }
 
 void render(int16_t* out, int frames) {

@@ -2,8 +2,8 @@
 #include <FS.h>
 
 // All the voice clips in ONE file, /voice.pak, instead of one file per clip. The filesystem stores every file in whole 4 kB
-// blocks, so 95 clips of about 6 kB each used 800 kB of the 1 MB for 593 kB of sound; in one file they use 600 kB, and the 200 kB
-// saved is room for flight logs.
+// blocks, so 95 clips of about 6 kB each used 800 kB of the 1 MB for 593 kB of sound; in one file they use 598 kB, and the 200 kB
+// saved is room for flight logs. (The clips are also stored at 11 kHz now, about 410 kB: see Resample.h.)
 //
 // The file is "PVP1" followed by records: 20 bytes of clip name (padded with zeros), a 4 byte little-endian size, then that many
 // bytes of clip (the same "IMA1" ADPCM data the clips always had). Records are only ever added at the end, so a pack that was

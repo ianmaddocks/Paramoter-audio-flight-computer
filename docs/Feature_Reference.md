@@ -502,7 +502,7 @@ The list of recorded flights.
 Flight logs (IGC files) are made only when a GPS is fitted, so a Basic vario shows "No flights recorded yet".
 
 ### Flight log space
-The storage holds the voice clips (all in one file, `voice.pak`, about 600 kB) and the flight logs. A flight log takes about 50 bytes a second, or 180 kB an hour, and about 400 kB is left for logs, so around two hours of flying are kept. When a new flight starts and less than 60 kB would be free, the oldest logs are deleted, oldest first and only as many as needed; in a very long flight older logs make way before it stops. The log list says how many more minutes of flight fit. Download the logs you want to keep.
+The storage holds the voice clips (all in one file, `voice.pak`, about 410 kB: the clips are stored at 11 kHz and played up to the speaker's 16 kHz) and the flight logs. A flight log takes about 53 bytes a second, or 190 kB an hour, and about 600 kB is left for logs, so around three hours of flying are kept. When a new flight starts and less than 60 kB would be free, the oldest logs are deleted, oldest first and only as many as needed; in a very long flight older logs make way before it stops. The log list says how many more minutes of flight fit. Download the logs you want to keep.
 
 ### Logging
 A live view of what the vario is doing, useful when something does not work as expected.

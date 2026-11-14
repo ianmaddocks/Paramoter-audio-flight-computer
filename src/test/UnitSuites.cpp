@@ -24,6 +24,7 @@
 #include "Settings.h"
 #include "app/Alerts.h"
 #include "audio/Audio.h"
+#include "audio/Resample.h"
 #include "flight/Approach.h"
 #include "flight/Flight.h"
 #include "flight/Wind.h"
@@ -1784,6 +1785,45 @@ void resumeUnitSuite(UnitReport& r) {
 void audioUnitSuite(UnitReport& r) {
   using audio::Priority;
   using audio::Utterance;
+  {  // a clip stored at a lower rate is played up to the output rate by the resampler
+    LinearResampler rs;
+    int calls = 0;
+    auto ramp = [&]() -> int16_t { return (int16_t)(100 * calls++); };
+    rs.start(8000, 16000, 50);  // 8 kHz clip of 50 samples at a 16 kHz output: twice as many output samples
+    r.check(rs.outSamples() == 100 && !rs.passThrough(), "8 kHz clip of 50 samples gives %u output samples, expected 100", (unsigned)rs.outSamples());
+    int16_t prev = -1, last = 0;
+    bool monotonic = true;
+    for (uint32_t i = 0; i < rs.outSamples(); ++i) {
+      last = rs.next(ramp);
+      if (last < prev) monotonic = false;
+      prev = last;
+    }
+    r.check(monotonic, "a rising clip came out falling");
+    r.check(calls == 50, "the clip was read %d times for 50 samples", calls);
+    r.check(last >= 4700 && last <= 4900, "the last output sample %d, expected about 4900 (the last clip sample, one step behind)", (int)last);
+    // 11.025 kHz: 16000 / 11025 outputs per clip sample, never reading past the clip
+    LinearResampler r2;
+    calls = 0;
+    r2.start(11025, 16000, 1000);
+    r.check(r2.outSamples() >= 1451 && r2.outSamples() <= 1452, "11.025 kHz x 1000 samples gives %u output samples, expected 1451", (unsigned)r2.outSamples());
+    for (uint32_t i = 0; i < r2.outSamples(); ++i) r2.next(ramp);
+    r.check(calls <= 1000 && calls >= 999, "11.025 kHz clip read %d times for 1000 samples", calls);
+    // at the output rate the samples pass straight through
+    LinearResampler r3;
+    calls = 0;
+    r3.start(16000, 16000, 10);
+    bool same = r3.passThrough() && r3.outSamples() == 10;
+    for (int i = 0; i < 10; ++i) same = same && r3.next(ramp) == 100 * i;
+    r.check(same, "a 16 kHz clip did not pass straight through");
+    // linear blend: a step is spread over the two output samples around it
+    LinearResampler r4;
+    const int16_t seq[] = {0, 1000};
+    int idx = 0;
+    r4.start(8000, 16000, 2);
+    int16_t o[4];
+    for (int i = 0; i < 4; ++i) o[i] = r4.next([&]() -> int16_t { return seq[idx++ < 2 ? idx - 1 : 1]; });
+    r.check(o[0] == 0 && o[1] == 0 && o[2] == 0 && o[3] == 500, "a step 0 -> 1000 gave %d %d %d %d, expected 0 0 0 500", (int)o[0], (int)o[1], (int)o[2], (int)o[3]);
+  }
   {
     Utterance u(Priority::Urgent);
     u.add("no_gps");
