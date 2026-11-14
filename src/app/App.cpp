@@ -55,8 +55,6 @@ bool resumePending = false;  // a flight saved as "flying" is waiting for the fi
 FlightRecord resumeRec = {};
 uint32_t resumeDeadlineMs = 0;
 FactoryResetGesture factoryReset;
-constexpr const char* kHeightFile = "/height.bin";
-uint32_t lastHeightSaveMs = 0;
 uint32_t factoryRestartAtMs = 0;  // set once the settings are wiped: the restart follows when the announcement has played
 
 // ---------- flight state kept across a restart in the air ----------
@@ -142,7 +140,6 @@ void handleFlightEvent(FlightEvent ev) {
     speech::say(Priority::High, "flight_resumed");
   } else if (ev == FlightEvent::Landing) {
     saveFlightState();
-    app.heightHistory.save(kHeightFile);
     app.approach.cancel(false);
     app.emergency.cancel(false);
     app.logger.stop();
@@ -253,10 +250,6 @@ void flightTick(uint32_t now) {
   app.heightHistory.update(now, app.nav.aglM, app.nav.flying);
   alerts::update(now, app.nav, app.battery.volts(), app.battery.minutesLeftOrUnknown());
   if (app.nav.flying && now - lastSaveMs >= kSaveIntervalMs) saveFlightState();
-  if (app.nav.flying && now - lastHeightSaveMs >= 60000) {  // the trace survives a power cut in the air
-    lastHeightSaveMs = now;
-    app.heightHistory.save(kHeightFile);
-  }
   app.moving.update(now, hw::hasGps() && app.nav.fix, app.nav.speedMs, g_cfg.moveShowMs, g_cfg.moveHideMs, (uint32_t)g_cfg.moveHoldS * 1000u);
   uievents::update(now);
   trace::update(now);
@@ -356,7 +349,6 @@ void appSetup() {
        PV_HAS_MIC ? "fitted" : "not fitted");
   settings::load();
   if (!LittleFS.begin(true)) LOGE("APP", "LittleFS mount failed");
-  else if (app.heightHistory.load(kHeightFile)) LOGI("APP", "Height trace of the last flight restored");
 
   audio::begin();
   volume::update(millis());  // sets the starting volume before the first sound

@@ -20,11 +20,6 @@ class HeightHistory {
   // metres (value / 4 = metres), or kGap.
   int copy(int16_t* out) const;
 
-  // The trace survives a power cycle: it is saved to a small file on landing and once a minute in flight, and loaded at
-  // power-up, so the next flight continues after a gap even if the vario was switched off between them.
-  bool save(const char* path) const;
-  bool load(const char* path);
-
  private:
   void push(int16_t v);
   int16_t v_[kSamples];

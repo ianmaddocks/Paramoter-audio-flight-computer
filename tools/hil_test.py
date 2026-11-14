@@ -2348,33 +2348,6 @@ def t_igc_two_flights(v, a):
             v._open("/api/log?name=" + urllib.parse.quote(f), method="DELETE")
 
 
-def t_height_persist(v, a):
-    """The height trace survives a power cycle: after a flight and a restart the trace is still there, and the next flight
-    continues it after a gap."""
-    short_flight(v)
-    tr1, _ = height_trace(v)
-    if len(tr1) < 5:
-        raise Fail(f"the first flight left only {len(tr1)} samples")
-    time.sleep(2)
-    restart_vario(v, "height persist")
-    time.sleep(3)
-    tr2, _ = height_trace(v)
-    if len(tr2) != len(tr1) or tr2 != tr1:
-        raise Fail(f"after the restart the trace has {len(tr2)} samples (before: {len(tr1)}) or differs")
-    # (not on_ground_with_fix: its reset would clear the trace this test is about)
-    m = v.mark()
-    v.sim(baro="on", alt=GROUND_M, vz=0, baroOffset=150, gps="fix", sats=10, hdop=0.9, speed=0, track=90, lat=51.5, lon=0.5)
-    v.expect("RDY", r"^ready$", m, timeout=40, what="ready to fly with a good fix after the restart")
-    take_off(v, climb_to=GROUND_M + 60, vz=4.0)
-    time.sleep(8)
-    tr3, _ = height_trace(v)
-    gaps = sum(x is None for x in tr3)
-    if gaps < 10 or tr3[: len(tr1)] != tr1:
-        raise Fail(f"after the restart and a second takeoff: {len(tr3)} samples, {gaps} gap markers, first flight kept: {tr3[:len(tr1)] == tr1}")
-    v.sim(speed=0, vz=0, fly=0)
-    return f"{len(tr1)} samples kept over a restart, the next flight continues after a gap of {gaps}"
-
-
 def t_vario_only_flying(v, a):
     """With 'Only when flying' on (the default), the vario makes no sound on the ground, even when the height changes (carried
     upstairs, a lift): the tones start once the takeoff has been detected."""
@@ -4569,7 +4542,7 @@ TESTS = [
     ("boot", t_boot), ("settings", t_settings), ("vario_climb", t_vario_climb),
     ("vario_sink", t_vario_sink), ("vario_thresholds", t_vario_thresholds), ("vario_logic", t_vario_logic),
     ("mute", t_mute), ("auto_volume", t_auto_volume), ("rpm_logic", t_rpm_logic), ("rpm", t_rpm), ("rpm_speech", t_rpm_speech), ("rpm_glitch", t_rpm_glitch), ("geo_logic", t_geo_logic), ("wind_logic", t_wind_logic),
-    ("circuit_logic", t_circuit_logic), ("battery_logic", t_battery_logic), ("flight_logic", t_flight_logic), ("button_logic", t_button_logic), ("factory_reset", t_factory_reset), ("ble_info", t_ble_info), ("igc_two_flights", t_igc_two_flights), ("height_persist", t_height_persist), ("vario_only_flying", t_vario_only_flying), ("ui_replay", t_ui_replay), ("height_logic", t_height_logic), ("moving_logic", t_moving_logic), ("height_trace", t_height_trace), ("maint_voice", t_maint_voice), ("names_default", t_names_default), ("status_logic", t_status_logic), ("alerts_logic", t_alerts_logic), ("resume_logic", t_resume_logic), ("audio_logic", t_audio_logic), ("rpmtrack_logic", t_rpmtrack_logic), ("baro_logic", t_baro_logic), ("wind", t_wind), ("wind_faults", t_wind_faults), ("wind_change", t_wind_change), ("circuit_right", t_circuit_right), ("circuit_slow_pilot", t_circuit_slow_pilot), ("circuit_left_wind", t_circuit_left_wind),
+    ("circuit_logic", t_circuit_logic), ("battery_logic", t_battery_logic), ("flight_logic", t_flight_logic), ("button_logic", t_button_logic), ("factory_reset", t_factory_reset), ("ble_info", t_ble_info), ("igc_two_flights", t_igc_two_flights), ("vario_only_flying", t_vario_only_flying), ("ui_replay", t_ui_replay), ("height_logic", t_height_logic), ("moving_logic", t_moving_logic), ("height_trace", t_height_trace), ("maint_voice", t_maint_voice), ("names_default", t_names_default), ("status_logic", t_status_logic), ("alerts_logic", t_alerts_logic), ("resume_logic", t_resume_logic), ("audio_logic", t_audio_logic), ("rpmtrack_logic", t_rpmtrack_logic), ("baro_logic", t_baro_logic), ("wind", t_wind), ("wind_faults", t_wind_faults), ("wind_change", t_wind_change), ("circuit_right", t_circuit_right), ("circuit_slow_pilot", t_circuit_slow_pilot), ("circuit_left_wind", t_circuit_left_wind),
     ("circuit_events", t_circuit_events),
     ("fault_baro", t_fault_baro), ("fault_gps", t_fault_gps), ("fault_battery", t_fault_battery), ("landing_gps_quality", t_landing_gps_quality), ("landing_hover", t_landing_hover), ("button_actions", t_button_actions), ("alerts_flight", t_alerts_flight), ("resume_flight", t_resume_flight), ("battery_flight", t_battery_flight),
     ("memory_events", t_memory_events), ("soak", t_soak),
