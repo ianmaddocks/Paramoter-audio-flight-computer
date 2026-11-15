@@ -95,6 +95,10 @@ class Vario:
                 with urllib.request.urlopen(req, timeout=timeout) as r:
                     return r.status, r.read()
             except urllib.error.HTTPError as e:
+                if e.code == 503 and attempt + 1 < tries:  # "busy": the vario was short of memory at that moment and says ask again
+                    self.busy = getattr(self, "busy", 0) + 1
+                    time.sleep(0.5 + attempt)
+                    continue
                 return e.code, e.read()
             except Exception as e:  # Wi-Fi hiccup: retry
                 last = e
@@ -102,7 +106,11 @@ class Vario:
         raise Fail(f"vario not reachable ({path}): {last}")
 
     def get_json(self, path):
-        return json.loads(self._open(path)[1])
+        code, body = self._open(path)
+        try:
+            return json.loads(body)
+        except ValueError:  # (a Fail, not a crash of the whole run: the run must reach its cleanup, which ends the simulated flight)
+            raise Fail(f"{path}: HTTP {code}, not JSON: {body[:60]!r}")
 
     def status(self):
         return self.get_json("/api/status")

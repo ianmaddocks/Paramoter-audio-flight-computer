@@ -242,7 +242,8 @@ R"HTML(
 (()=>{const raw=window.fetch.bind(window);let chain=Promise.resolve();
   window.fetch=(u,o)=>{if(typeof u!=='string'||u[0]!=='/')return raw(u,o);
     const opt=Object.assign({},o||{});if(!opt.signal&&window.AbortSignal&&AbortSignal.timeout)opt.signal=AbortSignal.timeout(20000);
-    const go=()=>raw(u,opt),r=chain.then(go,go);chain=r.then(()=>0,()=>0);return r}})();
+    // (503 = the vario was short of memory at that moment and turned the request away: ask again, a little later each time)
+    const go=async()=>{for(let i=0;;i++){const r=await raw(u,opt);if(r.status!==503||i>=4)return r;await new Promise(t=>setTimeout(t,300*(i+1)))}},r=chain.then(go,go);chain=r.then(()=>0,()=>0);return r}})();
 const $=s=>document.querySelector(s);
 const FT=3.28084;
 let schema=[],cfg={},openGroups=new Set();

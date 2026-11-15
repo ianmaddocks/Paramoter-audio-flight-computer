@@ -199,9 +199,10 @@ After:
 - the list keeps plain data with no memory block per name and is built once; the web page's list needs 28 B a flight and is
   written out piece by piece. Measured on the vario with the same 32 logs: 1.5 kB instead of 14 kB; with 40 logs, no change
   in the lowest free memory (`log_list_memory`).
-- a web request that arrives while the largest free block is under 8 kB is answered "busy" (503) instead of being served; the
-  page and the tools ask again. In 4.4 hours on the bench with two watchers and a phone joining four times this happened 36
-  times and the vario did not restart.
+- a web request that arrives while less than 12 kB is free, or the largest free block is under 4 kB, is answered "busy" (503)
+  instead of being served; the page and the tools ask again. (First tried at 8 kB for the largest block alone: in 4.4 hours on
+  the bench that turned away 36 requests and the vario did not restart, but in a test run it turned one away every few
+  seconds, in a state that had always been served without trouble.)
 - `GET /api/nettrail`: the vario's own trail of network events (restarts with their reason, joining and losing the
   maintenance network with the driver's reason, giving up, looking again, devices joining its own network, refused requests),
   kept in memory that a crash or restart does not clear (`net_trail`). `tools/net_watch.py` prints it when the vario comes back.

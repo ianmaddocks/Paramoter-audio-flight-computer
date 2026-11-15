@@ -851,7 +851,11 @@ class RedirectToUi : public RequestHandler {
 }  // namespace
 
 
-constexpr uint32_t kMinBlockToServe = 8000;
+// (Judged on both: the replies are built from many small pieces and one block of 2-3 kB. A largest block of 7 kB with 20-30 kB
+// free is the ordinary state while another request is still being sent, and was served without trouble before this guard: at
+// 8000 B for the block alone the guard turned away a request every few seconds of a test run.)
+constexpr uint32_t kMinBlockToServe = 4000;
+constexpr uint32_t kMinFreeToServe = 12000;
 
 // Registers a route and remembers which one is being served, so the memory trace can name it.
 const char* gRoute = "";
@@ -862,9 +866,9 @@ void route(const char* path, HTTPMethod method, void (*handler)()) {
     // An allocation that fails stops the firmware dead (a restart, in flight too). A request that arrives while memory is this
     // short is turned away instead: the page and the tools ask again a moment later.
     const uint32_t biggest = ESP.getMaxAllocHeap();
-    if (biggest < kMinBlockToServe) {
+    if (biggest < kMinBlockToServe || ESP.getFreeHeap() < kMinFreeToServe) {
       nettrail::add(nettrail::LowMem, (int)biggest);
-      LOGW("MEM", "route %s refused: the largest free block is %u B", path, (unsigned)biggest);
+      LOGW("MEM", "route %s refused: free %u B, largest block %u B", path, (unsigned)ESP.getFreeHeap(), (unsigned)biggest);
       server.sendHeader("Retry-After", "2");
       server.send(503, "text/plain", "busy");
       return;
