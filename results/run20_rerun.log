@@ -1,0 +1,124 @@
+ParaVario 20261115-194211 (6f3459c-dirty) at 192.168.68.66, 17 tests
+  PASS  log_list_memory   68.8 s  40 logs listed 5 times: lowest free memory 5580 -> 5580 B
+        memory: free 39256 lowest 5388 largest block 9204 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  ui_replay         10.0 s  made-up log read; Ready / flight time / Landed, height, rpm 3000, wind 250 at 14 km/h, battery, speed, landing zone follow the log; pause, speed, slider, exit work; the buttons are hidden meanwhile
+        memory: free 38944 lowest 4564 largest block 12276 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  wind_change      118.1 s  wind A from 270 at 5 -> from 270 at 5.0; first fit after the change: 0.00 m/s from the expected mean; second fit in the new wind: 0.00 m/s from the true wind; third fit stays on it
+        memory: free 34124 lowest 3424 largest block 12276 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  FAIL  memory_events    271.3 s  lowest free memory fell from 3424 to 972 B (allowed: down by 6000, and no new low under 8000)
+        state: uptime 618 s, flying False, agl -0 m, vario +0.01, baro ok True, fix True, wind none 0/0.0, heap 34504 (lowest 972)
+        sim: {"baro": 1, "alt": 452.81, "vz": 0.0, "gps": "real", "lat": 51.5, "lon": 0.5, "speed": 0.0, "track": 0.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [  614.372] D BAT: v=4.172 pct=100 min=360 learned=0
+          [  614.873] D NAV: fix=1 good=1 sat=9 hdop=1.7 00.000000,0.000000 gs=0.6 trk=263 gpsAlt=24.1
+          [  614.873] D NAV: baro=1 p=96694 t=20.0 std=392.8 msl=28.2 agl=-0.1 vs=-0.01 fly=0 ft=0
+          [  614.874] D NAV: lz=1 00.000000,0.000000 elev=28.2 wind=none 0/0.0 mode=none/off mute=0 batt=4.17V heap=32768
+          [  614.894] D MIC: noise=-61.2 (blk -61.6) dBFS rpm=0 raw=4329 conf=1.8 fs=2003 tone=0 clear=1 ovf=68352
+          [  614.973] D VOL: noise -61.2 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [  615.881] D NAV: fix=1 good=1 sat=9 hdop=1.7 00.000000,0.000000 gs=1.2 trk=331 gpsAlt=23.6
+          [  615.881] D NAV: baro=1 p=96694 t=20.0 std=392.8 msl=28.2 agl=-0.1 vs=+0.01 fly=0 ft=0
+          [  615.882] D NAV: lz=1 00.000000,0.000000 elev=28.2 wind=none 0/0.0 mode=none/off mute=0 batt=4.17V heap=30540
+          [  616.383] D BAT: v=4.172 pct=100 min=360 learned=0
+          [  616.886] D NAV: fix=1 good=1 sat=8 hdop=1.7 00.000000,0.000000 gs=0.9 trk=354 gpsAlt=23.5
+          [  616.886] D NAV: baro=1 p=96694 t=20.0 std=392.8 msl=28.1 agl=-0.1 vs=-0.02 fly=0 ft=0
+          [  616.887] D NAV: lz=1 00.000000,0.000000 elev=28.2 wind=none 0/0.0 mode=none/off mute=0 batt=4.17V heap=23496
+          [  616.925] D MIC: noise=-60.9 (blk -61.0) dBFS rpm=0 raw=2899 conf=1.8 fs=2003 tone=0 clear=1 ovf=68608
+          [  617.892] D NAV: fix=1 good=1 sat=8 hdop=1.7 00.000000,0.000000 gs=0.7 trk=354 gpsAlt=23.0
+          [  617.892] D NAV: baro=1 p=96694 t=20.0 std=392.8 msl=28.1 agl=-0.1 vs=+0.03 fly=0 ft=0
+          [  617.893] D NAV: lz=1 00.000000,0.000000 elev=28.2 wind=none 0/0.0 mode=none/off mute=0 batt=4.17V heap=29720
+          [  618.395] D BAT: v=4.172 pct=100 min=360 learned=0
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 31908 lowest 972 largest block 10228 | others: web pages 1, Wi-Fi stations 0, BLE 0
+  FAIL  soak             719.6 s  free memory trends down by 166 B/min over the soak (limit 150): [33892, 33904, 34060] ... [34072, 31248, 34044]
+        state: uptime 1338 s, flying True, agl 378 m, vario -0.01, baro ok True, fix True, wind circling 270/4.0, heap 25904 (lowest 972)
+        sim: {"baro": 1, "alt": 477.78, "vz": 0.0, "gps": "fix", "lat": 51.499891, "lon": 0.514775, "speed": 10.94, "track": 156.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 177.4}
+        last log lines:
+          [ 1334.733] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/4.0 mode=none/off mute=0 batt=4.17V heap=28572
+          [ 1335.168] D MIC: noise=-61.0 (blk -61.1) dBFS rpm=0 raw=1203 conf=1.7 fs=1612 tone=0 clear=1 ovf=156000
+          [ 1335.733] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500205,0.514550 gs=10.9 trk=156 gpsAlt=477.8
+          [ 1335.733] D NAV: baro=1 p=97449 t=20.0 std=327.8 msl=477.8 agl=377.8 vs=+0.04 fly=1 ft=704
+          [ 1335.734] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/4.0 mode=none/off mute=0 batt=4.17V heap=28572
+          [ 1336.326] D BAT: v=4.172 pct=100 min=360 learned=0
+          [ 1336.733] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500115,0.514614 gs=10.9 trk=156 gpsAlt=477.8
+          [ 1336.733] D NAV: baro=1 p=97448 t=20.0 std=327.8 msl=477.8 agl=377.8 vs=+0.02 fly=1 ft=705
+          [ 1336.734] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/4.0 mode=none/off mute=0 batt=4.17V heap=28720
+          [ 1336.926] D VOL: noise -61.2 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [ 1337.288] D MIC: noise=-61.2 (blk -61.3) dBFS rpm=0 raw=2334 conf=2.3 fs=1612 tone=0 clear=1 ovf=156192
+          [ 1337.733] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500025,0.514679 gs=10.9 trk=156 gpsAlt=477.8
+          [ 1337.733] D NAV: baro=1 p=97449 t=20.0 std=327.8 msl=477.8 agl=377.8 vs=+0.00 fly=1 ft=706
+          [ 1337.734] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/4.0 mode=none/off mute=0 batt=4.17V heap=28720
+          [ 1338.326] D BAT: v=4.172 pct=100 min=360 learned=0
+          [ 1338.929] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.499917,0.514756 gs=10.9 trk=156 gpsAlt=477.8
+          [ 1338.930] D NAV: baro=1 p=97449 t=20.0 std=327.8 msl=477.8 agl=377.8 vs=-0.01 fly=1 ft=708
+          [ 1338.930] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/4.0 mode=none/off mute=0 batt=4.17V heap=17420
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 29012 lowest 972 largest block 9204 | others: web pages 1, Wi-Fi stations 0, BLE 0
+  PASS  ui_flight         25.7 s  banner, 11 tiles, height graph and layout correct; speed, vario, battery and GPS changes followed
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 39184 lowest 972 largest block 12788 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  ui_pilot          49.5 s  ground: setup card shown, no alerts, GPS tile says strong; flight: the ground card is gone, the in-flight card holds Landing support, Emergency support, Update me and Mute; Update me speaks; alert strip: low and critical battery, barometer, no GPS; each clears; battery tile '~3h 54m'; noise tile only on request; Quick settings first, same settings as their groups, saved; Reset flight state button ends the flight and brings the ground Actions card back
+        memory: free 34328 lowest 972 largest block 10740 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  ui_layout         70.5 s  no text cut off, nothing overlapping or off screen in: ground view, flying, 120 km/h, mph and miles, knots and metres, three alerts, 320 px wide, settings and logs tabs (screenshots in results\ui)
+        memory: free 39164 lowest 972 largest block 12788 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  ui_actions        28.8 s  mute, test voice, Use current position (refused without a fix, accepted with one), LZ mode back to takeoff in Settings
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 38720 lowest 972 largest block 12788 | others: web pages 1, Wi-Fi stations 0, BLE 0
+  PASS  ui_guidance       65.3 s  flying tiles, emergency and approach banners, 210101-122536.igc listed and deleted from the page
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 39088 lowest 916 largest block 12788 | others: web pages 1, Wi-Fi stations 0, BLE 0
+  PASS  ui_settings       32.9 s  17 groups, 101 settings; number, feet, list, checkbox gate, unit switch, text
+        memory: free 42032 lowest 9984 largest block 18420 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  ui_spectrum       19.2 s  4.2 updates/s, tone mark and peak at 290 Hz, pause and floor ok
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 36812 lowest 9816 largest block 13812 | others: web pages 1, Wi-Fi stations 0, BLE 0
+  PASS  spectrum_setting   6.3 s  tab removed when off, back when on (default is off: True)
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 39156 lowest 6804 largest block 19444 | others: web pages 1, Wi-Fi stations 0, BLE 0
+  PASS  ui_system         14.2 s  5 tabs switch, debug log live/pause/clear, version and system line
+        memory: free 39464 lowest 3668 largest block 16372 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  ui_help           16.9 s  13 links on the Help tab, 19 settings groups linked, guides rendered in the page; the guide for a vario without a GPS is offered then
+        memory: free 36672 lowest 3668 largest block 9204 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  ota_guard          4.0 s  refused with a wrong and a missing password; vario kept running
+        memory: free 39372 lowest 3668 largest block 14324 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  FAIL  memory            10.5 s  free memory fell dangerously low during the tests: free 37 kB (was 35 kB at the start), lowest since power-on 3 kB, largest block 12 kB
+        state: uptime 79 s, flying False, agl 0 m, vario +0.01, baro ok True, fix True, wind none 0/0.0, heap 36268 (lowest 3668)
+        sim: {"baro": 0, "alt": 0.0, "vz": 0.0, "gps": "real", "lat": 51.5, "lon": 0.5, "speed": 0.0, "track": 0.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [   76.009] D BAT: v=4.170 pct=100 min=360 learned=0
+          [   76.514] I UI: ready banner: GPS position unstable -> ready
+          [   76.514] D RDY: ready
+          [   76.622] D NAV: fix=1 good=1 sat=9 hdop=1.4 00.000000,0.000000 gs=0.3 trk=0 gpsAlt=-6.3
+          [   76.623] D NAV: baro=1 p=99765 t=55.0 std=130.7 msl=-4.4 agl=-0.0 vs=+0.00 fly=0 ft=0
+          [   76.623] D NAV: lz=1 00.000000,0.000000 elev=-4.4 wind=none 0/0.0 mode=none/off mute=0 batt=4.17V heap=35276
+          [   76.983] D MIC: noise=-63.2 (blk -60.4) dBFS rpm=0 raw=1568 conf=1.4 fs=1984 tone=0 clear=1 ovf=8896
+          [   77.630] D NAV: fix=1 good=1 sat=9 hdop=1.4 00.000000,0.000000 gs=0.4 trk=0 gpsAlt=-4.7
+          [   77.631] D NAV: baro=1 p=99764 t=55.0 std=130.7 msl=-4.4 agl=-0.0 vs=-0.01 fly=0 ft=0
+          [   77.632] D NAV: lz=1 00.000000,0.000000 elev=-4.4 wind=none 0/0.0 mode=none/off mute=0 batt=4.17V heap=39276
+          [   78.031] D BAT: v=4.171 pct=100 min=360 learned=0
+          [   78.635] D NAV: fix=1 good=1 sat=9 hdop=1.4 00.000000,0.000000 gs=0.3 trk=0 gpsAlt=-3.5
+          [   78.635] D NAV: baro=1 p=99764 t=55.0 std=130.7 msl=-4.4 agl=-0.0 vs=+0.02 fly=0 ft=0
+          [   78.636] D NAV: lz=1 00.000000,0.000000 elev=-4.4 wind=none 0/0.0 mode=none/off mute=0 batt=4.17V heap=38504
+          [   79.095] D MIC: noise=-63.8 (blk -65.2) dBFS rpm=0 raw=2865 conf=1.6 fs=1964 tone=0 clear=1 ovf=9152
+          [   79.690] D NAV: fix=1 good=1 sat=9 hdop=1.4 00.000000,0.000000 gs=0.1 trk=0 gpsAlt=-1.4
+          [   79.691] D NAV: baro=1 p=99764 t=55.0 std=130.8 msl=-4.4 agl=0.0 vs=+0.01 fly=0 ft=0
+          [   79.691] D NAV: lz=1 00.000000,0.000000 elev=-4.4 wind=none 0/0.0 mode=none/off mute=0 batt=4.17V heap=32032
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 36656 lowest 3668 largest block 14324 | others: web pages 1, Wi-Fi stations 0, BLE 0
+        low memory: lowest free memory 6356 -> 4564 B after web server (free now 27408)
+        low memory: lowest free memory 4564 -> 2972 B after web server (free now 15572)
+        low memory: route GET /api/status lowered the low-water mark 23196 -> 21548 B (free now 25660)
+        low memory: web: lowest 23196 -> 21548 B during request /api/status (free now 27404)
+        low memory: lowest free memory 24672 -> 21548 B after web server (free now 27404)
+        low memory: route GET /api/status lowered the low-water mark 21548 -> 12316 B (free now 24956)
+        low memory: web: lowest 21548 -> 12316 B during request /api/status (free now 29268)
+        low memory: lowest free memory 21548 -> 12316 B after web server (free now 29488)
+        low memory: lowest free memory 12316 -> 9984 B after web server (free now 17008)
+        low memory: lowest free memory 9984 -> 7488 B after flight logic (free now 15352)
+        low memory: web: lowest 9816 -> 7488 B during idle before  (free now 15352)
+        low memory: web: lowest 5996 -> 3668 B during request  (free now 14716)
+        low memory: lowest free memory 7488 -> 3668 B after web server (free now 14716)
+Cleanup: close the browser, simulation off, flight logic reset, settings restored, 8 leftover test log(s) deleted, leftover test logs.
+
+NOTE: 8 test(s) ran while a phone, browser or BLE client was connected: memory_events, soak, ui_flight, ui_actions, ui_guidance, ui_spectrum, spectrum_setting, memory
+
+14 passed, 3 failed, 353 log lines missed

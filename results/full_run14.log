@@ -1,0 +1,393 @@
+ParaVario 20261115-164038 (d7f0ee7-dirty) at 192.168.68.66, 82 tests
+  PASS  boot               5.3 s  beep 0.26 s at 900 Hz, 'Ready' 1.01 s later (vario answered again after 3 s)
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 42868 lowest 26284 largest block 18420 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  settings           1.2 s  round trip and clamping ok
+        memory: free 41988 lowest 26284 largest block 18420 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  vario_climb       16.6 s  tone 804 Hz, heard at -32 dBFS (+44 dB on silence)
+        memory: free 39964 lowest 20104 largest block 18420 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  vario_sink        12.0 s  tone 288 Hz, heard at -24 dBFS (54 dB over floor)
+        memory: free 39720 lowest 16944 largest block 18420 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  vario_thresholds  66.9 s  climb: silent at 0.25, 730 Hz at 0.35 (expected 735), heard 35 dB over floor; sink: silent at -1.80, 309 Hz at -2.20 (expected 306), heard 52 dB over floor
+        memory: free 39768 lowest 16900 largest block 18420 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  vario_logic        1.4 s  43 cases passed: thresholds exact (>= climb, <= sink), formulas and limits, all silencing conditions
+        memory: free 31036 lowest 16900 largest block 9204 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  mute              12.7 s  muted climb silent, tone back after unmute
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 33588 lowest 9008 largest block 11764 | others: web pages 1, Wi-Fi stations 0, BLE 0
+  PASS  auto_volume       25.7 s  -60 dBFS -> 20/40%, -40 dBFS -> 60/70%, -20 dBFS -> 100/100%
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 39772 lowest 9008 largest block 16372 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  rpm_logic          1.4 s  22 cases passed: speeds 1500..8000 rpm within 1.5 %, pulses per revolution, noise and silence give no RPM
+        memory: free 39776 lowest 9008 largest block 16372 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  rpm               73.8 s  stopped: 0; idle 2000 found in 1.2 s, steady 1972..2031; up 2000->5000 followed in steps; down 5000->2000 followed in steps; rapid 2000/4000 alternation: 32 readings, none outside 1800..4400 (0 zero); noise: engine kept at 2000 under noise; loud noise alone gives 0; input lost -> 0 after 2.2 s; recovered in 0.8 s
+        memory: free 39424 lowest 9008 largest block 16372 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  rpm_speech        38.8 s  3 announcements of about 6 s: RPM held at 2500 (+-6 %) throughout, 29 readings each; change to 3500 during speech followed within 6.0 s
+        memory: free 39580 lowest 3504 largest block 16372 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  rpm_glitch        10.0 s  5 single bad windows (4000, 1000, 6000, 3000, 4000 rpm): reading stayed within 67 rpm of 2000 over 36 readings; a real change to 3600 followed in 0.7 s
+        memory: free 39588 lowest 3504 largest block 16372 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  geo_logic          1.1 s  39 cases passed: wrap, distance (incl. date line), bearings, local offsets, vector bearing, clock positions
+        memory: free 39608 lowest 3504 largest block 16372 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  wind_logic         2.6 s  82 cases passed: fit accuracy, turn direction, 0/360, noise, no-fit and refused cases, averaging, ground glide
+        memory: free 39440 lowest 3504 largest block 16372 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  circuit_logic      2.5 s  74 cases passed: leg order, turn points, base turn from height, overshoot, wrong way, refusals
+        memory: free 34460 lowest 3504 largest block 9204 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  battery_logic      1.0 s  49 cases passed: conversion, smoothing, curve, low-battery timing and exceptions
+        memory: free 34436 lowest 3504 largest block 11252 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  flight_logic       0.9 s  46 cases passed: speed rule unchanged, no landing from a missing or weak GPS at height, limits exact
+        memory: free 34432 lowest 3504 largest block 9204 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  button_logic       0.9 s  38 cases passed: single/double/triple clicks, gloved gaps, hold with cue, abandoned hold, bounce
+        memory: free 34240 lowest 3504 largest block 9204 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  factory_reset     69.7 s  no prompt in flight; five clicks: instruction given, the next five clicks do nothing else; held 2 s: reset (settings back to defaults) and restart; let go early: cancelled, nothing changed
+        memory: free 37200 lowest 19100 largest block 16372 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  ble_info           1.2 s  release 1.0: the Bluetooth model reads 'ParaVario 1.0', the manufacturer 'Ian Maddocks' (read over Bluetooth is not tested here)
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 39372 lowest 16976 largest block 13812 | others: web pages 1, Wi-Fi stations 0, BLE 0
+  PASS  voice_pack         8.0 s  clips play from the pack with no missing clip; 604 kB of the storage is free or logs
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 39624 lowest 12804 largest block 13812 | others: web pages 1, Wi-Fi stations 0, BLE 0
+  PASS  igc_two_flights   83.5 s  both flights are in the log list (['210101-120033.igc', '210101-120113.igc']); 584 kB free
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 39364 lowest 4048 largest block 13812 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  vario_only_flying  29.4 s  silent on the ground while climbing 25 m, climb tone after takeoff
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 34132 lowest 4048 largest block 9716 | others: web pages 1, Wi-Fi stations 0, BLE 0
+  PASS  maint_retry       49.4 s  gave up on the maintenance network, and found it again by itself after about 8 s
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 39240 lowest 4048 largest block 13812 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  log_list_memory   68.3 s  40 logs listed 5 times: lowest free memory 4048 -> 4048 B
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 39240 lowest 4048 largest block 12788 | others: web pages 1, Wi-Fi stations 0, BLE 0
+  PASS  net_trail          7.2 s  4 restarts on the trail, the one before this restart among them
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 43376 lowest 23040 largest block 22516 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  igc_segments      71.4 s  3 files, 62 fixes in order, 3964 bytes, one entry in the list
+        memory: free 39164 lowest 11828 largest block 13300 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  igc_room         238.2 s  an earlier day's log goes first, today's older log is untouched; today's older log thinned 33401 -> 10841 bytes, not deleted; cut down to the minimum 33401 -> 4455 bytes: 35-character fixes, no extension declaration, no slow records; the start was trimmed (the takeoff mark is gone); 49 fixes kept to the landing, from 262 s after the simulated midday
+        memory: free 39080 lowest 6668 largest block 17396 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  ui_replay          9.1 s  made-up log read; Ready / flight time / Landed, height, rpm 3000, wind 250 at 14 km/h, battery, speed, landing zone follow the log; pause, speed, slider, exit work; the buttons are hidden meanwhile
+        memory: free 30864 lowest 6668 largest block 9204 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  height_logic       0.8 s  10 cases passed: no samples on the ground, trace kept after landing, one gap between flights, ring
+        memory: free 39048 lowest 6668 largest block 18420 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  moving_logic       0.9 s  14 cases passed: show limit with hold, hide limit with hold, flicker ignored, no fix hides at once
+        memory: free 38884 lowest 6668 largest block 18420 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  height_trace      78.2 s  nothing recorded on the ground; 8 samples in the first 14 s of flight; after landing: kept (13 samples), no new ones in 10 s; second flight continues after a gap of 15 markers
+        memory: free 30644 lowest 3640 largest block 9204 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  maint_voice        9.9 s  joined the maintenance Wi-Fi and said so once: [     0.897] D SAY: [normal] maint_connected
+        memory: free 42148 lowest 16148 largest block 12788 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  names_default     13.7 s  emptied names became ParaVario-12B8 in the settings (same code for both, nothing added behind the settings); own names kept
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 42084 lowest 14652 largest block 20468 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  status_logic       1.3 s  17 cases passed: height, landing zone with clock and distance, wind, battery, units, what is left out
+        memory: free 41832 lowest 12324 largest block 20468 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  alerts_logic       1.1 s  27 cases passed: low/critical/lost battery messages, barometer failed and back
+        memory: free 42028 lowest 12324 largest block 20468 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  resume_logic       1.8 s  22 cases passed: age, reach, flying speed, missing time/position
+        memory: free 39860 lowest 11872 largest block 19444 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  audio_logic        1.7 s  17 cases passed: urgent calls get the signal tone, nothing else does
+        memory: free 40048 lowest 11092 largest block 18420 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  rpmtrack_logic     1.8 s  35 cases passed: smoothing, jump confirmation, dropout hold, speech hold
+        memory: free 39816 lowest 11092 largest block 18420 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  baro_logic         1.2 s  29 cases passed: impossible values, lone outliers, steps, rate limit, frozen reading, recovery
+        memory: free 39848 lowest 11092 largest block 19444 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  wind             236.3 s  takeoff run: from 270, source takeoff; head, tail and cross winds give the right ground speed and drift; straight flight leaves the estimate; wind from 270 at 5 m/s, right turns -> from 270 at 5.0; wind from 355 at 7 m/s, left turns (0/360 wrap) -> from 321 at 4.5; wind from 5 at 3 m/s, right turns -> from 339 at 3.5; wind from 180 at 8 m/s, left turns -> from 195 at 2.5; no wind -> from 195 at 1.2; wind from 225 at 6 m/s -> from 220 at 3.5; steady wind: error 2.49 -> 0.00 -> 0.00 -> 0.00 m/s over successive fits
+        memory: free 32080 lowest 2132 largest block 9204 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  wind_faults      340.5 s  baseline from 270 at 5.0; straight flight: no fit; half circle: no fit; 2.5 deg/s turn (150 degrees in the 60 s window): no fit; a 16 m/s wind at 20 m/s airspeed (a wind above the 15 m/s limit; a wind over the airspeed gives no circle at all): rejected, estimate kept; 4 m/s airspeed: rejected, estimate kept; GPS silent / no fix for 7 s in a circle: no fit from the gap, correct again after; manual wind used and kept while circling
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 34028 lowest 1824 largest block 9204 | others: web pages 1, Wi-Fi stations 0, BLE 0
+  FAIL  wind_change       83.2 s  first fit after the wind change is 2.97 m/s from the mean of the old estimate and the new wind (from 242 at 3.0); old samples biasing it? (F2)
+        state: uptime 676 s, flying True, agl 60 m, vario -0.00, baro ok True, fix True, wind circling 242/3.0, heap 34012 (lowest 1824)
+        sim: {"baro": 1, "alt": 160.0, "vz": 0.0, "gps": "fix", "lat": 51.501299, "lon": 0.498674, "speed": 5.0, "track": 91.3, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 90.6}
+        last log lines:
+          [  674.134] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.501208,0.498493 gs=7.5 trk=14 gpsAlt=160.0
+          [  674.134] D NAV: baro=1 p=101205 t=20.0 std=10.0 msl=160.0 agl=60.0 vs=-0.01 fly=1 ft=68
+          [  674.135] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/5.0 mode=none/off mute=0 batt=4.17V heap=36936
+          [  674.562] D MIC: noise=-62.0 (blk -61.8) dBFS rpm=0 raw=5782 conf=1.6 fs=2003 tone=0 clear=1 ovf=81312
+          [  675.154] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.501264,0.498534 gs=6.1 trk=38 gpsAlt=160.0
+          [  675.154] D NAV: baro=1 p=101205 t=20.0 std=10.0 msl=160.0 agl=60.0 vs=+0.00 fly=1 ft=70
+          [  675.155] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/5.0 mode=none/off mute=0 batt=4.17V heap=37148
+          [  675.861] I WIND: Wind fit: from 242 deg 3.0 m/s, airspeed 8.6 m/s (rms 1.59)
+          [  675.957] D BAT: v=4.174 pct=100 min=360 learned=0
+          [  676.158] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.501294,0.498597 gs=5.2 trk=68 gpsAlt=160.0
+          [  676.158] D NAV: baro=1 p=101205 t=20.0 std=10.0 msl=160.0 agl=60.0 vs=-0.01 fly=1 ft=71
+          [  676.159] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 242/3.0 mode=none/off mute=0 batt=4.17V heap=37308
+          [  676.609] D MIC: noise=-62.3 (blk -61.8) dBFS rpm=0 raw=1476 conf=1.6 fs=2003 tone=0 clear=1 ovf=81568
+          [  676.660] I SIM: turn=0
+          [  676.961] D VOL: noise -62.4 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [  677.162] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.501299,0.498669 gs=5.0 trk=91 gpsAlt=160.0
+          [  677.162] D NAV: baro=1 p=101205 t=20.0 std=10.0 msl=160.0 agl=60.0 vs=+0.01 fly=1 ft=72
+          [  677.163] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 242/3.0 mode=none/off mute=0 batt=4.17V heap=33512
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 28732 lowest 1824 largest block 9716 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  circuit_right    279.8 s  crosswind turn at x=225 (expected 225); downwind turn at y=370 (expected 371); base turn at x=-221 for 166 m (expected -223; final 267 m); final turn at y=30, 77 m up; touchdown 2 m from the field; no steering call during any called turn
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 28792 lowest 1260 largest block 9204 | others: web pages 1, Wi-Fi stations 0, BLE 0
+  PASS  circuit_slow_pilot 341.4 s  measured (6.0, 1.1, 3.0) and (8.0, 1.5, 9.3); lead 9.3 s; base turn 87 m earlier than the setting would call it
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 33672 lowest 1260 largest block 9204 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  circuit_left_wind 279.6 s  crosswind turn at x=277 (expected 277); downwind turn at y=-373 (expected -374); base turn at x=-267 for 166 m (expected -267; final 308 m); final turn at y=-30, 83 m up; touchdown 13 m from the field; no steering call during any called turn
+        memory: free 34004 lowest 1260 largest block 9204 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  circuit_events   333.8 s  crosswind turn at x=226 (expected 225); downwind turn at y=371 (expected 370); base turn at x=-200 for 157 m (expected -195; final 239 m); final turn at y=39, 70 m up; touchdown 8 m from the field; 1 steering calls (a turn was ignored on purpose); start point called 5 times while flying away, no leg change during the 6 s GPS loss, 1 steer right calls while the turn was ignored
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 23204 lowest 1260 largest block 7156 | others: web pages 1, Wi-Fi stations 0, BLE 0
+  PASS  fault_baro       230.2 s  dead: detected, banner, silent, recovered; range: detected, banner, silent, recovered; NaN pressure: detected, silent, recovered; frozen value: detected after 5 s, banner, silent, recovered; one 30 m wild sample: held back, no tone, vario unmoved; -30 m and +12 m single samples: held back too; two wild samples in a row: accepted as a step, no tone; a 25 m step that stays: accepted as a step, no tone; intermittent: 1.2 s dropouts ignored, 3 s dropouts detected and recovered x3; 0.4 m noise: vario reads within +-0.13 m/s
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 38904 lowest 1260 largest block 11764 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  fault_gps         93.0 s  position 0, 0 on the ground: no fix, back after; dropout: announced after 5 s, flight kept, approach refused, fix back without reboot; 3 satellites: no fix; back with 10; weak fix (4 satellites, hdop 4.2) for 14 s in flight: flight kept; latitude 95 / -91 and longitude 200: no fix each time, flight kept, fix back
+        memory: free 33476 lowest 1172 largest block 9204 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  fault_battery     69.1 s  flickering 3.4/3.6 V: 0 call(s) in 40 s; 0.0 V: 0 %, no call; 6.0 V: 100 %, no call
+        memory: free 36548 lowest 1172 largest block 10740 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  landing_gps_quality 687.0 s  weak fix, +0.0 m/s at about 200 m, 29 s; weak fix, +0.2 m/s at about 200 m, 29 s; weak fix, -0.2 m/s at about 200 m, 29 s; no GPS for 70 s at 200 m; landing with no GPS found 12 s after touchdown; landing with a weak fix found (13 cases kept the flight)
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 31052 lowest 1124 largest block 9204 | others: web pages 1, Wi-Fi stations 0, BLE 0
+  PASS  landing_hover    197.6 s  hovering at 60 m for 16 s: still flying; declared landed after about 25 s (landingHighMult 5); multiplier 1: landed after the normal time, as before; near the ground: landed 5 s after stopping
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 33672 lowest 1064 largest block 9204 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  button_actions    24.0 s  click and hold cues; single: tell me, starts nothing; double: approach on and off; a single never cancels; hold: emergency on and off; a single never cancels; triple: mute and unmute; no GPS: single tells height and battery, double/hold mute
+        memory: free 39096 lowest 1064 largest block 13812 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  alerts_flight    119.3 s  barometer failed / back spoken in flight; routine height calls: 2+ in 26 s normally, none during the approach
+        memory: free 26476 lowest 1064 largest block 9204 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  resume_flight    490.0 s  30 min off at flying speed: resumed, same LZ, 50 m, flight time 1816 s; resumed flight lands normally; too old (4 h): not resumed; on the ground: not resumed; impossible place: not resumed; resume switched off: not resumed; no GPS within 3 minutes: dropped; reset by the pilot: flight ended, nothing resumed after a restart
+        memory: free 39712 lowest 20372 largest block 14836 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  battery_flight   145.9 s  3.40 V: ordinary call; 3.20 V: urgent call after 6 s; reading lost in flight (0 V): urgent call; recovered: silent; 0 V on the ground: silent (USB power)
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 38532 lowest 4352 largest block 14836 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  memory_events    278.0 s  free 39268 -> [39204, 39212, 39180] B over three rounds, lowest 4352 B, largest block 14836 B, stacks free {'loopTask': 1480, 'audio': 2120, 'mic': 2008}
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 35688 lowest 4352 largest block 9204 | others: web pages 1, Wi-Fi stations 0, BLE 0
+  FAIL  soak             755.2 s  lowest free memory fell from 4352 to 1852 B during the soak
+        state: uptime 1192 s, flying True, agl 323 m, vario +0.01, baro ok True, fix True, wind circling 270/4.0, heap 33888 (lowest 1824)
+        sim: {"baro": 1, "alt": 423.1, "vz": 0.0, "gps": "fix", "lat": 51.487699, "lon": 0.531969, "speed": 10.99, "track": 155.2, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 176.5}
+        last log lines:
+          [ 1188.774] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.488040,0.531717 gs=11.0 trk=155 gpsAlt=423.1
+          [ 1188.774] D NAV: baro=1 p=98087 t=20.0 std=273.1 msl=423.1 agl=323.1 vs=-0.01 fly=1 ft=740
+          [ 1188.775] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/4.0 mode=none/off mute=0 batt=4.17V heap=22516
+          [ 1189.498] D MIC: noise=-63.4 (blk -63.1) dBFS rpm=0 raw=2584 conf=2.8 fs=1788 tone=0 clear=1 ovf=142336
+          [ 1189.785] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.487950,0.531783 gs=11.0 trk=155 gpsAlt=423.1
+          [ 1189.786] D NAV: baro=1 p=98086 t=20.0 std=273.1 msl=423.1 agl=323.1 vs=+0.02 fly=1 ft=741
+          [ 1189.786] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/4.0 mode=none/off mute=0 batt=4.17V heap=34384
+          [ 1190.379] D BAT: v=4.172 pct=100 min=360 learned=0
+          [ 1190.791] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.487861,0.531850 gs=11.0 trk=155 gpsAlt=423.1
+          [ 1190.792] D NAV: baro=1 p=98087 t=20.0 std=273.1 msl=423.1 agl=323.1 vs=-0.02 fly=1 ft=742
+          [ 1190.792] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/4.0 mode=none/off mute=0 batt=4.17V heap=37012
+          [ 1191.547] D MIC: noise=-63.0 (blk -63.4) dBFS rpm=0 raw=5623 conf=2.2 fs=1945 tone=0 clear=1 ovf=142592
+          [ 1191.795] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.487771,0.531917 gs=11.0 trk=155 gpsAlt=423.1
+          [ 1191.796] D NAV: baro=1 p=98087 t=20.0 std=273.1 msl=423.1 agl=323.1 vs=+0.02 fly=1 ft=743
+          [ 1191.796] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/4.0 mode=none/off mute=0 batt=4.17V heap=32140
+          [ 1191.897] I SIM: turn=0
+          [ 1191.897] I SIM: vz=0
+          [ 1192.384] D BAT: v=4.172 pct=100 min=360 learned=0
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 33892 lowest 1824 largest block 13812 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  gps_states        30.7 s  not responding / waiting / weak fix ignored / good fix ready
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 39020 lowest 1824 largest block 14836 | others: web pages 1, Wi-Fi stations 0, BLE 0
+  PASS  flight           116.2 s  88 IGC records, 12 s before takeoff, alt 100..165 m, 7 without fix
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 36196 lowest 1824 largest block 9204 | others: web pages 1, Wi-Fi stations 0, BLE 0
+  PASS  baro_only        134.7 s  slow rise ignored, takeoff at 2 m/s and landing without GPS, agl reads 60.3 m at a true 60 m
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 36208 lowest 1824 largest block 12276 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  guidance          92.8 s  refusals, emergency 6 o'clock + on course, approach start and cancel
+        memory: free 35496 lowest 1824 largest block 9204 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  battery           36.6 s  curve ok, minutes [360, 354, 288, 180, 43, 0], real battery back at 4.172 V
+        memory: free 31324 lowest 1824 largest block 9204 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  battery_learner    7.6 s  4 h run -> 234.2 min at 4.10 V, pace-scaled 59 min, blended 199.4, charging unknown
+        memory: free 38884 lowest 1824 largest block 13300 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  speech            20.6 s  clip sequence ok, speech peaks +35 dB over the quiet room
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 37440 lowest 1824 largest block 9204 | others: web pages 1, Wi-Fi stations 0, BLE 0
+  PASS  volume_ramp       12.1 s  10 -> 100 %: 28 % within 1 s, 45 % at 1.5 s, 100 % by 4.5 s; never faster or slower than 30 %/s; falls gradually too
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 39188 lowest 1824 largest block 14836 | others: web pages 1, Wi-Fi stations 0, BLE 0
+  PASS  glide             78.7 s  6.7 : 1 now, 6.7 : 1 over 20 s (true 6.7)
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+        memory: free 31364 lowest 1496 largest block 9204 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  variant_no_gps   116.3 s  ready, takeoff, 40.3 m and landing on the barometer; 54 settings listed, no log
+        memory: free 31260 lowest 1496 largest block 9204 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  variant_no_mic    18.8 s  volume back to the set 40/20 % at -20 dBFS noise, 91 settings listed, no spectrum
+        memory: free 38676 lowest 1496 largest block 14836 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  gps_detect        32.5 s  unknown -> not fitted after 10 s -> found when it starts sending -> kept when silent; set by hand both ways; page followed
+        memory: free 33640 lowest 1112 largest block 9204 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  PASS  ui_flight         22.1 s  banner, 11 tiles, height graph and layout correct; speed, vario, battery and GPS changes followed
+        memory: free 39140 lowest 1112 largest block 14836 | others: web pages 0, Wi-Fi stations 0, BLE 0
+  FAIL  ui_pilot         119.4 s  vario not reachable (/api/sim?gps=fix&baroFault=none&batt=off): <urlopen error timed out>
+        state: could not read the status (vario not reachable (/api/status): <urlopen error timed out>)
+        sim: could not read (vario not reachable (/api/sim): <urlopen error timed out>)
+        log: could not read (vario not reachable (/api/debuglog?since=12696): <urlopen error timed out>)
+  FAIL  ui_layout        could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error timed out>
+  FAIL  ui_actions       could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error timed out>
+  FAIL  ui_guidance      could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error timed out>
+  FAIL  ui_settings      could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error timed out>
+  FAIL  ui_spectrum      could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error timed out>
+  FAIL  spectrum_setting could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error timed out>
+  FAIL  ui_system        could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error timed out>
+  FAIL  ui_help          could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error timed out>
+  FAIL  ota_guard        could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error timed out>
+  FAIL  memory           could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error timed out>
+        low memory: lowest free memory 26284 -> 23908 B after flight logic (free now 23908)
+        low memory: web: lowest 26284 -> 23908 B during idle before  (free now 23908)
+        low memory: lowest free memory 23908 -> 20104 B after flight logic (free now 32460)
+        low memory: web: lowest 22432 -> 20104 B during idle before  (free now 32460)
+        low memory: web: lowest 19272 -> 16944 B during request  (free now 29424)
+        low memory: lowest free memory 20104 -> 16944 B after web server (free now 29424)
+        low memory: route POST /api/settings lowered the low-water mark 16416 -> 9008 B (free now 21964)
+        low memory: web: lowest 16416 -> 9008 B during request /api/settings (free now 23684)
+        low memory: lowest free memory 16944 -> 9008 B after web server (free now 23684)
+        low memory: lowest free memory 9008 -> 3504 B after flight logic (free now 14828)
+        low memory: web: lowest 8160 -> 3504 B during idle before  (free now 14828)
+        low memory: web: lowest 26272 -> 23756 B during request  (free now 23756)
+        low memory: lowest free memory 26924 -> 23756 B after web server (free now 23756)
+        low memory: lowest free memory 23756 -> 21428 B after flight logic (free now 24476)
+        low memory: web: lowest 23756 -> 21428 B during idle before  (free now 24476)
+        low memory: web: lowest 21428 -> 19100 B during request  (free now 24912)
+        low memory: lowest free memory 21428 -> 19100 B after web server (free now 24912)
+        low memory: web: lowest 19100 -> 16976 B during request  (free now 21632)
+        low memory: lowest free memory 19100 -> 16976 B after web server (free now 21632)
+        low memory: route GET /api/status lowered the low-water mark 16976 -> 14356 B (free now 20108)
+        low memory: web: lowest 16976 -> 14356 B during request /api/status (free now 22180)
+        low memory: lowest free memory 16976 -> 14356 B after web server (free now 22180)
+        low memory: route GET /api/status lowered the low-water mark 14356 -> 12804 B (free now 19520)
+        low memory: web: lowest 14356 -> 12804 B during request /api/status (free now 21600)
+        low memory: lowest free memory 14356 -> 12804 B after web server (free now 21600)
+        low memory: lowest free memory 12804 -> 11216 B after web server (free now 24308)
+        low memory: web: lowest 11216 -> 6560 B during request  (free now 15108)
+        low memory: lowest free memory 11216 -> 6560 B after web server (free now 15108)
+        low memory: web: lowest 6376 -> 4048 B during request  (free now 11556)
+        low memory: lowest free memory 6560 -> 4048 B after web server (free now 11556)
+        low memory: route GET /api/status lowered the low-water mark 26256 -> 23040 B (free now 33712)
+        low memory: web: lowest 26256 -> 23040 B during request /api/status (free now 42404)
+        low memory: lowest free memory 27732 -> 23040 B after web server (free now 42404)
+        low memory: route GET /api/debuglog lowered the low-water mark 23040 -> 21960 B (free now 22120)
+        low memory: web: lowest 21752 -> 19424 B during request  (free now 20904)
+        low memory: lowest free memory 23040 -> 19424 B after web server (free now 20904)
+        low memory: route GET /api/status lowered the low-water mark 18580 -> 16252 B (free now 28696)
+        low memory: web: lowest 18580 -> 16252 B during request /api/status (free now 30416)
+        low memory: lowest free memory 19424 -> 16252 B after web server (free now 30416)
+        low memory: route GET /api/debuglog lowered the low-water mark 16252 -> 13760 B (free now 24072)
+        low memory: web: lowest 16252 -> 13760 B during request /api/debuglog (free now 25788)
+        low memory: lowest free memory 16252 -> 13760 B after web server (free now 25788)
+        low memory: route GET /api/status lowered the low-water mark 12848 -> 11828 B (free now 22928)
+        low memory: lowest free memory 13760 -> 11828 B after web server (free now 24648)
+        low memory: web: lowest 11828 -> 10276 B during request  (free now 17772)
+        low memory: lowest free memory 11828 -> 10276 B after web server (free now 17772)
+        low memory: lowest free memory 10276 -> 6784 B after flight logic (free now 21968)
+        low memory: web: lowest 9112 -> 6784 B during idle before  (free now 21968)
+        low memory: lowest free memory 6784 -> 3640 B after flight logic (free now 13616)
+        low memory: web: lowest 5968 -> 3640 B during idle before  (free now 13616)
+        low memory: route GET /api/status lowered the low-water mark 24504 -> 23132 B (free now 27200)
+        low memory: web: lowest 24504 -> 16148 B during request /api/status (free now 21732)
+        low memory: lowest free memory 24504 -> 16148 B after web server (free now 21732)
+        low memory: route POST /api/settings lowered the low-water mark 16148 -> 11392 B (free now 16212)
+        low memory: web: lowest 16148 -> 11392 B during request /api/settings (free now 17920)
+        low memory: lowest free memory 16148 -> 11392 B after web server (free now 17920)
+        low memory: lowest free memory 11392 -> 6736 B after flight logic (free now 13264)
+        low memory: web: lowest 11392 -> 6736 B during idle before  (free now 13264)
+        low memory: route GET /api/debuglog lowered the low-water mark 23588 -> 21260 B (free now 33296)
+        low memory: web: lowest 23588 -> 21260 B during request /api/debuglog (free now 35004)
+        low memory: lowest free memory 25064 -> 21260 B after web server (free now 35004)
+        low memory: lowest free memory 21260 -> 18612 B after flight logic (free now 18612)
+        low memory: web: lowest 21260 -> 18612 B during idle before  (free now 18612)
+        low memory: lowest free memory 18612 -> 16632 B after web server (free now 21312)
+        low memory: lowest free memory 16632 -> 8728 B after bluetooth (free now 11468)
+        low memory: web: lowest 15712 -> 8728 B during idle before  (free now 11468)
+        low memory: lowest free memory 25840 -> 23112 B after flight logic (free now 23112)
+        low memory: web: lowest 25692 -> 23112 B during idle before  (free now 23112)
+        low memory: web: lowest 21636 -> 16980 B during request  (free now 18720)
+        low memory: lowest free memory 23112 -> 16980 B after web server (free now 18720)
+        low memory: lowest free memory 16980 -> 14652 B after flight logic (free now 20952)
+        low memory: web: lowest 16980 -> 14652 B during idle before  (free now 20952)
+        low memory: lowest free memory 14652 -> 12324 B after flight logic (free now 17288)
+        low memory: web: lowest 14652 -> 12324 B during idle before  (free now 17288)
+        low memory: lowest free memory 12324 -> 10400 B after web server (free now 18860)
+        low memory: lowest free memory 10400 -> 7644 B after flight logic (free now 20572)
+        low memory: web: lowest 9972 -> 7644 B during idle before  (free now 20572)
+        low memory: lowest free memory 7644 -> 5316 B after flight logic (free now 20112)
+        low memory: web: lowest 7644 -> 5316 B during idle before  (free now 20112)
+        low memory: lowest free memory 5316 -> 2540 B after web server (free now 9864)
+        low memory: web: lowest 29816 -> 22904 B during request  (free now 22904)
+        low memory: lowest free memory 29816 -> 22904 B after web server (free now 22904)
+        low memory: lowest free memory 22904 -> 16772 B after flight logic (free now 20300)
+        low memory: web: lowest 21428 -> 16772 B during idle before  (free now 20300)
+        low memory: lowest free memory 16772 -> 7460 B after flight logic (free now 30864)
+        low memory: web: lowest 16772 -> 7460 B during idle before  (free now 30864)
+        low memory: route GET /api/status lowered the low-water mark 7020 -> 5608 B (free now 22108)
+        low memory: lowest free memory 7460 -> 5608 B after web server (free now 23848)
+        low memory: route GET /api/debuglog lowered the low-water mark 27012 -> 23968 B (free now 32444)
+        low memory: web: lowest 27012 -> 23968 B during request /api/debuglog (free now 34388)
+        low memory: lowest free memory 28280 -> 23968 B after web server (free now 34388)
+        low memory: lowest free memory 23968 -> 19312 B after flight logic (free now 20316)
+        low memory: web: lowest 23968 -> 19312 B during idle before  (free now 20316)
+        low memory: route GET /api/debuglog lowered the low-water mark 18068 -> 12996 B (free now 31752)
+        low memory: web: lowest 18068 -> 12996 B during request /api/debuglog (free now 33684)
+        low memory: lowest free memory 19312 -> 12996 B after web server (free now 33684)
+        low memory: lowest free memory 12996 -> 10724 B after web server (free now 15076)
+        low memory: lowest free memory 10724 -> 7920 B after flight logic (free now 13552)
+        low memory: web: lowest 10416 -> 7920 B during idle before  (free now 13552)
+        low memory: lowest free memory 29460 -> 22220 B after flight logic (free now 22220)
+        low memory: web: lowest 29460 -> 22220 B during idle before  (free now 22220)
+        low memory: route GET /api/debuglog lowered the low-water mark 20744 -> 16088 B (free now 16512)
+        low memory: web: lowest 20744 -> 16088 B during request /api/debuglog (free now 36124)
+        low memory: lowest free memory 22220 -> 16088 B after web server (free now 36124)
+        low memory: web: lowest 15536 -> 8552 B during request  (free now 17468)
+        low memory: lowest free memory 16088 -> 8552 B after web server (free now 17468)
+        low memory: lowest free memory 8552 -> 6224 B after flight logic (free now 11268)
+        low memory: web: lowest 8552 -> 6224 B during idle before  (free now 11268)
+        low memory: route GET /api/status lowered the low-water mark 26312 -> 14000 B (free now 32268)
+        low memory: web: lowest 26312 -> 14000 B during request /api/status (free now 33996)
+        low memory: lowest free memory 26312 -> 14000 B after web server (free now 33996)
+        low memory: lowest free memory 14000 -> 7112 B after flight logic (free now 12888)
+        low memory: web: lowest 12544 -> 7112 B during idle before  (free now 12888)
+        low memory: route GET /api/debuglog lowered the low-water mark 6336 -> 5068 B (free now 14540)
+        low memory: lowest free memory 7112 -> 5068 B after web server (free now 22548)
+        low memory: lowest free memory 26024 -> 21368 B after flight logic (free now 24152)
+        low memory: web: lowest 26024 -> 21368 B during idle before  (free now 24152)
+        low memory: route GET /api/debuglog lowered the low-water mark 20192 -> 18984 B (free now 36408)
+        low memory: lowest free memory 21368 -> 18984 B after web server (free now 38536)
+        low memory: route GET /api/status lowered the low-water mark 18812 -> 16032 B (free now 33872)
+        low memory: web: lowest 18812 -> 16032 B during request /api/status (free now 35584)
+        low memory: lowest free memory 18984 -> 16032 B after web server (free now 35584)
+        low memory: lowest free memory 16032 -> 13704 B after flight logic (free now 21468)
+        low memory: web: lowest 16032 -> 13704 B during idle before  (free now 21468)
+        low memory: lowest free memory 13704 -> 9048 B after flight logic (free now 12328)
+        low memory: web: lowest 13704 -> 9048 B during idle before  (free now 12328)
+        low memory: lowest free memory 9048 -> 6720 B after flight logic (free now 10680)
+        low memory: route GET /api/debuglog lowered the low-water mark 26764 -> 20480 B (free now 20640)
+        low memory: web: lowest 26764 -> 20276 B during request /api/debuglog (free now 22352)
+        low memory: lowest free memory 27896 -> 20276 B after web server (free now 22352)
+        low memory: lowest free memory 20276 -> 13292 B after flight logic (free now 17560)
+        low memory: web: lowest 20276 -> 13292 B during idle before  (free now 17560)
+        low memory: web: lowest 13292 -> 10964 B during dns  (free now 19660)
+        low memory: lowest free memory 13292 -> 10964 B after web server (free now 19660)
+        low memory: lowest free memory 10964 -> 6308 B after flight logic (free now 15448)
+        low memory: web: lowest 10964 -> 6308 B during idle before  (free now 15448)
+        low memory: lowest free memory 6308 -> 4736 B after web server (free now 24520)
+        low memory: route GET /api/debuglog lowered the low-water mark 4148 -> 2596 B (free now 28164)
+        low memory: web: lowest 4148 -> 2596 B during request /api/debuglog (free now 29868)
+        low memory: lowest free memory 4736 -> 2596 B after web server (free now 29868)
+        low memory: lowest free memory 26992 -> 23416 B after flight logic (free now 24968)
+        low memory: web: lowest 26992 -> 23416 B during idle before  (free now 24968)
+        low memory: lowest free memory 23416 -> 20372 B after flight logic (free now 30344)
+        low memory: web: lowest 22600 -> 20372 B during idle before  (free now 30344)
+        low memory: route GET /api/status lowered the low-water mark 20372 -> 17776 B (free now 34268)
+        low memory: web: lowest 20372 -> 17776 B during request /api/status (free now 37648)
+        low memory: lowest free memory 20372 -> 17776 B after web server (free now 37648)
+        low memory: lowest free memory 17776 -> 13120 B after flight logic (free now 21716)
+        low memory: web: lowest 17776 -> 13120 B during idle before  (free now 21716)
+        low memory: web: lowest 13120 -> 10792 B during request  (free now 18748)
+        low memory: lowest free memory 13120 -> 10792 B after web server (free now 18748)
+        low memory: lowest free memory 10792 -> 7748 B after flight logic (free now 11056)
+        low memory: web: lowest 10076 -> 7748 B during idle before  (free now 11056)
+        low memory: web: lowest 7380 -> 5052 B during request  (free now 12852)
+        low memory: lowest free memory 7748 -> 5052 B after web server (free now 12852)
+        low memory: lowest free memory 5052 -> 2568 B after flight logic (free now 10860)
+        low memory: web: lowest 4352 -> 2568 B during idle before  (free now 10860)
+Cleanup: close the browser;
+WARNING: cleanup step 'simulation off' failed: vario not reachable (/api/sim?off=1): <urlopen error timed out>
+WARNING: cleanup step 'flight logic reset' failed: vario not reachable (/api/sim?reset=1): <urlopen error timed out>
+WARNING: cleanup step 'settings restored' failed: vario not reachable (/api/settings): <urlopen error timed out>
+WARNING: cleanup step 'leftover test logs' failed: vario not reachable (/api/logs): <urlopen error timed out>
+
+NOTE: 28 test(s) ran while a phone, browser or BLE client was connected: boot, mute, auto_volume, ble_info, voice_pack, igc_two_flights, vario_only_flying, maint_retry, log_list_memory, net_trail, names_default, wind_faults, wind_change, circuit_right, circuit_slow_pilot, circuit_events, fault_baro, landing_gps_quality, landing_hover, battery_flight, memory_events, soak, gps_states, flight, baro_only, speech, volume_ramp, glide
+
+69 passed, 13 failed, 810 log lines missed

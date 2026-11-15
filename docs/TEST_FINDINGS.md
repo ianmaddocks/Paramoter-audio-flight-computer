@@ -220,8 +220,24 @@ hardware-address question; after 90 s without an answer it leaves and joins agai
 trail. Not shown to cure the fault: one deliberately cut-off upload on the new build did not produce the fault at all, so the
 check has not yet been seen to act. No false trigger in the test runs. Bench results only, not a flight.
 
-Still open: the lowest free memory of the test build still reaches 1-4 kB at moments under several clients at once (952 B was
-seen), without a restart. What takes it there is not yet identified.
+Watchdog restart, then off the router for good (15 Nov 18:45, during the web page tests). The vario's trail shows a restart
+with reason 6 (task watchdog), then "gave up looking for the maintenance network" at 30 s and nothing more. The stored crash
+record shows the main loop in the log list reply, waiting in a network write: a client that takes no data makes each write
+wait up to 10 s, the new log list (first version) was several writes, and the watchdog is 30 s. After the restart the router
+was not found within the 30 s (why is not known: it normally takes 1-2 s), and the vario never looked again, because it only
+looked again for a router joined since the restart.
+
+Before: a client that stopped reading in the middle of a reply could hold the main loop for 10 s per write, without limit.
+A router not found in the first 30 s after a crash or watchdog restart was not looked for again.
+After: the watchdog is fed before each write of a reply sent in parts, and after one failed write the client is dropped
+(`stalled_client`: a client that reads nothing of a 100 kB log holds the vario for about 16 s, once, and it does not restart).
+The log list, log downloads and the crash record are sent in packet-sized parts. A router that was joined before a restart is
+looked for again every 5 minutes after it (not after switching on). A pause of up to about 16 s in the main loop for one
+stuck client remains.
+
+Still open: the lowest free memory of the test build still reaches 1-4 kB during the web page tests and with several
+clients at once (916 B seen), and `memory_events`, `soak` and `memory` fail on it. What takes it there is not yet identified.
+The three daytime "joined but unreachable" episodes each followed such a low point and are not explained.
 
 ## Test changes made along the way (so nothing is hidden)
 - `wind_faults`: the slow-turn case was 3 deg/s; in a headwind the ground track turns up to twice as fast as the

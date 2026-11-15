@@ -163,3 +163,16 @@ A test is a function `t_name(v, a)` in `tools/hil_test.py`, listed in `TESTS`. `
 vario: `reset(v, ...)` sets a simulated situation, `v.sim(...)` changes it, `v.expect(tag,
 pattern, since)` waits for a log line, `v.nav()` reads the state trace, `v.page()` gives the web
 page. It returns a one-line note or raises `Fail("what went wrong")`.
+
+## When the vario restarts or drops off the network by itself
+Three things are kept on the vario for this, and all three survive the restart:
+- `GET /api/nettrail`: its own trail of the last 48 network events (restarts with the reason number, joining and losing the
+  maintenance network, giving up, looking again, devices joining its own network, web requests refused for lack of memory).
+  Kept across a crash or restart, lost when it is switched off. Restart reasons: 1 power-on, 3 software restart, 4 crash,
+  6 task watchdog, 9 brownout.
+- `GET /api/coredump`: the chip's record of its last crash or watchdog restart, kept in flash until the next one. Decode it
+  with `python tools/crash_decode.py core.bin .pio/build/<env>/firmware.elf`, using the firmware.elf of the build that
+  crashed (rebuild that commit if need be): it names the function each task was in.
+- `python tools/net_watch.py --ip <address>`: watches from the PC, records every change in `results/net_watch.csv`, and
+  prints the vario's trail when it comes back.
+A web request that arrives while the vario is short of memory is answered 503 "busy"; the page and the test runner ask again.
