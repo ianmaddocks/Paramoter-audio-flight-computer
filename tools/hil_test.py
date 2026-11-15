@@ -2302,7 +2302,7 @@ def t_ui_replay(v, a):
         if f["noises"] != "vario vol 60% · speech 30%":
             raise Fail(f"noise tile in the replay reads {f['noises']!r}")
         # the controls: pause / play, speed, slider, exit
-        p.wait("document.getElementById('rpPlay')!==null", 3)
+        p.wait("document.getElementById('rpPlay')!==null", 3, "replay controls present")
         p.js("(()=>{document.getElementById('replayBar').hidden=false;rp.pos=80;rpFrame()})()")
         p.check_fits("flight tab in replay (replay bar with the volume chart)")
         p.js("rp.playing=true;txt('rpPlay','Pause')")

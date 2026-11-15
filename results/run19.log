@@ -1,0 +1,9 @@
+ParaVario 20261115-004058 (8ea8449) at paravario.local, 2 tests
+  PASS  ui_replay         13.5 s  made-up log read; Ready / flight time / Landed, height, rpm 3000, wind 250 at 14 km/h, battery, speed, landing zone follow the log; pause, speed, slider, exit work; the buttons are hidden meanwhile
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  ui_guidance       65.5 s  flying tiles, emergency and approach banners, 210101-121940.igc listed and deleted from the page
+Cleanup: close the browser, simulation off, flight logic reset, settings restored, 1 leftover test log(s) deleted, leftover test logs.
+
+NOTE: 1 test(s) ran while a phone, browser or BLE client was connected: ui_replay
+
+2 passed, 0 failed
