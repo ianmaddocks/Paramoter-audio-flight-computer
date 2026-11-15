@@ -207,11 +207,18 @@ After:
   maintenance network with the driver's reason, giving up, looking again, devices joining its own network, refused requests),
   kept in memory that a crash or restart does not clear (`net_trail`). `tools/net_watch.py` prints it when the vario comes back.
 
-Not proven: why the vario was off the router from 02:48 to 08:07. The debug log that would say was lost in the 08:07 crash
-(which is why the trail now exists). The code looks for the router again every 5 minutes on the ground after giving up, and
-`maint_retry` shows that working; either those attempts failed for 5 hours, or the vario still believed it was connected
-while the router had dropped it. The trail will tell which the next time it happens. None of this was a flight: simulator
-and bench results only.
+Joined but unreachable (seen four times on 15 Nov: about 5 hours, 30 minutes, 65 minutes, and once more ended by a power
+cycle). By the vario's own counters it never left the router in the three daytime episodes (joined once, no drop, the same
+power-up throughout), yet nothing sent to it arrived, not even a ping; it came back by itself twice. The firmware only looked
+at "joined", so it did nothing. The three daytime episodes each began right after a firmware upload that was cut off part-way
+while other devices were using the vario; the overnight one had no upload before it. The mechanism inside the Wi-Fi stack is
+not known.
+
+Before: joined to the router = assumed reachable.
+After: while joined, the vario sends one small packet to the router every 10 s and expects the router to keep answering the
+hardware-address question; after 90 s without an answer it leaves and joins again (on the ground only), and says so on the
+trail. Not shown to cure the fault: one deliberately cut-off upload on the new build did not produce the fault at all, so the
+check has not yet been seen to act. No false trigger in the test runs. Bench results only, not a flight.
 
 Still open: the lowest free memory of the test build still reaches 1-4 kB at moments under several clients at once (952 B was
 seen), without a restart. What takes it there is not yet identified.

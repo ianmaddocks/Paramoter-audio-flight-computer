@@ -11,6 +11,10 @@
 #include <WebServer.h>
 #include <WiFi.h>
 #include <esp_core_dump.h>
+#include <esp_netif.h>
+#include <esp_netif_net_stack.h>
+#include <lwip/etharp.h>
+#include <WiFiUdp.h>
 #include <esp_partition.h>
 #include <esp_system.h>
 #include <esp_task_wdt.h>
@@ -113,6 +117,44 @@ bool serverEverConnected = false;
 uint32_t serverStoppedMs = 0;
 uint32_t serverRetryMs = kServerRetryMs;
 
+// The link that says it is up and is not. Seen on the bench on 15 Nov, twice (5 hours, then 30 minutes): the vario was joined to
+// the router the whole time by its own count (no drop reported), yet nothing sent to it arrived, not even a ping, while its own
+// network worked. Nothing in the firmware noticed, because all it looked at was "joined". So while joined, something small is
+// sent to the router every 10 s (which also keeps the router and a mesh from forgetting the vario), and the router has to keep
+// answering the question every network device asks before it sends (its hardware address). When it has not answered for 90 s
+// the vario leaves and joins again: on the ground only, as joining disturbs the vario's own network for a few seconds.
+constexpr uint32_t kKeepAliveMs = 10000, kDeafMs = 90000;
+WiFiUDP keepUdp;
+uint32_t keepLastMs = 0, routerHeardMs = 0;
+
+bool routerAnswers(const IPAddress& gw) {
+  struct netif* nif = (struct netif*)esp_netif_get_netif_impl(esp_netif_get_handle_from_ifkey("WIFI_STA_DEF"));
+  ip4_addr_t a;
+  a.addr = (uint32_t)gw;
+  struct eth_addr* eth = nullptr;
+  const ip4_addr_t* ip = nullptr;
+  return nif && etharp_find_addr(nif, &a, &eth, &ip) >= 0;
+}
+
+void keepAlive(uint32_t now) {
+  if (now - keepLastMs < kKeepAliveMs) return;
+  keepLastMs = now;
+  const IPAddress gw = WiFi.gatewayIP();
+  if ((uint32_t)gw == 0) return;
+  if (keepUdp.beginPacket(gw, 9)) {  // (port 9: "discard")
+    keepUdp.write((uint8_t)0);
+    keepUdp.endPacket();
+  }
+  if (routerAnswers(gw)) {
+    routerHeardMs = now;
+  } else if (now - routerHeardMs >= kDeafMs && !app.nav.flying) {
+    routerHeardMs = now;
+    nettrail::add(nettrail::Deaf);
+    LOGW("WEB", "Joined to '%s' but the router has not answered for %u s: joining again", serverSsidUsed, (unsigned)(kDeafMs / 1000));
+    WiFi.reconnect();
+  }
+}
+
 void serverStop(const char* why) {
   serverStoppedMs = millis();
   nettrail::add(nettrail::GaveUp);
@@ -143,6 +185,7 @@ void serverUpdate(uint32_t now) {
   bool up = WiFi.status() == WL_CONNECTED;
   if (serverWifi == ServerWifi::Connecting && up) {
     serverEverConnected = true;
+    routerHeardMs = now;
     serverWifi = ServerWifi::Connected;
     LOGI("WEB", "Joined server network '%s' as %s (http://paravario.local)", g_cfg.serverSsid,
          WiFi.localIP().toString().c_str());
@@ -152,6 +195,8 @@ void serverUpdate(uint32_t now) {
       announced = true;
       if (!app.nav.flying) speech::say(audio::Priority::Normal, "maint_connected");
     }
+  } else if (serverWifi == ServerWifi::Connected && up) {
+    keepAlive(now);
   } else if (serverWifi == ServerWifi::Connected && !up) {
     serverWifi = ServerWifi::Connecting;
     serverAttemptStartedMs = now;
