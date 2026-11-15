@@ -10,6 +10,8 @@
 #include <Update.h>
 #include <WebServer.h>
 #include <WiFi.h>
+#include <esp_core_dump.h>
+#include <esp_partition.h>
 #include <esp_system.h>
 #include <esp_task_wdt.h>
 #include <lwip/sockets.h>
@@ -23,6 +25,7 @@
 #include "audio/Speech.h"
 #include "audio/Volume.h"
 #include "comms/AppIcon.h"
+#include "comms/NetTrail.h"
 #include "logging/LogStore.h"
 #include "comms/WebPage.h"
 #include "nav/Geo.h"
@@ -49,6 +52,7 @@ uint32_t restartAtMs = 0;
 // logged when something changes.
 volatile uint32_t diagStaDisc = 0, diagStaReason = 0, diagStaDiscMs = 0, diagGotIp = 0, diagApJoin = 0, diagApLeave = 0, diagStaConn = 0;
 uint32_t diagLoggedDisc = 0;
+volatile uint32_t diagStaConnAtDisc = 0;
 const char* resetReasonName() {
   switch (esp_reset_reason()) {
     case ESP_RST_POWERON: return "power-on";
@@ -66,13 +70,25 @@ void onWifiEvent(arduino_event_id_t ev, arduino_event_info_t info) {
   switch (ev) {
     case ARDUINO_EVENT_WIFI_STA_CONNECTED: ++diagStaConn; break;
     case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+      // (while it searches, the driver reports every failed attempt as a drop: only a drop of a link that was up goes on the trail)
+      if (diagStaConn > diagStaConnAtDisc) nettrail::add(nettrail::StaDown, info.wifi_sta_disconnected.reason);
+      diagStaConnAtDisc = diagStaConn;
       ++diagStaDisc;
       diagStaReason = info.wifi_sta_disconnected.reason;
       diagStaDiscMs = millis();
       break;
-    case ARDUINO_EVENT_WIFI_STA_GOT_IP: ++diagGotIp; break;
-    case ARDUINO_EVENT_WIFI_AP_STACONNECTED: ++diagApJoin; break;
-    case ARDUINO_EVENT_WIFI_AP_STADISCONNECTED: ++diagApLeave; break;
+    case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+      ++diagGotIp;
+      nettrail::add(nettrail::StaUp);
+      break;
+    case ARDUINO_EVENT_WIFI_AP_STACONNECTED:
+      ++diagApJoin;
+      nettrail::add(nettrail::ApJoin, (int)(diagApJoin - diagApLeave));
+      break;
+    case ARDUINO_EVENT_WIFI_AP_STADISCONNECTED:
+      ++diagApLeave;
+      nettrail::add(nettrail::ApLeave, (int)(diagApJoin - diagApLeave));
+      break;
     default: break;
   }
 }
@@ -99,6 +115,7 @@ uint32_t serverRetryMs = kServerRetryMs;
 
 void serverStop(const char* why) {
   serverStoppedMs = millis();
+  nettrail::add(nettrail::GaveUp);
   WiFi.disconnect();
   WiFi.mode(WIFI_AP);
   serverWifi = ServerWifi::Off;
@@ -115,6 +132,7 @@ void serverUpdate(uint32_t now) {
   if (serverWifi == ServerWifi::Off) {
     if (maintUsed && serverEverConnected && serverSsidUsed[0] && !app.nav.flying && now - serverStoppedMs >= serverRetryMs) {
       LOGI("WEB", "Looking for the maintenance network '%s' again (it was joined earlier)", serverSsidUsed);
+      nettrail::add(nettrail::Retry);
       WiFi.mode(WIFI_AP_STA);
       WiFi.begin(serverSsidUsed, serverPassUsed);
       serverWifi = ServerWifi::Connecting;
@@ -619,20 +637,48 @@ bool validLogName(const String& name) {
   return name.indexOf("..") < 0;
 }
 
+// Written out piece by piece from 28 bytes a flight: this request used to build the list of every log piece three times over and a
+// JSON document on top (14 kB with 32 logs, of 35 kB free), and ran the vario out of memory, which restarts it.
 void handleLogs() {
-  JsonDocument doc;
-  JsonArray files = doc["files"].to<JsonArray>();
-  std::vector<logstore::Flight> flights;
-  logstore::list(flights);
-  for (const logstore::Flight& f : flights) {
-    JsonObject o = files.add<JsonObject>();
-    o["n"] = f.id + ".igc";  // a flight is one IGC file to the owner, however it is stored
-    o["s"] = f.size;
-    o["p"] = f.pieces.size();  // how many files it is stored in (for the tests)
+  std::vector<logstore::Info> flights;
+  logstore::summary(flights);
+  server.sendHeader("Cache-Control", "no-store");
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "application/json", "");
+  char buf[400];
+  int n = snprintf(buf, sizeof(buf), "{\"files\":[");
+  bool first = true;
+  for (const logstore::Info& f : flights) {
+    // a flight is one IGC file to the owner, however it is stored; p: how many files it is stored in (for the tests)
+    n += snprintf(buf + n, sizeof(buf) - n, "%s{\"n\":\"%s.igc\",\"s\":%lu,\"p\":%u}", first ? "" : ",", f.id, (unsigned long)f.size,
+                  (unsigned)f.pieces);
+    first = false;
+    if (n > (int)sizeof(buf) - 80) {
+      server.sendContent(buf, n);
+      n = 0;
+    }
   }
-  doc["free"] = LittleFS.totalBytes() - LittleFS.usedBytes();
-  doc["total"] = LittleFS.totalBytes();
-  sendJson(doc);
+  n += snprintf(buf + n, sizeof(buf) - n, "],\"free\":%lu,\"total\":%lu}", (unsigned long)(LittleFS.totalBytes() - LittleFS.usedBytes()),
+                (unsigned long)LittleFS.totalBytes());
+  server.sendContent(buf, n);
+  server.sendContent("");
+}
+
+// The trail of network events that survives a crash (comms/NetTrail.h), as text.
+void handleNetTrail() {
+  String s;
+  s.reserve(3600);
+  class ToString : public Print {
+   public:
+    explicit ToString(String& s) : s_(s) {}
+    size_t write(uint8_t c) override { return s_.concat((char)c) ? 1 : 0; }
+    size_t write(const uint8_t* b, size_t n) override { return s_.concat((const char*)b, n) ? n : 0; }
+
+   private:
+    String& s_;
+  } out(s);
+  nettrail::print(out);
+  server.send(200, "text/plain", s);
 }
 
 void handleLogDownload() {
@@ -653,6 +699,31 @@ void handleLogDownload() {
   int n;
   while ((n = rd.read(buf, sizeof(buf))) > 0) server.sendContent((const char*)buf, n);
   rd.close();
+}
+
+// The record the chip keeps in flash of its last crash (which task, where, and every task's stack): kept across restarts and
+// firmware updates until the next crash overwrites it. Downloaded as it is stored, for tools/crash_decode.py; ?erase=1 clears it.
+void handleCoreDump() {
+  if (server.hasArg("erase")) {
+    esp_core_dump_image_erase();
+    server.send(200, "text/plain", "erased");
+    return;
+  }
+  size_t addr = 0, size = 0;
+  const esp_partition_t* part = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_COREDUMP, nullptr);
+  if (!part || esp_core_dump_image_get(&addr, &size) != ESP_OK || addr < part->address || size > part->size) {
+    sendError(404, "no crash record stored");
+    return;
+  }
+  server.setContentLength(size);
+  server.send(200, "application/octet-stream", "");
+  uint8_t buf[512];
+  for (size_t off = 0; off < size;) {
+    const size_t n = min(sizeof(buf), size - off);
+    if (esp_partition_read(part, addr - part->address + off, buf, n) != ESP_OK) break;
+    server.sendContent((const char*)buf, n);
+    off += n;
+  }
 }
 
 void handleLogDelete() {
@@ -780,12 +851,24 @@ class RedirectToUi : public RequestHandler {
 }  // namespace
 
 
+constexpr uint32_t kMinBlockToServe = 8000;
+
 // Registers a route and remembers which one is being served, so the memory trace can name it.
 const char* gRoute = "";
 void route(const char* path, HTTPMethod method, void (*handler)()) {
   server.on(path, method, [path, handler]() {
     gRoute = path;
     noteWebClient();
+    // An allocation that fails stops the firmware dead (a restart, in flight too). A request that arrives while memory is this
+    // short is turned away instead: the page and the tools ask again a moment later.
+    const uint32_t biggest = ESP.getMaxAllocHeap();
+    if (biggest < kMinBlockToServe) {
+      nettrail::add(nettrail::LowMem, (int)biggest);
+      LOGW("MEM", "route %s refused: the largest free block is %u B", path, (unsigned)biggest);
+      server.sendHeader("Retry-After", "2");
+      server.send(503, "text/plain", "busy");
+      return;
+    }
 #if PV_DEBUG
     // Names the routes that push the memory low-water mark down, in the debug log.
     const uint32_t before = ESP.getMinFreeHeap();
@@ -810,6 +893,7 @@ void testMaintGiveUp(uint32_t retryMs) {
 #endif
 
 void begin() {
+  nettrail::begin((int)esp_reset_reason());
   WiFi.onEvent(onWifiEvent);
   LOGI("WEB", "Restarted: %s", resetReasonName());
   serverAttemptStartedMs = millis();
@@ -850,6 +934,8 @@ void begin() {
   route("/api/sim", HTTP_GET, handleSim);
 #endif
   route("/api/log", HTTP_GET, handleLogDownload);
+  route("/api/coredump", HTTP_GET, handleCoreDump);
+  route("/api/nettrail", HTTP_GET, handleNetTrail);
   route("/api/log", HTTP_DELETE, handleLogDelete);
   server.on("/api/ota", HTTP_POST, handleOtaDone, handleOtaUpload);
   server.addHandler(new RedirectToUi());

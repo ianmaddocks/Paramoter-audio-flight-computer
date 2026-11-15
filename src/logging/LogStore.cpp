@@ -11,7 +11,8 @@ namespace {
 
 // Splits a file name of /logs into flight id and piece. False for a name that is none of ours.
 bool parseName(const String& name, String& id, Piece& p) {
-  p.name = name;
+  if (name.length() >= sizeof(p.name)) return false;
+  strlcpy(p.name, name.c_str(), sizeof(p.name));
   p.index = 0;
   if (name.endsWith(".igc")) {
     id = name.substring(0, name.length() - 4);
@@ -95,7 +96,8 @@ bool thin(const Piece& p, char to, int step, bool strip) {
   }
   LittleFS.remove(pathOf(p.name));
   // <id>.s003 -> <id>.t003
-  String base = p.name.substring(0, p.name.length() - 4);
+  String base = p.name;
+  base.remove(base.length() - 4);
   char idx[8];
   snprintf(idx, sizeof(idx), "%c%03d", to, p.index);
   return LittleFS.rename(tmpPath, pathOf(base + idx));
@@ -132,42 +134,74 @@ void stripHeader(const String& id) {
 
 size_t freeBytes() { return LittleFS.totalBytes() - LittleFS.usedBytes(); }
 
+namespace {
+// Oldest first: logs with no date (the "nodate" ids) before the dated ones.
+bool flightBefore(const String& a, const String& b) {
+  const bool na = a.startsWith("nodate"), nb = b.startsWith("nodate");
+  return na != nb ? na : a < b;
+}
+bool pieceBefore(const Piece& a, const Piece& b) {  // header first, then the stretches in order
+  return (a.kind == 'h' ? -1 : a.index) < (b.kind == 'h' ? -1 : b.index);
+}
+}  // namespace
+
+// One pass over the directory straight into the result: no second and third copy of the list (which is what ran the vario out
+// of memory with 32 logs on it).
 void list(std::vector<Flight>& out) {
   out.clear();
   File dir = LittleFS.open(kDir);
   if (!dir) return;
-  struct Tagged {
+  for (File f = dir.openNextFile(); f; f = dir.openNextFile()) {
     String id;
     Piece p;
-  };
-  std::vector<Tagged> all;
-  for (File f = dir.openNextFile(); f; f = dir.openNextFile()) {
-    Tagged t;
-    if (!parseName(String(f.name()), t.id, t.p)) continue;
-    t.p.size = f.size();
-    all.push_back(t);
+    if (!parseName(String(f.name()), id, p)) continue;
+    p.size = f.size();
+    Flight* fl = nullptr;
+    for (Flight& x : out) {
+      if (x.id == id) {
+        fl = &x;
+        break;
+      }
+    }
+    if (!fl) {
+      out.emplace_back();
+      fl = &out.back();
+      fl->id = id;
+    }
+    fl->pieces.push_back(p);
+    fl->size += p.size;
   }
   dir.close();
-  // by flight, then header first and the stretches in order
-  std::sort(all.begin(), all.end(), [](const Tagged& a, const Tagged& b) {
-    if (a.id != b.id) return a.id < b.id;
-    const int ra = a.p.kind == 'h' ? -1 : a.p.index, rb = b.p.kind == 'h' ? -1 : b.p.index;
-    return ra < rb;
-  });
-  // oldest first: logs with no date (the "nodate" ids) before the dated ones
-  std::vector<Flight> dated, nodate;
-  for (const Tagged& t : all) {
-    std::vector<Flight>& dst = t.id.startsWith("nodate") ? nodate : dated;
-    if (dst.empty() || dst.back().id != t.id) {
-      Flight f;
-      f.id = t.id;
-      dst.push_back(f);
+  std::sort(out.begin(), out.end(), [](const Flight& a, const Flight& b) { return flightBefore(a.id, b.id); });
+  for (Flight& f : out) std::sort(f.pieces.begin(), f.pieces.end(), pieceBefore);
+}
+
+void summary(std::vector<Info>& out) {
+  out.clear();
+  File dir = LittleFS.open(kDir);
+  if (!dir) return;
+  for (File f = dir.openNextFile(); f; f = dir.openNextFile()) {
+    String id;
+    Piece p;
+    if (!parseName(String(f.name()), id, p) || id.length() >= sizeof(Info::id)) continue;
+    Info* in = nullptr;
+    for (Info& x : out) {
+      if (id == x.id) {
+        in = &x;
+        break;
+      }
     }
-    dst.back().pieces.push_back(t.p);
-    dst.back().size += t.p.size;
+    if (!in) {
+      Info n = {};
+      strlcpy(n.id, id.c_str(), sizeof(n.id));
+      out.push_back(n);
+      in = &out.back();
+    }
+    in->size += f.size();
+    ++in->pieces;
   }
-  out = nodate;
-  out.insert(out.end(), dated.begin(), dated.end());
+  dir.close();
+  std::sort(out.begin(), out.end(), [](const Info& a, const Info& b) { return flightBefore(String(a.id), String(b.id)); });
 }
 
 bool find(const String& idIn, Flight& out) {
@@ -187,10 +221,7 @@ bool find(const String& idIn, Flight& out) {
     out.pieces.push_back(p);
   }
   dir.close();
-  std::sort(out.pieces.begin(), out.pieces.end(), [](const Piece& a, const Piece& b) {
-    const int ra = a.kind == 'h' ? -1 : a.index, rb = b.kind == 'h' ? -1 : b.index;
-    return ra < rb;
-  });
+  std::sort(out.pieces.begin(), out.pieces.end(), pieceBefore);
   return !out.pieces.empty();
 }
 
@@ -216,8 +247,8 @@ bool makeRoom(size_t minFree, const String& currentId, const String& activePiece
   for (const Flight& f : all) {
     if (olderDay(f.id, currentId) && f.id != currentId) continue;  // (gone already)
     for (const Piece& p : f.pieces) {
-      if (p.kind != 's' || p.name == activePiece) continue;
-      if (thin(p, 't', 5, false)) LOGI("IGC", "Thinned %s to one fix in 5 (%u kB free)", p.name.c_str(), (unsigned)(freeBytes() / 1024));
+      if (p.kind != 's' || activePiece == p.name) continue;
+      if (thin(p, 't', 5, false)) LOGI("IGC", "Thinned %s to one fix in 5 (%u kB free)", p.name, (unsigned)(freeBytes() / 1024));
       if (freeBytes() >= minFree) return true;
     }
   }
@@ -254,9 +285,9 @@ bool makeRoom(size_t minFree, const String& currentId, const String& activePiece
   for (const Flight& f : all) {
     if (f.id != currentId) continue;
     for (const Piece& p : f.pieces) {
-      if (p.kind == 'h' || p.name == activePiece) continue;
+      if (p.kind == 'h' || activePiece == p.name) continue;
       LittleFS.remove(pathOf(p.name));
-      LOGW("IGC", "Trimmed the start of the flight %s (%s) to keep recording (%u kB free)", currentId.c_str(), p.name.c_str(),
+      LOGW("IGC", "Trimmed the start of the flight %s (%s) to keep recording (%u kB free)", currentId.c_str(), p.name,
            (unsigned)(freeBytes() / 1024));
       if (freeBytes() >= minFree) return true;
     }

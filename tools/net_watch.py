@@ -35,6 +35,16 @@ import urllib.request
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+def print_trail(base, timeout):
+    """The vario's own record of what happened to its links, kept across a crash or restart (GET /api/nettrail)."""
+    try:
+        with urllib.request.urlopen(urllib.request.Request(base + "/api/nettrail", headers={"X-HIL": "watch"}), timeout=timeout) as r:
+            for line in r.read().decode("ascii", "replace").splitlines():
+                print("          vario trail: " + line)
+    except Exception as e:  # an older firmware has no trail
+        print(f"          (no trail from the vario: {type(e).__name__})")
+
+
 def get_status(url, timeout):
     t0 = time.time()
     req = urllib.request.Request(url, headers={"X-HIL": "1", "Cache-Control": "no-store"})  # X-HIL: not counted as a person's browser
@@ -130,9 +140,12 @@ def main():
                           f"{'  after ' + format(time.time() - since, '.0f') + ' s down' if state == 'DOWN' else ''}")
                     if via == "address" and not name_ok:
                         print(f"{now}  NOTE  the address answers but the name does not resolve: this PC's name lookup, not the vario")
+                    if state == "DOWN":
+                        print_trail("http://" + (a.host if via == "name" else last_ip), a.timeout)
                     since = time.time()
                 if last_up is not None and st.get("uptime") is not None and st["uptime"] + 3 < last_up:
                     print(f"{now}  REBOOT  uptime {last_up} -> {st['uptime']} s; reset reason: {st.get('resetReason', '?')}")
+                    print_trail("http://" + (a.host if via == "name" else last_ip), a.timeout)
                 if last_disc is not None and wf.get("staDisc", 0) > last_disc:
                     print(f"{now}  DROPS   router link dropped {wf['staDisc'] - last_disc} time(s) (reason code {wf.get('staReason')}, "
                           f"{wf.get('staDiscAgoS')} s ago), rssi {wf.get('rssi')}, heap {st.get('heap')} (lowest {st.get('heapMin')})")

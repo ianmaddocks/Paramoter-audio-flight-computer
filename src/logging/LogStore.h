@@ -19,8 +19,10 @@ namespace logstore {
 
 constexpr const char* kDir = "/logs";
 
+// (Plain data, no String: a list of the pieces must not cost a memory block for each name. The firmware stops dead when an
+// allocation fails, and the list of 65 pieces with String names took 14 kB of the 35 kB that are free: see TEST_FINDINGS.)
 struct Piece {
-  String name;      // the file name in /logs
+  char name[28];    // the file name in /logs
   char kind;        // 'h' header, 's' / 't' / 'u' a stretch (all fixes / 1 in 5 / 1 in 20), 'g' a whole log from older firmware
   int index;        // the stretch number
   uint32_t size;
@@ -34,6 +36,14 @@ struct Flight {
 
 // Every flight, oldest first.
 void list(std::vector<Flight>& out);
+
+// The same without the pieces: 28 bytes a flight, for the log list of the web page.
+struct Info {
+  char id[20];
+  uint32_t size;
+  uint16_t pieces;
+};
+void summary(std::vector<Info>& out);
 
 // The flight called id (with or without ".igc"); false when there is none.
 bool find(const String& id, Flight& out);

@@ -178,6 +178,43 @@ failed there.
 *Limits:* a pilot who really hovers in the air for 150 s (or whatever the setting makes it) still has the flight ended; and a landing on a hillside well
 above the landing zone is declared later (150 s). Both are the setting's trade-off, and the setting is documented.
 
+## F11 - The log list request ran the vario out of memory and restarted it (fixed), and it stayed off the router for 5 hours (cause not proven)
+What happened (15 Nov, test build 8eea89d on the bench): the vario restarted at 02:46 during the `flight` test, answered on
+the router for 2 minutes, then did not answer there (no ping, no ARP) until 08:07, while its own Wi-Fi network was still up.
+When a phone joined that network at 08:07 it restarted again and came back on the router at once.
+
+Evidence:
+- The chip keeps a record of its last crash in flash. The record of the 08:07 crash (fetched with the new `GET /api/coredump`,
+  decoded with `tools/crash_decode.py` against a rebuild of the same commit) shows the main loop in
+  `handleLogs -> logstore::list -> copy of the list of flights -> operator new -> std::bad_alloc -> abort`. The 02:46
+  restart happened on a request for the same list. A request for it on the old build with 20 kB free restarted the vario again
+  (reproduced 09:10, reset reason "crash (panic)").
+- 32 logs (65 files) had been left by the test run. Listing them took the lowest free memory from 25,180 to 10,968 B: 14 kB,
+  of about 35 kB free. The list was built three times over with a memory block for every file name, and a JSON document on top.
+- An allocation that fails stops this firmware dead (C++ exceptions are off). In flight that is a restart in the air; the
+  same list is used when room has to be made for a log.
+
+Before: the log list cost about 220 B of memory per log file, and a request that arrived when memory was short restarted the vario.
+After:
+- the list keeps plain data with no memory block per name and is built once; the web page's list needs 28 B a flight and is
+  written out piece by piece. Measured on the vario with the same 32 logs: 1.5 kB instead of 14 kB; with 40 logs, no change
+  in the lowest free memory (`log_list_memory`).
+- a web request that arrives while the largest free block is under 8 kB is answered "busy" (503) instead of being served; the
+  page and the tools ask again. In 4.4 hours on the bench with two watchers and a phone joining four times this happened 36
+  times and the vario did not restart.
+- `GET /api/nettrail`: the vario's own trail of network events (restarts with their reason, joining and losing the
+  maintenance network with the driver's reason, giving up, looking again, devices joining its own network, refused requests),
+  kept in memory that a crash or restart does not clear (`net_trail`). `tools/net_watch.py` prints it when the vario comes back.
+
+Not proven: why the vario was off the router from 02:48 to 08:07. The debug log that would say was lost in the 08:07 crash
+(which is why the trail now exists). The code looks for the router again every 5 minutes on the ground after giving up, and
+`maint_retry` shows that working; either those attempts failed for 5 hours, or the vario still believed it was connected
+while the router had dropped it. The trail will tell which the next time it happens. None of this was a flight: simulator
+and bench results only.
+
+Still open: the lowest free memory of the test build still reaches 1-4 kB at moments under several clients at once (952 B was
+seen), without a restart. What takes it there is not yet identified.
+
 ## Test changes made along the way (so nothing is hidden)
 - `wind_faults`: the slow-turn case was 3 deg/s; in a headwind the ground track turns up to twice as fast as the
   heading, so 180 degrees of heading can fill 9 of 12 bins and give a legitimate fit. The baseline run failed on exactly

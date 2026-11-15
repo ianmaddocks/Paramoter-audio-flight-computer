@@ -2394,8 +2394,13 @@ def t_igc_segments(v, a):
         times = igc_b_times(text)
         if rows[0] != "AXPVParaVario" or "I033639RPM4042VVL4345SVL" not in rows or rows.count("LXPVSTART") != 1 or rows.count("LXPVEND") != 1:
             raise Fail("the downloaded flight lacks its header, or has a takeoff / landing mark other than once")
+        # The fixes from before the takeoff (the igcPreS buffer) may date from before this test set the simulated clock back:
+        # a step back in time among the first fixes is the test bench, not the log. Judged from the fix after it.
+        back = [i for i, (t1, t2) in enumerate(zip(times[:30], times[1:31])) if t2 <= t1]
+        if back:
+            times = times[back[-1] + 1:]
         if len(times) < 40 or any(t2 != t1 + 1 for t1, t2 in zip(times, times[1:])):
-            raise Fail(f"the fixes across the stretches are not one fix a second in order ({len(times)} fixes)")
+            raise Fail(f"the fixes across the stretches are not one fix a second in order ({len(times)} fixes; breaks: {[(i, t1 - 43200, t2 - 43200) for i, (t1, t2) in enumerate(zip(times, times[1:])) if t2 != t1 + 1][:8]})")
         if len(text) != info["s"]:
             raise Fail(f"the download is {len(text)} bytes, the list says {info['s']}")
         return f"{info['p']} files, {len(times)} fixes in order, {len(text)} bytes, one entry in the list"
@@ -2521,6 +2526,62 @@ def t_maint_retry(v, a):
             pass
         time.sleep(3)
     raise Fail(f"the vario did not come back to the maintenance network by itself within 2 minutes (last state: {last!r})")
+
+
+def t_log_list_memory(v, a):
+    """The crash of 15 Nov (found in the vario's stored crash record): with 32 logs on it, the log list request built the list of
+    every log piece three times over, took 14 kB of the 35 kB free, and a failed allocation restarts the vario. With 40 logs on
+    it the request must now cost little memory, however often it is asked, and the list must be right and in order."""
+    try:
+        clear_logs(v)
+        for i in range(40):
+            v.sim(fakeLog=f"2101{1 + i // 20:02d}-{10 + i % 20:02d}0000,20,{(10 + i % 20) * 3600}")
+        v.get_json("/api/logs")  # (once, so that what is measured is the request and not the first use of something)
+        before = v.status()
+        for _ in range(5):
+            logs = v.get_json("/api/logs")["files"]
+        after = v.status()
+        names = [f["n"] for f in logs]
+        if len(names) != 40 or names != sorted(names) or any(f["p"] != 2 or f["s"] < 500 for f in logs):
+            raise Fail(f"the list of 40 logs is wrong: {len(names)} entries, first {logs[:1]}")
+        if after["uptime"] < before["uptime"]:
+            raise Fail("the vario restarted while listing the logs")
+        fell = before["heapMin"] - after["heapMin"]
+        if fell > 3000:
+            raise Fail(f"listing 40 logs took the lowest free memory down by {fell} B (from {before['heapMin']})")
+        return f"40 logs listed 5 times: lowest free memory {before['heapMin']} -> {after['heapMin']} B"
+    finally:
+        clear_logs(v)
+
+
+def t_net_trail(v, a):
+    """The trail of network events is kept across a restart (the debug log is not): after a restart it still holds the record of
+    the time before it, the restart itself and the joining of the maintenance network."""
+    def trail():
+        return v._open("/api/nettrail")[1].decode("ascii", "replace")
+    before_boots = trail().count("restarted, reason")
+    up = v.status()["uptime"]
+    v.action("restart")
+    time.sleep(4)
+    end = time.time() + 90
+    while True:
+        try:
+            st = json.loads(v._open("/api/status", tries=1)[1])
+            if st["uptime"] < up or st["uptime"] < 30:
+                break
+        except Fail:
+            pass
+        if time.time() > end:
+            raise Fail("vario did not come back after restart")
+        time.sleep(2)
+    t = trail()
+    boots = t.count("restarted, reason")
+    if boots < min(before_boots + 1, 40) or boots < 2:
+        raise Fail(f"the trail does not hold the time before the restart ({before_boots} restarts before, {boots} after):\n{t}")
+    last = t[t.rindex("restarted, reason"):]
+    if v.settings()["maintWifi"] and "joined the maintenance network" not in last:
+        raise Fail(f"the trail of this power-up does not show the maintenance network being joined:\n{last}")
+    return f"{boots} restarts on the trail, the one before this restart among them"
 
 
 def t_vario_only_flying(v, a):
@@ -4737,7 +4798,7 @@ TESTS = [
     ("boot", t_boot), ("settings", t_settings), ("vario_climb", t_vario_climb),
     ("vario_sink", t_vario_sink), ("vario_thresholds", t_vario_thresholds), ("vario_logic", t_vario_logic),
     ("mute", t_mute), ("auto_volume", t_auto_volume), ("rpm_logic", t_rpm_logic), ("rpm", t_rpm), ("rpm_speech", t_rpm_speech), ("rpm_glitch", t_rpm_glitch), ("geo_logic", t_geo_logic), ("wind_logic", t_wind_logic),
-    ("circuit_logic", t_circuit_logic), ("battery_logic", t_battery_logic), ("flight_logic", t_flight_logic), ("button_logic", t_button_logic), ("factory_reset", t_factory_reset), ("ble_info", t_ble_info), ("voice_pack", t_voice_pack), ("igc_two_flights", t_igc_two_flights), ("vario_only_flying", t_vario_only_flying), ("maint_retry", t_maint_retry), ("igc_segments", t_igc_segments), ("igc_room", t_igc_room), ("ui_replay", t_ui_replay), ("height_logic", t_height_logic), ("moving_logic", t_moving_logic), ("height_trace", t_height_trace), ("maint_voice", t_maint_voice), ("names_default", t_names_default), ("status_logic", t_status_logic), ("alerts_logic", t_alerts_logic), ("resume_logic", t_resume_logic), ("audio_logic", t_audio_logic), ("rpmtrack_logic", t_rpmtrack_logic), ("baro_logic", t_baro_logic), ("wind", t_wind), ("wind_faults", t_wind_faults), ("wind_change", t_wind_change), ("circuit_right", t_circuit_right), ("circuit_slow_pilot", t_circuit_slow_pilot), ("circuit_left_wind", t_circuit_left_wind),
+    ("circuit_logic", t_circuit_logic), ("battery_logic", t_battery_logic), ("flight_logic", t_flight_logic), ("button_logic", t_button_logic), ("factory_reset", t_factory_reset), ("ble_info", t_ble_info), ("voice_pack", t_voice_pack), ("igc_two_flights", t_igc_two_flights), ("vario_only_flying", t_vario_only_flying), ("maint_retry", t_maint_retry), ("log_list_memory", t_log_list_memory), ("net_trail", t_net_trail), ("igc_segments", t_igc_segments), ("igc_room", t_igc_room), ("ui_replay", t_ui_replay), ("height_logic", t_height_logic), ("moving_logic", t_moving_logic), ("height_trace", t_height_trace), ("maint_voice", t_maint_voice), ("names_default", t_names_default), ("status_logic", t_status_logic), ("alerts_logic", t_alerts_logic), ("resume_logic", t_resume_logic), ("audio_logic", t_audio_logic), ("rpmtrack_logic", t_rpmtrack_logic), ("baro_logic", t_baro_logic), ("wind", t_wind), ("wind_faults", t_wind_faults), ("wind_change", t_wind_change), ("circuit_right", t_circuit_right), ("circuit_slow_pilot", t_circuit_slow_pilot), ("circuit_left_wind", t_circuit_left_wind),
     ("circuit_events", t_circuit_events),
     ("fault_baro", t_fault_baro), ("fault_gps", t_fault_gps), ("fault_battery", t_fault_battery), ("landing_gps_quality", t_landing_gps_quality), ("landing_hover", t_landing_hover), ("button_actions", t_button_actions), ("alerts_flight", t_alerts_flight), ("resume_flight", t_resume_flight), ("battery_flight", t_battery_flight),
     ("memory_events", t_memory_events), ("soak", t_soak),
@@ -4756,7 +4817,7 @@ TESTS = [
 # memory_events floods the vario with requests and resets on purpose, faster than the log feed can follow.
 # The *_logic tests run production code over thousands of simulated seconds in one request (the circuit suite logs
 # every phase change and trace line, as it would in flight) and assert on the suite's own report, never on the log.
-DROPS_ALLOWED = {"boot", "memory_events", "ui_layout", "wind_faults", "maint_retry"}  # ui_layout judges what is on the screen, and taking screenshots slows the log feed
+DROPS_ALLOWED = {"boot", "memory_events", "ui_layout", "wind_faults", "maint_retry", "net_trail"}  # ui_layout judges what is on the screen, and taking screenshots slows the log feed
 
 
 def isolate(v, a):
