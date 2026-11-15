@@ -1,0 +1,8 @@
+ParaVario 20261115-004058 (8ea8449) at paravario.local, 1 tests
+  PASS  igc_room         267.9 s  an earlier day's log goes first, today's older log is untouched; today's older log thinned 33401 -> 10841 bytes, not deleted; cut down to the minimum 33401 -> 4455 bytes: 35-character fixes, no extension declaration, no slow records; the start was trimmed (the takeoff mark is gone); 50 fixes kept to the landing, from 1051 s after the simulated midday
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+Cleanup: simulation off, flight logic reset, settings restored, 1 leftover test log(s) deleted, leftover test logs.
+
+NOTE: 1 test(s) ran while a phone, browser or BLE client was connected: igc_room
+
+1 passed, 0 failed

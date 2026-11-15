@@ -1,0 +1,26 @@
+ParaVario 20261115-004058 (8ea8449) at paravario.local, 1 tests
+  FAIL  igc_room         267.5 s  nothing was trimmed from the start although the flight was always short of room; stored in 3 files; IGC lines: ['Thinned 210101-121133.s001 to one fix in 5 (600 kB free)', 'Trimmed the start of the flight 210101-121133 (210101-121133.t001) to keep recording (600 kB free)']
+        state: uptime 809 s, flying False, agl 0 m, vario -0.39, baro ok True, fix True, wind takeoff 90/0.0, heap 40180 (lowest 7872)
+        sim: {"baro": 1, "alt": 102.0, "vz": 0.0, "gps": "fix", "lat": 51.5, "lon": 0.512351, "speed": 0.0, "track": 90.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [  806.920] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.15V heap=38160
+          [  807.927] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.512351 gs=0.0 trk=90 gpsAlt=104.1
+          [  807.927] D NAV: baro=1 p=101878 t=20.0 std=-45.9 msl=104.1 agl=0.0 vs=-4.00 fly=0 ft=115
+          [  807.928] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.15V heap=43320
+          [  808.420] I SIM: reached target altitude 102.0 m
+          [  808.444] D MIC: noise=-59.4 (blk -59.2) dBFS rpm=0 raw=8391 conf=1.9 fs=2035 tone=270 clear=0 ovf=96224
+          [  808.882] D TONE: sink 289 Hz
+          [  808.963] D BAT: v=4.151 pct=100 min=360 learned=0
+          [  808.963] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.512351 gs=0.0 trk=90 gpsAlt=102.0
+          [  808.964] D NAV: baro=1 p=101903 t=20.0 std=-48.9 msl=101.1 agl=0.0 vs=-2.59 fly=0 ft=115
+          [  808.964] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.15V heap=40888
+          [  809.065] D TONE: sink 307 Hz
+          [  809.073] I SIM: igcLimits=0,0,0
+          [  809.166] D TONE: off 0 Hz
+          [  809.208] I SIM: fillFs=off
+          [  809.995] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.512351 gs=0.0 trk=90 gpsAlt=102.0
+          [  809.996] D NAV: baro=1 p=101903 t=20.0 std=-48.2 msl=101.8 agl=0.2 vs=-0.00 fly=0 ft=115
+          [  809.996] D NAV: lz=1 51.500000,0.512351 elev=101.6 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.15V heap=37976
+Cleanup: simulation off, flight logic reset, settings restored, 1 leftover test log(s) deleted, leftover test logs.
+
+0 passed, 1 failed

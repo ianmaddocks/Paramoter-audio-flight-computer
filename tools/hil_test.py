@@ -2480,10 +2480,11 @@ def t_igc_room(v, a):
         rows = text.split("\r\n")
         if "LXPVEND" not in rows or rows[0] != "AXPVParaVario":
             raise Fail("the trimmed flight lacks its header or the landing mark: it stopped recording?")
-        if "LXPVSTART" in rows:
+        if "LXPVSTART" not in rows:
             notes.append("the start was trimmed (the takeoff mark is gone)")
         else:
-            raise Fail("nothing was trimmed from the start although the flight was always short of room")
+            igc = [l.msg for l in v.lines[-400:] if l.tag == "IGC"]
+            raise Fail(f"nothing was trimmed from the start although the flight was always short of room; stored in {logs[name]['p']} files; IGC lines: {igc}")
         if len(times) < 10 or times[-1] - times[0] < 5:
             raise Fail(f"only {len(times)} fixes were kept")
         notes.append(f"{len(times)} fixes kept to the landing, from {times[0] - 12 * 3600} s after the simulated midday")
