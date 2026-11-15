@@ -171,16 +171,27 @@ void list(std::vector<Flight>& out) {
 }
 
 bool find(const String& idIn, Flight& out) {
-  String id = idIn.endsWith(".igc") ? idIn.substring(0, idIn.length() - 4) : idIn;
-  std::vector<Flight> all;
-  list(all);
-  for (const Flight& f : all) {
-    if (f.id == id) {
-      out = f;
-      return true;
-    }
+  const String id = idIn.endsWith(".igc") ? idIn.substring(0, idIn.length() - 4) : idIn;
+  out = Flight();
+  out.id = id;
+  File dir = LittleFS.open(kDir);
+  if (!dir) return false;
+  for (File f = dir.openNextFile(); f; f = dir.openNextFile()) {  // only this flight's pieces are kept (no list of every flight)
+    const String name = String(f.name());
+    if (!name.startsWith(id) || name.length() <= id.length() || (name[id.length()] != '.')) continue;
+    String pid;
+    Piece p;
+    if (!parseName(name, pid, p) || pid != id) continue;
+    p.size = f.size();
+    out.size += p.size;
+    out.pieces.push_back(p);
   }
-  return false;
+  dir.close();
+  std::sort(out.pieces.begin(), out.pieces.end(), [](const Piece& a, const Piece& b) {
+    const int ra = a.kind == 'h' ? -1 : a.index, rb = b.kind == 'h' ? -1 : b.index;
+    return ra < rb;
+  });
+  return !out.pieces.empty();
 }
 
 bool remove(const String& id) {

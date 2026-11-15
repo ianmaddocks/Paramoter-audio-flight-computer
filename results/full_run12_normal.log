@@ -1,0 +1,180 @@
+ParaVario 20261115-010225 (8eea89d) at paravario.local, 80 tests
+  PASS  boot              12.6 s  beep 0.27 s at 900 Hz, 'Ready' 1.01 s later (vario answered again after 3 s)
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  settings           1.8 s  round trip and clamping ok
+  PASS  vario_climb       20.6 s  tone 803 Hz, heard at -31 dBFS (+47 dB on silence)
+  PASS  vario_sink        15.2 s  tone 288 Hz, heard at -24 dBFS (55 dB over floor)
+  PASS  vario_thresholds  80.6 s  climb: silent at 0.25, 731 Hz at 0.35 (expected 735), heard 46 dB over floor; sink: silent at -1.80, 309 Hz at -2.20 (expected 306), heard 55 dB over floor
+  PASS  vario_logic        1.8 s  43 cases passed: thresholds exact (>= climb, <= sink), formulas and limits, all silencing conditions
+  PASS  mute              14.8 s  muted climb silent, tone back after unmute
+  PASS  auto_volume       25.0 s  -60 dBFS -> 20/40%, -40 dBFS -> 60/70%, -20 dBFS -> 100/100%
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  rpm_logic          1.8 s  22 cases passed: speeds 1500..8000 rpm within 1.5 %, pulses per revolution, noise and silence give no RPM
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  rpm               91.1 s  stopped: 0; idle 2000 found in 1.2 s, steady 1970..2033; up 2000->5000 followed in steps; down 5000->2000 followed in steps; rapid 2000/4000 alternation: 30 readings, none outside 1800..4400 (0 zero); noise: engine kept at 2000 under noise; loud noise alone gives 0; input lost -> 0 after 2.3 s; recovered in 1.1 s
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  rpm_speech        48.0 s  3 announcements of about 6 s: RPM held at 2500 (+-6 %) throughout, 25 readings each; change to 3500 during speech followed within 5.8 s
+  PASS  rpm_glitch        16.9 s  5 single bad windows (4000, 1000, 6000, 3000, 4000 rpm): reading stayed within 39 rpm of 2000 over 30 readings; a real change to 3600 followed in 0.9 s
+  PASS  geo_logic          1.1 s  39 cases passed: wrap, distance (incl. date line), bearings, local offsets, vector bearing, clock positions
+  PASS  wind_logic         2.7 s  82 cases passed: fit accuracy, turn direction, 0/360, noise, no-fit and refused cases, averaging, ground glide
+  PASS  circuit_logic      2.0 s  74 cases passed: leg order, turn points, base turn from height, overshoot, wrong way, refusals
+  PASS  battery_logic      2.0 s  49 cases passed: conversion, smoothing, curve, low-battery timing and exceptions
+  PASS  flight_logic       1.3 s  46 cases passed: speed rule unchanged, no landing from a missing or weak GPS at height, limits exact
+  PASS  button_logic       1.0 s  38 cases passed: single/double/triple clicks, gloved gaps, hold with cue, abandoned hold, bounce
+  PASS  factory_reset     75.6 s  no prompt in flight; five clicks: instruction given, the next five clicks do nothing else; held 2 s: reset (settings back to defaults) and restart; let go early: cancelled, nothing changed
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  ble_info           0.9 s  release 1.0: the Bluetooth model reads 'ParaVario 1.0', the manufacturer 'Ian Maddocks' (read over Bluetooth is not tested here)
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  voice_pack         9.5 s  clips play from the pack with no missing clip; 604 kB of the storage is free or logs
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  igc_two_flights   89.3 s  both flights are in the log list (['210101-120038.igc', '210101-120123.igc']); 592 kB free
+  PASS  vario_only_flying  30.3 s  silent on the ground while climbing 25 m, climb tone after takeoff
+  PASS  maint_retry       53.0 s  gave up on the maintenance network, and found it again by itself after about 8 s
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  igc_segments      74.8 s  3 files, 64 fixes in order, 4199 bytes, one entry in the list
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  igc_room         255.9 s  an earlier day's log goes first, today's older log is untouched; today's older log thinned 33401 -> 10841 bytes, not deleted; cut down to the minimum 33401 -> 4455 bytes: 35-character fixes, no extension declaration, no slow records; the start was trimmed (the takeoff mark is gone); 49 fixes kept to the landing, from 471 s after the simulated midday
+  PASS  ui_replay         11.5 s  made-up log read; Ready / flight time / Landed, height, rpm 3000, wind 250 at 14 km/h, battery, speed, landing zone follow the log; pause, speed, slider, exit work; the buttons are hidden meanwhile
+  PASS  height_logic       1.1 s  10 cases passed: no samples on the ground, trace kept after landing, one gap between flights, ring
+  PASS  moving_logic       1.1 s  14 cases passed: show limit with hold, hide limit with hold, flicker ignored, no fix hides at once
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  height_trace      81.3 s  nothing recorded on the ground; 9 samples in the first 14 s of flight; after landing: kept (15 samples), no new ones in 10 s; second flight continues after a gap of 15 markers
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  maint_voice        7.7 s  joined the maintenance Wi-Fi and said so once: [     2.459] D SAY: [normal] maint_connected
+  PASS  names_default     27.9 s  emptied names became ParaVario-12B8 in the settings (same code for both, nothing added behind the settings); own names kept
+  PASS  status_logic       0.9 s  17 cases passed: height, landing zone with clock and distance, wind, battery, units, what is left out
+  PASS  alerts_logic       1.1 s  27 cases passed: low/critical/lost battery messages, barometer failed and back
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  resume_logic       0.9 s  22 cases passed: age, reach, flying speed, missing time/position
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  audio_logic        1.0 s  17 cases passed: urgent calls get the signal tone, nothing else does
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  rpmtrack_logic     1.0 s  35 cases passed: smoothing, jump confirmation, dropout hold, speech hold
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  baro_logic         1.6 s  29 cases passed: impossible values, lone outliers, steps, rate limit, frozen reading, recovery
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  wind             248.0 s  takeoff run: from 270, source takeoff; head, tail and cross winds give the right ground speed and drift; straight flight leaves the estimate; wind from 270 at 5 m/s, right turns -> from 270 at 5.0; wind from 355 at 7 m/s, left turns (0/360 wrap) -> from 321 at 4.5; wind from 5 at 3 m/s, right turns -> from 339 at 3.5; wind from 180 at 8 m/s, left turns -> from 195 at 2.5; no wind -> from 195 at 1.2; wind from 225 at 6 m/s -> from 220 at 3.5; steady wind: error 2.49 -> 0.00 -> 0.00 -> 0.00 m/s over successive fits
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  wind_faults      318.5 s  baseline from 270 at 5.0; straight flight: no fit; half circle: no fit; 2.5 deg/s turn (150 degrees in the 60 s window): no fit; a 16 m/s wind at 20 m/s airspeed (a wind above the 15 m/s limit; a wind over the airspeed gives no circle at all): rejected, estimate kept; 4 m/s airspeed: rejected, estimate kept; GPS silent / no fix for 7 s in a circle: no fit from the gap, correct again after; manual wind used and kept while circling
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  wind_change      133.9 s  wind A from 270 at 5 -> from 270 at 5.0; first fit after the change: 0.00 m/s from the expected mean; second fit in the new wind: 0.00 m/s from the true wind; third fit stays on it
+  PASS  circuit_right    266.8 s  crosswind turn at x=226 (expected 225); downwind turn at y=373 (expected 371); base turn at x=-231 for 167 m (expected -226; final 270 m); final turn at y=43, 80 m up; touchdown 18 m from the field; no steering call during any called turn
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  circuit_slow_pilot 350.3 s  measured (6.0, 3.2, 3.0) and (8.0, 1.0, 9.9); lead 9.9 s; base turn 100 m earlier than the setting would call it
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  circuit_left_wind 298.5 s  crosswind turn at x=278 (expected 277); downwind turn at y=-364 (expected -374); base turn at x=-239 for 163 m (expected -256; final 297 m); final turn at y=-43, 80 m up; touchdown 22 m from the field; no steering call during any called turn
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  circuit_events   320.2 s  crosswind turn at x=226 (expected 225); downwind turn at y=371 (expected 370); base turn at x=-218 for 164 m (expected -217; final 261 m); final turn at y=29, 76 m up; touchdown 6 m from the field; 1 steering calls (a turn was ignored on purpose); start point called 4 times while flying away, no leg change during the 6 s GPS loss, 1 steer right calls while the turn was ignored
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  FAIL  fault_baro       140.0 s  two wild samples in a row: the vario reacted to the step
+        state: uptime 2095 s, flying True, agl -9 m, vario -0.01, baro ok True, fix True, wind takeoff 267/0.0, heap 33264 (lowest 1344)
+        sim: {"baro": 1, "alt": 400.0, "vz": 0.0, "gps": "real", "lat": 51.5, "lon": 0.5, "speed": 0.0, "track": 0.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [ 2092.848] D VOL: noise -58.0 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [ 2093.181] D BAT: v=4.148 pct=100 min=360 learned=0
+          [ 2093.320] D MIC: noise=-58.0 (blk -58.1) dBFS rpm=0 raw=4676 conf=1.6 fs=2003 tone=0 clear=1 ovf=253120
+          [ 2093.382] D NAV: fix=1 good=1 sat=8 hdop=1.9 00.000000,0.000000 gs=8.8 trk=268 gpsAlt=-89.3
+          [ 2093.382] D NAV: baro=1 p=97307 t=20.0 std=340.0 msl=-4.1 agl=-7.5 vs=-0.01 fly=1 ft=16
+          [ 2093.383] D NAV: lz=1 00.000000,0.000000 elev=3.4 wind=takeoff 267/0.0 mode=none/off mute=0 batt=4.15V heap=38140
+          [ 2094.397] D NAV: fix=1 good=1 sat=8 hdop=1.9 00.000000,0.000000 gs=8.9 trk=268 gpsAlt=-93.3
+          [ 2094.397] D NAV: baro=1 p=97307 t=20.0 std=340.0 msl=-4.8 agl=-8.2 vs=+0.01 fly=1 ft=17
+          [ 2094.398] D NAV: lz=1 00.000000,0.000000 elev=3.4 wind=takeoff 267/0.0 mode=none/off mute=0 batt=4.15V heap=38140
+          [ 2094.920] I SIM: baroFault=none
+          [ 2094.920] I SIM: baroNoise=0
+          [ 2094.920] I SIM: hasGps=1
+          [ 2095.085] I WEB: settings saved
+          [ 2095.250] D BAT: v=4.148 pct=100 min=360 learned=0
+          [ 2095.399] D MIC: noise=-57.8 (blk -58.2) dBFS rpm=0 raw=1375 conf=1.6 fs=2003 tone=0 clear=1 ovf=253376
+          [ 2095.451] D NAV: fix=1 good=1 sat=8 hdop=1.9 00.000000,0.000000 gs=9.8 trk=268 gpsAlt=-96.9
+          [ 2095.452] D NAV: baro=1 p=97306 t=20.0 std=340.0 msl=-5.6 agl=-9.0 vs=+0.01 fly=1 ft=18
+          [ 2095.452] D NAV: lz=1 00.000000,0.000000 elev=3.4 wind=takeoff 267/0.0 mode=none/off mute=0 batt=4.15V heap=37852
+  PASS  fault_gps         93.5 s  position 0, 0 on the ground: no fix, back after; dropout: announced after 5 s, flight kept, approach refused, fix back without reboot; 3 satellites: no fix; back with 10; weak fix (4 satellites, hdop 4.2) for 14 s in flight: flight kept; latitude 95 / -91 and longitude 200: no fix each time, flight kept, fix back
+  PASS  fault_battery     73.1 s  flickering 3.4/3.6 V: 0 call(s) in 40 s; 0.0 V: 0 %, no call; 6.0 V: 100 %, no call
+  PASS  landing_gps_quality 682.0 s  weak fix, +0.0 m/s at about 200 m, 29 s; weak fix, +0.2 m/s at about 200 m, 29 s; weak fix, -0.2 m/s at about 200 m, 29 s; no GPS for 70 s at 200 m; landing with no GPS found 11 s after touchdown; landing with a weak fix found (13 cases kept the flight)
+  PASS  landing_hover    194.6 s  hovering at 60 m for 16 s: still flying; declared landed after about 25 s (landingHighMult 5); multiplier 1: landed after the normal time, as before; near the ground: landed 6 s after stopping
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  button_actions    30.7 s  click and hold cues; single: tell me, starts nothing; double: approach on and off; a single never cancels; hold: emergency on and off; a single never cancels; triple: mute and unmute; no GPS: single tells height and battery, double/hold mute
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  alerts_flight    118.4 s  barometer failed / back spoken in flight; routine height calls: 2+ in 26 s normally, none during the approach
+  PASS  resume_flight    495.3 s  30 min off at flying speed: resumed, same LZ, 50 m, flight time 1821 s; resumed flight lands normally; too old (4 h): not resumed; on the ground: not resumed; impossible place: not resumed; resume switched off: not resumed; no GPS within 3 minutes: dropped; reset by the pilot: flight ended, nothing resumed after a restart
+  PASS  battery_flight   143.9 s  3.40 V: ordinary call; 3.20 V: urgent call after 6 s; reading lost in flight (0 V): urgent call; recovered: silent; 0 V on the ground: silent (USB power)
+  FAIL  memory_events    372.4 s  lowest free memory fell from 5180 to 1152 B (allowed: down by 6000, and no new low under 8000)
+        state: uptime 538 s, flying False, agl -1 m, vario -0.01, baro ok True, fix True, wind none 0/0.0, heap 32748 (lowest 1152)
+        sim: {"baro": 1, "alt": 466.21, "vz": 0.0, "gps": "real", "lat": 51.5, "lon": 0.5, "speed": 0.0, "track": 0.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [  534.248] D NAV: lz=0 0.000000,0.000000 elev=57.8 wind=none 0/0.0 mode=none/off mute=0 batt=4.15V heap=36392
+          [  534.849] D BAT: v=4.148 pct=100 min=360 learned=0
+          [  535.259] D VOL: noise -65.1 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [  535.259] D NAV: fix=1 good=0 sat=7 hdop=2.8 00.000000,0.000000 gs=0.7 trk=101 gpsAlt=41.2
+          [  535.260] D NAV: baro=1 p=96539 t=20.0 std=406.2 msl=56.9 agl=-0.8 vs=+0.02 fly=0 ft=35
+          [  535.260] D NAV: lz=0 0.000000,0.000000 elev=57.7 wind=none 0/0.0 mode=none/off mute=0 batt=4.15V heap=41748
+          [  536.091] D MIC: noise=-64.7 (blk -64.4) dBFS rpm=0 raw=2952 conf=1.7 fs=2034 tone=0 clear=1 ovf=63296
+          [  536.287] D NAV: fix=1 good=0 sat=7 hdop=2.8 00.000000,0.000000 gs=0.4 trk=101 gpsAlt=41.4
+          [  536.287] D NAV: baro=1 p=96539 t=20.0 std=406.2 msl=56.8 agl=-0.7 vs=-0.00 fly=0 ft=35
+          [  536.288] D NAV: lz=0 0.000000,0.000000 elev=57.5 wind=none 0/0.0 mode=none/off mute=0 batt=4.15V heap=43124
+          [  536.908] D BAT: v=4.149 pct=100 min=360 learned=0
+          [  537.309] D NAV: fix=1 good=0 sat=7 hdop=2.8 00.000000,0.000000 gs=0.2 trk=101 gpsAlt=41.9
+          [  537.309] D NAV: baro=1 p=96539 t=20.0 std=406.2 msl=56.6 agl=-0.7 vs=-0.01 fly=0 ft=35
+          [  537.310] D NAV: lz=0 0.000000,0.000000 elev=57.4 wind=none 0/0.0 mode=none/off mute=0 batt=4.15V heap=43300
+          [  538.148] D MIC: noise=-64.5 (blk -64.5) dBFS rpm=0 raw=1457 conf=1.5 fs=2003 tone=0 clear=1 ovf=63552
+          [  538.327] D NAV: fix=1 good=0 sat=7 hdop=2.8 00.000000,0.000000 gs=0.3 trk=101 gpsAlt=42.2
+          [  538.327] D NAV: baro=1 p=96539 t=20.0 std=406.2 msl=56.5 agl=-0.7 vs=-0.00 fly=0 ft=35
+          [  538.328] D NAV: lz=0 0.000000,0.000000 elev=57.2 wind=none 0/0.0 mode=none/off mute=0 batt=4.15V heap=39952
+  FAIL  soak             762.6 s  lowest free memory fell from 1152 to 1140 B during the soak
+        state: uptime 1301 s, flying True, agl 319 m, vario -0.00, baro ok True, fix True, wind circling 270/4.0, heap 30788 (lowest 1140)
+        sim: {"baro": 1, "alt": 418.92, "vz": 0.0, "gps": "fix", "lat": 51.509772, "lon": 0.52711, "speed": 11.33, "track": 29.3, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 8.9}
+        last log lines:
+          [ 1297.533] D MIC: noise=-63.6 (blk -63.5) dBFS rpm=0 raw=2963 conf=2.0 fs=2043 tone=0 clear=1 ovf=156064
+          [ 1297.698] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.509420,0.526792 gs=11.3 trk=29 gpsAlt=418.9
+          [ 1297.699] D NAV: baro=1 p=98136 t=20.0 std=268.9 msl=418.9 agl=318.9 vs=-0.01 fly=1 ft=747
+          [ 1297.699] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/4.0 mode=none/off mute=0 batt=4.15V heap=38116
+          [ 1297.799] D BAT: v=4.148 pct=100 min=360 learned=0
+          [ 1298.705] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.509509,0.526873 gs=11.3 trk=29 gpsAlt=418.9
+          [ 1298.706] D NAV: baro=1 p=98135 t=20.0 std=268.9 msl=418.9 agl=318.9 vs=-0.01 fly=1 ft=748
+          [ 1298.706] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/4.0 mode=none/off mute=0 batt=4.15V heap=35960
+          [ 1299.577] D MIC: noise=-63.6 (blk -64.4) dBFS rpm=0 raw=1457 conf=1.5 fs=2043 tone=0 clear=1 ovf=156320
+          [ 1299.708] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.509598,0.526953 gs=11.3 trk=29 gpsAlt=418.9
+          [ 1299.709] D NAV: baro=1 p=98136 t=20.0 std=268.9 msl=418.9 agl=318.9 vs=-0.01 fly=1 ft=749
+          [ 1299.709] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/4.0 mode=none/off mute=0 batt=4.15V heap=37964
+          [ 1299.808] D BAT: v=4.148 pct=100 min=360 learned=0
+          [ 1300.717] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.509687,0.527033 gs=11.3 trk=29 gpsAlt=418.9
+          [ 1300.718] D NAV: baro=1 p=98136 t=20.0 std=268.9 msl=418.9 agl=318.9 vs=+0.00 fly=1 ft=750
+          [ 1300.718] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=circling 270/4.0 mode=none/off mute=0 batt=4.15V heap=38104
+          [ 1301.075] I SIM: turn=0
+          [ 1301.075] I SIM: vz=0
+  PASS  gps_states        34.3 s  not responding / waiting / weak fix ignored / good fix ready
+  FAIL  flight           170.0 s  vario not reachable (/api/logs): <urlopen error timed out>
+        state: could not read the status (vario not reachable (/api/status): <urlopen error timed out>)
+        sim: could not read (vario not reachable (/api/sim): <urlopen error [Errno 11001] getaddrinfo failed>)
+        log: could not read (vario not reachable (/api/debuglog?since=799): <urlopen error [Errno 11001] getaddrinfo failed>)
+  FAIL  baro_only        could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  guidance         could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  battery          could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  battery_learner  could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  speech           could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  volume_ramp      could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  glide            could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  variant_no_gps   could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  variant_no_mic   could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  gps_detect       could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_flight        could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_pilot         could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_layout        could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_actions       could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_guidance      could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_settings      could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_spectrum      could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  spectrum_setting could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_system        could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ui_help          could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  ota_guard        could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+  FAIL  memory           could not start from a clean state: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+Cleanup: close the browser;
+WARNING: cleanup step 'simulation off' failed: vario not reachable (/api/sim?off=1): <urlopen error [Errno 11001] getaddrinfo failed>
+WARNING: cleanup step 'flight logic reset' failed: vario not reachable (/api/sim?reset=1): <urlopen error [Errno 11001] getaddrinfo failed>
+WARNING: cleanup step 'settings restored' failed: vario not reachable (/api/settings): <urlopen error [Errno 11001] getaddrinfo failed>
+WARNING: cleanup step 'leftover test logs' failed: vario not reachable (/api/logs): <urlopen error [Errno 11001] getaddrinfo failed>
+
+NOTE: 24 test(s) ran while a phone, browser or BLE client was connected: boot, auto_volume, rpm_logic, rpm, factory_reset, ble_info, voice_pack, maint_retry, igc_segments, moving_logic, height_trace, alerts_logic, resume_logic, audio_logic, rpmtrack_logic, baro_logic, wind, wind_faults, circuit_right, circuit_slow_pilot, circuit_left_wind, circuit_events, landing_hover, button_actions
+
+54 passed, 26 failed, 658 log lines missed

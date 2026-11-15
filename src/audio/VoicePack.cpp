@@ -39,14 +39,24 @@ bool begin() {
     f.close();
     return false;
   }
-  gIndex = new (std::nothrow) Entry[kMaxClips];
+  const uint32_t total = f.size();
+  // first count the clips, so the index takes exactly the RAM it needs
+  int clips = 0;
+  for (uint32_t pos = 4; pos + kHeader <= total && clips < kMaxClips;) {
+    uint8_t h[kHeader];
+    if (!f.seek(pos) || f.read(h, kHeader) != kHeader) break;
+    const uint32_t size = h[20] | (h[21] << 8) | (h[22] << 16) | ((uint32_t)h[23] << 24);
+    if (pos + kHeader + size > total) break;
+    ++clips;
+    pos += kHeader + size;
+  }
+  gIndex = clips > 0 ? new (std::nothrow) Entry[clips] : nullptr;
   if (!gIndex) {
     f.close();
     return false;
   }
-  const uint32_t total = f.size();
   uint32_t pos = 4;
-  while (pos + kHeader <= total && gCount < kMaxClips) {
+  while (pos + kHeader <= total && gCount < clips) {
     uint8_t h[kHeader];
     if (!f.seek(pos) || f.read(h, kHeader) != kHeader) break;
     const uint32_t size = h[20] | (h[21] << 8) | (h[22] << 16) | ((uint32_t)h[23] << 24);
