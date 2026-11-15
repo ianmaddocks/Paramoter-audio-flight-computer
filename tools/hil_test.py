@@ -2451,7 +2451,8 @@ def t_igc_room(v, a):
         logs = log_list(v)
         mini = logs.get("210101-090000.igc")
         if not mini or not mini["s"] < full * 0.35:
-            raise Fail(f"today's older log was not cut down to the minimum: {full} -> {mini and mini['s']}")
+            igc = [l.msg for l in v.lines[-400:] if l.tag == "IGC"]
+            raise Fail(f"today's older log was not cut down to the minimum: {full} -> {mini and mini['s']}; log list {list(logs)}; IGC lines: {igc}")
         text = log_text(v, "210101-090000.igc")
         rows = text.split("\r\n")
         bs = [r for r in rows if r.startswith("B")]

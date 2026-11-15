@@ -213,6 +213,7 @@ bool makeRoom(size_t minFree, const String& currentId, const String& activePiece
   // 3. today's other logs cut down to the minimum an IGC file needs, still at one fix in 5, then at one in 20. A flight is converted
   // whole (its header loses the extension declaration), so it is never left half and half.
   for (int pass = 0; pass < 2; ++pass) {
+    list(all);  // (the pieces have new names now: look again)
     for (const Flight& f : all) {
       if (f.id == currentId || olderDay(f.id, currentId)) continue;
       bool any = false;
@@ -230,6 +231,7 @@ bool makeRoom(size_t minFree, const String& currentId, const String& activePiece
     }
   }
   // 4. today's older logs
+  list(all);
   for (const Flight& f : all) {
     if (f.id == currentId || olderDay(f.id, currentId)) continue;
     remove(f.id);
@@ -237,6 +239,7 @@ bool makeRoom(size_t minFree, const String& currentId, const String& activePiece
     if (freeBytes() >= minFree) return true;
   }
   // 5. the start of the current flight
+  list(all);
   for (const Flight& f : all) {
     if (f.id != currentId) continue;
     for (const Piece& p : f.pieces) {
