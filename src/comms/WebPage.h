@@ -844,6 +844,14 @@ function replayStatus(i){
 // settings asked for (thin lines), the volume the loudness adjustment wanted (dotted: the setting raised towards 100 % as the
 // background noise rises from the quiet to the loud limit, before the speed limit on changes), and the background noise (grey);
 // a vertical line marks where the replay is.
+function rpVolText(i){
+  const d=rp.d,F=d.fix,vol=d.vol||{quiet:-52,loud:-30,auto:true},slowAt=k=>F[k].slow||d.first;
+  const f=F[i],sl=slowAt(i);
+  if(f.vv!=null){
+    const want=sl&&vol.auto?sl.vs+(100-sl.vs)*Math.max(0,Math.min(1,(-sl.noise-vol.quiet)/Math.max(1,vol.loud-vol.quiet))):(sl?sl.vs:null);
+    txt('rpVolTxt','volume now: vario '+f.vv+'%'+(sl?' (set '+sl.vs+'%, wanted '+Math.round(want)+'%)':'')+' · speech '+f.sv+'%'+(sl?' (set '+sl.ss+'%)':'')+(sl?' · noise '+(-sl.noise)+' dBFS (quiet '+vol.quiet+', loud '+vol.loud+')':'')+' — solid vario, dashed speech, dotted wanted, grey noise');
+  }else txt('rpVolTxt','this log has no volume record');
+}
 function rpVolChart(i){
   const c=$('#rpVol');if(!c||!c.clientWidth)return;
   const d=rp.d,F=d.fix,dpr=window.devicePixelRatio||1,W=c.clientWidth,H=c.clientHeight;
@@ -866,12 +874,8 @@ function rpVolChart(i){
   line(k=>F[k].sv,acc,1.5,[5,3]);
   line(k=>F[k].vv,acc,2);
   g.strokeStyle=fg;g.lineWidth=1;g.beginPath();g.moveTo(Math.round(X(i))+.5,0);g.lineTo(Math.round(X(i))+.5,H);g.stroke();
-  const f=F[i],sl=slowAt(i);
-  if(f.vv!=null){
-    const want=sl&&vol.auto?sl.vs+(100-sl.vs)*Math.max(0,Math.min(1,(-sl.noise-vol.quiet)/Math.max(1,vol.loud-vol.quiet))):(sl?sl.vs:null);
-    txt('rpVolTxt','volume now: vario '+f.vv+'%'+(sl?' (set '+sl.vs+'%, wanted '+Math.round(want)+'%)':'')+' · speech '+f.sv+'%'+(sl?' (set '+sl.ss+'%)':'')+(sl?' · noise '+(-sl.noise)+' dBFS (quiet '+vol.quiet+', loud '+vol.loud+')':'')+' — solid vario, dashed speech, dotted wanted, grey noise');
-  }else txt('rpVolTxt','this log has no volume record');
 }
+
 function rpFrame(){
   const d=rp.d,F=d.fix,tot=F[F.length-1].t-F[0].t,i=rpAt(F,F[0].t+Math.max(0,Math.min(tot,rp.pos)));rp.i=i;
   try{
@@ -880,7 +884,7 @@ function rpFrame(){
     hgData={step:2,a};drawHeight();
   }catch(e){}
   $('#rpSlider').value=Math.round(rp.pos);
-  rpVolChart(i);
+  rpVolText(i);rpVolChart(i);
   const rel=F[i].t-F[0].t,tk=d.start>0?' · takeoff at '+fT(F[d.start].t-F[0].t):'';
   txt('rpTime',fT(rel)+' / '+fT(tot)+tk);
 }

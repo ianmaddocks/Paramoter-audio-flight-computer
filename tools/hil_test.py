@@ -2326,9 +2326,12 @@ def t_ui_replay(v, a):
         p.js("window.__igc=null")
 
 
-def short_flight(v, climb_s=12):
-    """One short simulated flight: takeoff, a few seconds up, landing. Returns the log position from before the takeoff."""
+def short_flight(v, climb_s=12, setup=None):
+    """One short simulated flight: takeoff, a few seconds up, landing. Returns the log position from before the takeoff.
+    setup(): called once the vario is ready, before the takeoff (the reset clears the test limits and the fill file)."""
     m = on_ground_with_fix(v)
+    if setup:
+        setup()
     take_off(v, climb_to=GROUND_M + 60, vz=4.0)
     time.sleep(climb_s)
     v.sim(speed=0, vz=-4.0, to=GROUND_M + 2)
@@ -2379,8 +2382,7 @@ def t_igc_segments(v, a):
     owner: one entry in the list, one download with the header and every fix in order."""
     try:
         clear_logs(v)
-        v.sim(igcLimits="2048,0,0")
-        short_flight(v, climb_s=40)
+        short_flight(v, climb_s=40, setup=lambda: v.sim(igcLimits="2048,0,0"))
         logs = log_list(v)
         if len(logs) != 1:
             raise Fail(f"{len(logs)} entries in the log list for one flight: {list(logs)}")
@@ -2417,8 +2419,8 @@ def t_igc_room(v, a):
         clear_logs(v)
         fake_logs(v, [("201231-100000", 600, 36000), ("210101-090000", 600, 32400)])
         base = log_list(v)
-        v.sim(fillFs=30000)  # free about 30 kB: under the 60 kB wanted at takeoff, but deleting the earlier day's log (about 36 kB) is enough
-        short_flight(v, climb_s=6)
+        # free about 30 kB: under the 60 kB wanted at takeoff, but deleting the earlier day's log (about 36 kB) is enough
+        short_flight(v, climb_s=6, setup=lambda: v.sim(fillFs=30000))
         logs = log_list(v)
         if "201231-100000.igc" in logs:
             raise Fail("the log of an earlier day was kept while room was needed")
@@ -2431,8 +2433,8 @@ def t_igc_room(v, a):
         v.sim(fillFs="off")
         fake_logs(v, [("210101-090000", 600, 32400)])
         full = log_list(v)["210101-090000.igc"]["s"]
-        v.sim(fillFs=40000)  # free about 40 kB: thinning the log to 1 fix in 5 (it gives back about 23 kB) is enough
-        short_flight(v, climb_s=6)
+        # free about 40 kB: thinning the log to 1 fix in 5 (it gives back about 23 kB) is enough
+        short_flight(v, climb_s=6, setup=lambda: v.sim(fillFs=40000))
         logs = log_list(v)
         t5 = logs.get("210101-090000.igc")
         if not t5 or not t5["s"] < full * 0.6:
@@ -2444,8 +2446,7 @@ def t_igc_room(v, a):
         clear_logs(v)
         v.sim(fillFs="off")
         fake_logs(v, [("210101-090000", 600, 32400)])
-        v.sim(fillFs=34000)
-        short_flight(v, climb_s=6)
+        short_flight(v, climb_s=6, setup=lambda: v.sim(fillFs=34000))
         logs = log_list(v)
         mini = logs.get("210101-090000.igc")
         if not mini or not mini["s"] < full * 0.35:
@@ -2460,10 +2461,9 @@ def t_igc_room(v, a):
         # 3. the start of the current flight is trimmed: it keeps recording to the landing
         clear_logs(v)
         v.sim(fillFs="off")
-        v.sim(igcLimits="2048,0,0")
+        m = on_ground_with_fix(v)
         free = v.get_json("/api/logs")["free"]
         v.sim(igcLimits=f"2048,0,{free + 30000}")  # more kept free in flight than there is: every check has to make room
-        m = on_ground_with_fix(v)
         take_off(v, climb_to=GROUND_M + 60, vz=4.0)
         time.sleep(100)
         v.sim(speed=0, vz=-4.0, to=GROUND_M + 2)
@@ -2501,7 +2501,10 @@ def t_maint_retry(v, a):
         return "skipped: this vario is not set up for the maintenance connection"
     if not v.status()["wifi"].get("serverIp"):
         raise Fail("the vario is not on the maintenance network to begin with")
-    v.sim(maintGiveUp=5000)
+    try:
+        v.sim(maintGiveUp=5000)
+    except Fail:
+        pass  # (it goes off the router while answering: the answer may not arrive)
     time.sleep(8)
     end = time.time() + 120
     last = ""
@@ -4415,7 +4418,7 @@ def t_ui_guidance(v, a):
         raise Fail("web page: log size not shown")
     if not re.search(r"^\d+ kB free: room for about \d+ more minutes of flight before the oldest logs are deleted$", p.js("document.querySelector('#logs p').textContent")):
         raise Fail("web page: free space line wrong")
-    p.js(f"{row}.querySelector('button').click()")  # Delete (the confirm box is auto-accepted)
+    p.js(f"{row}.querySelector('button.dng').click()")  # Delete (the confirm box is auto-accepted)
     p.wait(f"!{row}", 6, "log removed from the list after Delete")
     if any(f["n"] == name for f in v.get_json("/api/logs")["files"]):
         raise Fail("web page: Delete did not remove the file from the vario")
