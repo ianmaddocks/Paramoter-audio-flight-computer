@@ -1,0 +1,60 @@
+ParaVario 20261115-002910 (cd66fb6) at paravario.local, 5 tests
+  FAIL  maint_retry       57.9 s  176 log line(s) were dropped during the test, so it may have judged an incomplete log (the test itself passed: gave up on the maintenance network, and found it again by itself after about 8 s)
+        state: uptime 77 s, flying False, agl 0 m, vario +0.00, baro ok True, fix True, wind none 0/0.0, heap 37752 (lowest 22476)
+        sim: {"baro": 0, "alt": 0.0, "vz": 0.0, "gps": "real", "lat": 51.5, "lon": 0.5, "speed": 0.0, "track": 0.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [   73.899] D MIC: noise=-63.0 (blk -63.1) dBFS rpm=0 raw=2831 conf=2.4 fs=1965 tone=0 clear=1 ovf=6784
+          [   74.772] D BAT: v=4.152 pct=100 min=360 learned=0
+          [   74.772] D NAV: fix=1 good=0 sat=8 hdop=2.7 00.000000,0.000000 gs=0.3 trk=160 gpsAlt=-17.2
+          [   74.773] D NAV: baro=1 p=101032 t=54.5 std=24.5 msl=-24.9 agl=0.0 vs=-0.02 fly=0 ft=0
+          [   74.773] D NAV: lz=0 0.000000,0.000000 elev=-24.9 wind=none 0/0.0 mode=none/off mute=0 batt=4.15V heap=43504
+          [   75.773] D VOL: noise -63.1 dBFS, auto off: speech 20% (set 20%, +0), vario 20% (set 20%, +0)
+          [   75.774] D NAV: fix=1 good=0 sat=8 hdop=2.7 00.000000,0.000000 gs=0.6 trk=160 gpsAlt=-14.8
+          [   75.774] D NAV: baro=1 p=101031 t=54.5 std=24.5 msl=-24.8 agl=0.1 vs=+0.01 fly=0 ft=0
+          [   75.774] D NAV: lz=0 0.000000,0.000000 elev=-24.9 wind=none 0/0.0 mode=none/off mute=0 batt=4.15V heap=43516
+          [   75.948] D MIC: noise=-63.0 (blk -63.0) dBFS rpm=0 raw=5680 conf=2.6 fs=1965 tone=0 clear=1 ovf=7040
+          [   76.780] D BAT: v=4.151 pct=100 min=360 learned=0
+          [   76.781] D NAV: fix=1 good=0 sat=8 hdop=2.7 00.000000,0.000000 gs=0.5 trk=160 gpsAlt=-12.1
+          [   76.781] D NAV: baro=1 p=101032 t=54.5 std=24.5 msl=-24.7 agl=0.1 vs=-0.00 fly=0 ft=0
+          [   76.782] D NAV: lz=0 0.000000,0.000000 elev=-24.9 wind=none 0/0.0 mode=none/off mute=0 batt=4.15V heap=43516
+          [   77.802] D NAV: fix=1 good=0 sat=7 hdop=2.9 00.000000,0.000000 gs=1.0 trk=115 gpsAlt=-9.0
+          [   77.802] D NAV: baro=1 p=101031 t=54.5 std=24.5 msl=-24.6 agl=0.2 vs=+0.01 fly=0 ft=0
+          [   77.803] D NAV: lz=0 0.000000,0.000000 elev=-24.9 wind=none 0/0.0 mode=none/off mute=0 batt=4.15V heap=35828
+          [   77.991] D MIC: noise=-62.3 (blk -60.2) dBFS rpm=0 raw=5895 conf=2.3 fs=2041 tone=0 clear=1 ovf=7296
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 0, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  PASS  igc_segments      78.9 s  3 files, 66 fixes in order, 4152 bytes, one entry in the list
+        WARNING: somebody else was using the vario during this test (before: web pages 0, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+  FAIL  igc_room         120.0 s  today's older log was not cut down to the minimum: 33401 -> None
+        state: uptime 277 s, flying False, agl 0 m, vario -0.62, baro ok True, fix True, wind takeoff 90/0.0, heap 40200 (lowest 13556)
+        sim: {"baro": 1, "alt": 102.0, "vz": 0.0, "gps": "fix", "lat": 51.5, "lon": 0.501601, "speed": 0.0, "track": 90.0, "sats": 10, "hdop": 0.9, "batt": 0, "battV": 4.0, "noise": 0, "noiseDb": -60.0, "hdg": 0.0}
+        last log lines:
+          [  275.729] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.501601 gs=0.0 trk=90 gpsAlt=104.1
+          [  275.730] D NAV: baro=1 p=101876 t=20.0 std=-45.8 msl=104.2 agl=0.0 vs=-4.00 fly=0 ft=15
+          [  275.730] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.15V heap=43332
+          [  275.931] D BAT: v=4.154 pct=100 min=360 learned=0
+          [  276.257] I SIM: reached target altitude 102.0 m
+          [  276.536] D TONE: sink 279 Hz
+          [  276.716] I SIM: igcLimits=0,0,0
+          [  276.733] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.501601 gs=0.0 trk=90 gpsAlt=102.0
+          [  276.734] D NAV: baro=1 p=101903 t=20.0 std=-48.8 msl=101.2 agl=0.0 vs=-2.76 fly=0 ft=15
+          [  276.734] D NAV: lz=1 51.500000,0.500000 elev=100.0 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.15V heap=39988
+          [  276.742] D TONE: sink 295 Hz
+          [  276.750] D MIC: noise=-44.5 (blk -29.3) dBFS rpm=8080 raw=7895 conf=19.3 fs=1961 tone=286 clear=1 ovf=30816
+          [  276.869] I SIM: fillFs=off
+          [  276.955] D TONE: sink 309 Hz
+          [  277.097] D TONE: off 0 Hz
+          [  277.745] D NAV: fix=1 good=1 sat=10 hdop=0.9 51.500000,0.501601 gs=0.0 trk=90 gpsAlt=102.0
+          [  277.746] D NAV: baro=1 p=101904 t=20.0 std=-48.3 msl=101.7 agl=0.1 vs=-0.10 fly=0 ft=15
+          [  277.746] D NAV: lz=1 51.500000,0.501601 elev=101.6 wind=takeoff 90/0.0 mode=none/off mute=0 batt=4.15V heap=39096
+        WARNING: somebody else was using the vario during this test (before: web pages 1, Wi-Fi stations 0, BLE 0; after: web pages 1, Wi-Fi stations 0, BLE 0): its timing, memory and log results may be affected
+Cleanup: close the browser, simulation off, flight logic reset, settings restored, 2 leftover test log(s) deleted, leftover test logs.
+Traceback (most recent call last):
+  File "S:\PlatformIOProjects\Paramoter audio flight computer\tools\hil_test.py", line 4953, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "S:\PlatformIOProjects\Paramoter audio flight computer\tools\hil_test.py", line 4877, in main
+    note = fn(v, a)
+  File "S:\PlatformIOProjects\Paramoter audio flight computer\tools\hil_test.py", line 2305, in t_ui_replay
+    p.wait("document.getElementById('rpPlay')!==null", 3)
+    ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: Browser.wait() missing 1 required positional argument: 'what'

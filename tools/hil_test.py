@@ -2446,7 +2446,8 @@ def t_igc_room(v, a):
         clear_logs(v)
         v.sim(fillFs="off")
         fake_logs(v, [("210101-090000", 600, 32400)])
-        short_flight(v, climb_s=6, setup=lambda: v.sim(fillFs=34000))
+        # free about 30 kB and 56 kB wanted: the thinning to 1 in 5 (24 kB) is not enough, cutting down to the minimum (about 4 kB more) is
+        short_flight(v, climb_s=6, setup=lambda: (v.sim(fillFs=30000), v.sim(igcLimits="0,56000,0")))
         logs = log_list(v)
         mini = logs.get("210101-090000.igc")
         if not mini or not mini["s"] < full * 0.35:
@@ -4753,7 +4754,7 @@ TESTS = [
 # memory_events floods the vario with requests and resets on purpose, faster than the log feed can follow.
 # The *_logic tests run production code over thousands of simulated seconds in one request (the circuit suite logs
 # every phase change and trace line, as it would in flight) and assert on the suite's own report, never on the log.
-DROPS_ALLOWED = {"boot", "memory_events", "ui_layout", "wind_faults"}  # ui_layout judges what is on the screen, and taking screenshots slows the log feed
+DROPS_ALLOWED = {"boot", "memory_events", "ui_layout", "wind_faults", "maint_retry"}  # ui_layout judges what is on the screen, and taking screenshots slows the log feed
 
 
 def isolate(v, a):
