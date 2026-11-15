@@ -114,6 +114,11 @@ bool maintUsed = false;  // the maintenance-connection switch as it was at power
 // searched for again until a restart.
 constexpr uint32_t kServerRetryMs = 5 * 60 * 1000;
 bool serverEverConnected = false;
+// ... and "earlier" includes before a restart that was not a power-on: after the watchdog restart of 15 Nov 18:45 the router was
+// not found within the 30 s, and the vario stayed off it for good because it "had never been joined". Kept in memory that a
+// restart does not clear; switching on starts afresh (the vario may be somewhere else now).
+constexpr uint32_t kJoinedMagic = 0x4A4E4431;
+RTC_NOINIT_ATTR uint32_t joinedBeforeRestart;
 uint32_t serverStoppedMs = 0;
 uint32_t serverRetryMs = kServerRetryMs;
 
@@ -185,6 +190,7 @@ void serverUpdate(uint32_t now) {
   bool up = WiFi.status() == WL_CONNECTED;
   if (serverWifi == ServerWifi::Connecting && up) {
     serverEverConnected = true;
+    joinedBeforeRestart = kJoinedMagic;
     routerHeardMs = now;
     serverWifi = ServerWifi::Connected;
     LOGI("WEB", "Joined server network '%s' as %s (http://paravario.local)", g_cfg.serverSsid,
@@ -478,6 +484,22 @@ constexpr size_t kPieceHead = 6;      // "xxxx\r\n" chunk-size line, filled in w
 constexpr size_t kPieceData = 1400;   // with the head and tail, just under one TCP segment
 char gPiece[kPieceHead + kPieceData + 2];
 size_t gPieceLen = 0;
+const char* gRouteName();
+bool gPieceDead = false;  // the client stopped taking data: the rest of this reply is dropped
+
+// One network write of a reply sent in parts. A write to a client that takes nothing (gone, or a link that is stuck) waits up
+// to 10 s inside the network library, and a reply of several writes then holds the main loop until the 30 s watchdog restarts
+// the vario (15 Nov 18:45, from the stored crash record: the log list, on its third write). So the watchdog is fed before each
+// write, and after one write that fails the client is dropped and the rest of the reply is not attempted.
+bool writeToClient(const uint8_t* data, size_t len) {
+  if (gPieceDead) return false;
+  esp_task_wdt_reset();
+  if (server.client().write(data, len) == len) return true;
+  gPieceDead = true;
+  LOGW("WEB", "client stopped taking data during %s: reply dropped", gRouteName());
+  server.client().stop();
+  return false;
+}
 
 void flushPiece() {
   if (!gPieceLen) return;
@@ -485,12 +507,13 @@ void flushPiece() {
   snprintf(head, sizeof(head), "%04x\r\n", (unsigned)gPieceLen);
   memcpy(gPiece, head, kPieceHead);
   memcpy(gPiece + kPieceHead + gPieceLen, "\r\n", 2);
-  server.client().write((const uint8_t*)gPiece, kPieceHead + gPieceLen + 2);
+  writeToClient((const uint8_t*)gPiece, kPieceHead + gPieceLen + 2);
   gPieceLen = 0;
 }
 
 void beginPieces(const char* type) {
   gPieceLen = 0;
+  gPieceDead = false;
   server.sendHeader("Cache-Control", "no-store");
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);  // chunked transfer
   server.send(200, type, "");
@@ -511,7 +534,15 @@ void addPiece(const char* text) { addPiece(text, strlen(text)); }
 
 void endPieces() {
   flushPiece();
+  if (gPieceDead) return;
   server.sendContent("");  // closing zero-length chunk; also ends the server's chunked mode
+}
+
+// A reply of known length sent in parts of about one packet (a log, the crash record): the same care as above.
+void beginRaw(const char* type, size_t length) {
+  gPieceDead = false;
+  server.setContentLength(length);
+  server.send(200, type, "");
 }
 
 void handleSchema() {
@@ -687,26 +718,21 @@ bool validLogName(const String& name) {
 void handleLogs() {
   std::vector<logstore::Info> flights;
   logstore::summary(flights);
-  server.sendHeader("Cache-Control", "no-store");
-  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-  server.send(200, "application/json", "");
-  char buf[400];
-  int n = snprintf(buf, sizeof(buf), "{\"files\":[");
+  beginPieces("application/json");
+  char buf[96];
+  addPiece("{\"files\":[");
   bool first = true;
   for (const logstore::Info& f : flights) {
     // a flight is one IGC file to the owner, however it is stored; p: how many files it is stored in (for the tests)
-    n += snprintf(buf + n, sizeof(buf) - n, "%s{\"n\":\"%s.igc\",\"s\":%lu,\"p\":%u}", first ? "" : ",", f.id, (unsigned long)f.size,
-                  (unsigned)f.pieces);
+    const int n = snprintf(buf, sizeof(buf), "%s{\"n\":\"%s.igc\",\"s\":%lu,\"p\":%u}", first ? "" : ",", f.id, (unsigned long)f.size,
+                           (unsigned)f.pieces);
+    addPiece(buf, n);
     first = false;
-    if (n > (int)sizeof(buf) - 80) {
-      server.sendContent(buf, n);
-      n = 0;
-    }
   }
-  n += snprintf(buf + n, sizeof(buf) - n, "],\"free\":%lu,\"total\":%lu}", (unsigned long)(LittleFS.totalBytes() - LittleFS.usedBytes()),
-                (unsigned long)LittleFS.totalBytes());
-  server.sendContent(buf, n);
-  server.sendContent("");
+  const int n = snprintf(buf, sizeof(buf), "],\"free\":%lu,\"total\":%lu}", (unsigned long)(LittleFS.totalBytes() - LittleFS.usedBytes()),
+                         (unsigned long)LittleFS.totalBytes());
+  addPiece(buf, n);
+  endPieces();
 }
 
 // The trail of network events that survives a crash (comms/NetTrail.h), as text.
@@ -738,11 +764,10 @@ void handleLogDownload() {
     return;
   }
   server.sendHeader("Content-Disposition", "attachment; filename=\"" + name + "\"");
-  server.setContentLength(rd.total());
-  server.send(200, "application/octet-stream", "");
-  uint8_t buf[512];
+  beginRaw("application/octet-stream", rd.total());
   int n;
-  while ((n = rd.read(buf, sizeof(buf))) > 0) server.sendContent((const char*)buf, n);
+  while ((n = rd.read((uint8_t*)gPiece, kPieceData)) > 0 && writeToClient((const uint8_t*)gPiece, n)) {
+  }
   rd.close();
 }
 
@@ -760,13 +785,10 @@ void handleCoreDump() {
     sendError(404, "no crash record stored");
     return;
   }
-  server.setContentLength(size);
-  server.send(200, "application/octet-stream", "");
-  uint8_t buf[512];
+  beginRaw("application/octet-stream", size);
   for (size_t off = 0; off < size;) {
-    const size_t n = min(sizeof(buf), size - off);
-    if (esp_partition_read(part, addr - part->address + off, buf, n) != ESP_OK) break;
-    server.sendContent((const char*)buf, n);
+    const size_t n = min(kPieceData, size - off);
+    if (esp_partition_read(part, addr - part->address + off, gPiece, n) != ESP_OK || !writeToClient((const uint8_t*)gPiece, n)) break;
     off += n;
   }
 }
@@ -904,6 +926,9 @@ constexpr uint32_t kMinFreeToServe = 12000;
 
 // Registers a route and remembers which one is being served, so the memory trace can name it.
 const char* gRoute = "";
+namespace {
+const char* gRouteName() { return gRoute; }
+}  // namespace
 void route(const char* path, HTTPMethod method, void (*handler)()) {
   server.on(path, method, [path, handler]() {
     gRoute = path;
@@ -943,6 +968,8 @@ void testMaintGiveUp(uint32_t retryMs) {
 
 void begin() {
   nettrail::begin((int)esp_reset_reason());
+  if (esp_reset_reason() == ESP_RST_POWERON || esp_reset_reason() == ESP_RST_BROWNOUT) joinedBeforeRestart = 0;
+  serverEverConnected = joinedBeforeRestart == kJoinedMagic;
   WiFi.onEvent(onWifiEvent);
   LOGI("WEB", "Restarted: %s", resetReasonName());
   serverAttemptStartedMs = millis();

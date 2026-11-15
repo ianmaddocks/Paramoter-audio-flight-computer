@@ -2562,6 +2562,44 @@ def t_log_list_memory(v, a):
         clear_logs(v)
 
 
+def t_stalled_client(v, a):
+    """The watchdog restart of 15 Nov 18:45 (from the stored crash record): a client that stops taking data in the middle of a
+    reply held the main loop, write after write, until the 30 s watchdog restarted the vario. A client asks for a log and then
+    reads nothing: the vario must drop it after one failed write, stay up, and answer others again within about 15 s."""
+    import socket
+    try:
+        clear_logs(v)
+        v.sim(fakeLog="210101-090000,1800,32400")  # about 100 kB
+        up0 = v.status()["uptime"]
+        s = socket.socket()
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 2048)  # a small window: the reply cannot simply be sent off in one go
+        s.settimeout(10)
+        s.connect((v.base.split("//")[1], 80))
+        s.sendall(b"GET /api/log?name=210101-090000.igc HTTP/1.1\r\nHost: vario\r\nX-HIL: 1\r\n\r\n")
+        t0 = time.time()
+        time.sleep(2)
+        st = None
+        while time.time() - t0 < 40:
+            try:
+                st = json.loads(v._open("/api/status", tries=1, timeout=5)[1])
+                break
+            except Fail:
+                time.sleep(1)
+        took = time.time() - t0
+        s.close()
+        if st is None:
+            raise Fail("the vario answered nobody for 40 s after a client stopped reading a log")
+        time.sleep(35)  # (the watchdog is 30 s: a restart would show by now)
+        st = v.status()
+        if st["uptime"] < up0:
+            raise Fail(f"the vario restarted ({st.get('resetReason')}) after a client stopped reading a log")
+        if took > 20:
+            raise Fail(f"the vario answered nobody for {took:.0f} s after a client stopped reading a log")
+        return f"a client stopped reading a 100 kB log: the vario answered others again after {took:.0f} s and did not restart"
+    finally:
+        clear_logs(v)
+
+
 def t_net_trail(v, a):
     """The trail of network events is kept across a restart (the debug log is not): after a restart it still holds the record of
     the time before it, the restart itself and the joining of the maintenance network."""
@@ -4806,7 +4844,7 @@ TESTS = [
     ("boot", t_boot), ("settings", t_settings), ("vario_climb", t_vario_climb),
     ("vario_sink", t_vario_sink), ("vario_thresholds", t_vario_thresholds), ("vario_logic", t_vario_logic),
     ("mute", t_mute), ("auto_volume", t_auto_volume), ("rpm_logic", t_rpm_logic), ("rpm", t_rpm), ("rpm_speech", t_rpm_speech), ("rpm_glitch", t_rpm_glitch), ("geo_logic", t_geo_logic), ("wind_logic", t_wind_logic),
-    ("circuit_logic", t_circuit_logic), ("battery_logic", t_battery_logic), ("flight_logic", t_flight_logic), ("button_logic", t_button_logic), ("factory_reset", t_factory_reset), ("ble_info", t_ble_info), ("voice_pack", t_voice_pack), ("igc_two_flights", t_igc_two_flights), ("vario_only_flying", t_vario_only_flying), ("maint_retry", t_maint_retry), ("log_list_memory", t_log_list_memory), ("net_trail", t_net_trail), ("igc_segments", t_igc_segments), ("igc_room", t_igc_room), ("ui_replay", t_ui_replay), ("height_logic", t_height_logic), ("moving_logic", t_moving_logic), ("height_trace", t_height_trace), ("maint_voice", t_maint_voice), ("names_default", t_names_default), ("status_logic", t_status_logic), ("alerts_logic", t_alerts_logic), ("resume_logic", t_resume_logic), ("audio_logic", t_audio_logic), ("rpmtrack_logic", t_rpmtrack_logic), ("baro_logic", t_baro_logic), ("wind", t_wind), ("wind_faults", t_wind_faults), ("wind_change", t_wind_change), ("circuit_right", t_circuit_right), ("circuit_slow_pilot", t_circuit_slow_pilot), ("circuit_left_wind", t_circuit_left_wind),
+    ("circuit_logic", t_circuit_logic), ("battery_logic", t_battery_logic), ("flight_logic", t_flight_logic), ("button_logic", t_button_logic), ("factory_reset", t_factory_reset), ("ble_info", t_ble_info), ("voice_pack", t_voice_pack), ("igc_two_flights", t_igc_two_flights), ("vario_only_flying", t_vario_only_flying), ("maint_retry", t_maint_retry), ("log_list_memory", t_log_list_memory), ("net_trail", t_net_trail), ("stalled_client", t_stalled_client), ("igc_segments", t_igc_segments), ("igc_room", t_igc_room), ("ui_replay", t_ui_replay), ("height_logic", t_height_logic), ("moving_logic", t_moving_logic), ("height_trace", t_height_trace), ("maint_voice", t_maint_voice), ("names_default", t_names_default), ("status_logic", t_status_logic), ("alerts_logic", t_alerts_logic), ("resume_logic", t_resume_logic), ("audio_logic", t_audio_logic), ("rpmtrack_logic", t_rpmtrack_logic), ("baro_logic", t_baro_logic), ("wind", t_wind), ("wind_faults", t_wind_faults), ("wind_change", t_wind_change), ("circuit_right", t_circuit_right), ("circuit_slow_pilot", t_circuit_slow_pilot), ("circuit_left_wind", t_circuit_left_wind),
     ("circuit_events", t_circuit_events),
     ("fault_baro", t_fault_baro), ("fault_gps", t_fault_gps), ("fault_battery", t_fault_battery), ("landing_gps_quality", t_landing_gps_quality), ("landing_hover", t_landing_hover), ("button_actions", t_button_actions), ("alerts_flight", t_alerts_flight), ("resume_flight", t_resume_flight), ("battery_flight", t_battery_flight),
     ("memory_events", t_memory_events), ("soak", t_soak),
