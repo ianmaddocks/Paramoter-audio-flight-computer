@@ -590,7 +590,10 @@ function field(f){
   else if(f.t==='enum'){i=document.createElement('select');f.o.split('|').forEach((o,n)=>i.add(new Option(o,n)));i.value=cfg[f.k];
     i.onchange=()=>{setVal(f,+i.value);if(/Unit$/.test(f.k))render()}}
   else if(f.t==='str'){i=document.createElement('input');i.type=/Pass$/.test(f.k)?'password':'text';i.maxLength=f.n;i.value=cfg[f.k];i.onchange=()=>setVal(f,i.value)}
-  else if(f.t==='list'){i=document.createElement('input');i.type='text';i.inputMode='decimal';
+  else if(f.t==='list'){i=document.createElement('input');i.type='text';
+    // A list is typed with commas and spaces ("50, 100, 200"): the phone's decimal keypad has neither, so it gets the ordinary keyboard (on an
+    // iPhone the comma and space are on its first page once the "123" key is used), with the correction features off so digits are not changed.
+    i.inputMode='text';i.autocapitalize='off';i.autocomplete='off';i.spellcheck=false;i.setAttribute('autocorrect','off');i.placeholder='e.g. 50, 100, 200';
     i.value=String(cfg[f.k]).split(',').filter(x=>x).map(v=>Math.round(v*c.f)).join(', ');
     if(GATE[f.k]){i.dataset.gate=GATE[f.k];i.disabled=!cfg[GATE[f.k]]}
     i.onchange=()=>setVal(f,i.value.split(/[ ,]+/).map(parseFloat).filter(v=>!isNaN(v)&&v>0).map(v=>(v/c.f).toFixed(2)).join(','))}

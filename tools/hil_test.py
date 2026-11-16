@@ -4595,6 +4595,9 @@ def t_ui_settings(v, a):
         p.wait_text("saveState", r"^Saved", 5)
         near(v.settings()["takeoffGainM"], 6.096, 0.01, "20 ft stored as metres")
         # Boundary list in feet, greyed out by its Announce checkbox.
+        kb = p.js("tInput('boundariesUp').inputMode")
+        if kb != "text":
+            raise Fail(f"web page: the boundary list has the '{kb}' keyboard: a list needs commas and spaces, which the numeric keypad of a phone does not have")
         shown_list = p.js("tInput('boundariesUp').value")
         if shown_list != "50, 100":
             raise Fail(f"web page: boundaries shown as '{shown_list}', expected '50, 100'")

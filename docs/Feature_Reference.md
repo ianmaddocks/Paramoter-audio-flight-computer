@@ -328,6 +328,8 @@ The heights at which the vario speaks.
 
 A list separated by commas, in your height unit. Climbing default: `50, 100, 250, 500, 750, 1000`. Descending default: `10, 15, 20, 30, 40, 50, 75, 100`. To hear every 100 feet on the way down, type `100, 200, 300, 400, 500`.
 
+On a phone this field opens the ordinary keyboard (not the number pad), because a list needs commas and spaces: on an iPhone tap the "123" key for them. Spaces alone also work as separators.
+
 The climbing list is only used on the way up and the descending list on the way down. Each is greyed out while its *Announce* switch is off.
 
 ### Repeat every (above last boundary)
