@@ -137,7 +137,7 @@ A failure prints the vario's state, the simulator state and the last log lines.
 | `variant_no_mic` | vario without a microphone: set volume used, battery still read, page and settings trimmed |
 | `ui_flight` | banner and every tile on the flight tab |
 | `ui_settings` (firmware box) | the firmware update box is in Advanced settings / Firmware Update (not on Logs & system), shows the installed version, refuses without a file, password masked |
-| `ui_actions` | on the ground: Mute vario, Audio test and the Landing zone settings button (Use current position: refused without a fix, accepted with one); the page has no Set LZ manually / LZ = takeoff buttons |
+| `ui_actions` | on the ground: only Status [.] (no Mute button) and the Landing zone settings button (Use current position: refused without a fix, accepted with one); the page has no Set LZ manually / LZ = takeoff buttons |
 | `ui_guidance` | flying display, emergency/approach banners, log list and delete |
 | `ui_settings` | every setting shown; editing, units, greyed-out boxes, restart marks, the Restart button at the bottom of Settings (only while a restart is needed) |
 | `ui_spectrum` | spectrum graph, tone marker, pause (skipped on a build made with `-DPV_HAS_SPECTRUM=0`) |

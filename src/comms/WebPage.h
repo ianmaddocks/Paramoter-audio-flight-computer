@@ -172,14 +172,13 @@ R"HTML(
 <div class="tile"><div class="k">Battery</div><div class="v" id="t-batt">–</div><div class="s" id="t-batts"></div></div>
 </section>
 <section class="card flightonly" id="flightActions"><h2>Actions</h2><div class="btns">
-<button data-a="approach" id="b-approach" class="needgps">Landing support</button>
-<button data-a="emergency" id="b-emergency" class="dng needgps">Emergency support</button>
-<button data-a="tell_me" id="b-tell">Update me</button>
-<button data-a="mute" id="b-mute" class="b-mute">Mute vario</button>
+<button data-a="approach" id="b-approach" class="needgps">Landing support [..]</button>
+<button data-a="emergency" id="b-emergency" class="dng needgps">Emergency support [—]</button>
+<button data-a="tell_me" id="b-tell">Status [.]</button>
+<button data-a="mute" id="b-mute" class="b-mute">Mute vario [...]</button>
 </div></section>
 <section class="card groundonly" id="groundActions"><h2>Actions</h2><div class="btns">
-<button data-a="test_voice">Audio test</button>
-<button data-a="mute" id="b-mute-g" class="b-mute">Mute vario</button>
+<button data-a="tell_me" id="b-status">Status [.]</button>
 </div></section>
 <div class="btns"><button type="button" id="b-fs" class="wide" hidden>Full screen</button></div>
 <section class="tiles more" id="tilesMore">
@@ -514,7 +513,7 @@ function renderStatus(s,replay){
     txt('t-flight',s.flying?fT(s.flightTime):s.flights>0?'Landed':'Ready');
     txt('t-ftime',s.flying?'Flying'+(s.logging?' · logging':''):s.flights>0&&s.flightTime?'last flight '+fT(s.flightTime):'');
     $('#b-approach').classList.toggle('on',s.mode=='approach');$('#b-emergency').classList.toggle('on',s.mode=='emergency');
-    document.querySelectorAll('.b-mute').forEach(b=>{b.textContent=s.muted?'Unmute vario':'Mute vario'});
+    document.querySelectorAll('.b-mute').forEach(b=>{b.textContent=(s.muted?'Unmute vario':'Mute vario')+' [...]'});
     // Directions are arrows relative to the way the pilot is travelling (up = straight ahead) once the GPS
     // gives a direction of travel; the compass degrees move to the line under the value. Standing still
     // there is no direction of travel: the degrees stay as the value.

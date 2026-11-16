@@ -4195,7 +4195,7 @@ def t_ui_flight(v, a):
 
 
 def t_ui_actions(v, a):
-    """Action buttons: mute, test voice and the two landing-zone buttons."""
+    """Action buttons: Status before the flight (no Mute button then) and the two landing-zone buttons."""
     m = reset(v, baro="on", alt=GROUND_M, vz=0, baroOffset=150, gps="nofix")
     p = v.page()
     try:
@@ -4206,17 +4206,15 @@ def t_ui_actions(v, a):
 
 def ui_actions_body(v, a, p, m):
     p.tab("flight")
-    p.click("#b-mute-g")
-    v.expect("SAY", r"\[urgent\] vario_muted$", m, timeout=4, what="Mute button")
-    p.wait_text("b-mute-g", r"^Unmute vario$")
-    p.wait_text("t-mute", r"^muted$")
-    p.wait_text("toast", r"^Done$")
+    # Before the flight there is no Mute / Unmute button (the vario is silent on the ground anyway): only Status.
+    if p.js("document.getElementById('b-mute-g')!==null") or p.js("document.getElementById('b-mute').offsetParent!==null"):
+        raise Fail("web page: a Mute / Unmute button is shown before the flight")
+    ground = p.js("[...document.querySelectorAll('#groundActions button')].map(b=>b.textContent)")
+    if ground != ["Status [.]"]:
+        raise Fail(f"web page: the ground Actions card holds {ground}, expected only Status [.]")
     m2 = v.mark()
-    p.click("#b-mute-g")
-    v.expect("SAY", r"\[urgent\] vario_on$", m2, timeout=4, what="Unmute button")
-    p.wait_text("b-mute-g", r"^Mute vario$")
-    p.click('button[data-a="test_voice"]')
-    v.expect("SAY", r"\[urgent\] system_ready ", m2, timeout=4, what="Test voice button")
+    p.click("#b-status")
+    v.expect("SAY", r"^\[high\] .*battery", m2, timeout=5, what="the Status button (the tell-me action)")
     time.sleep(4)
     p.tab("settings")
     p.js("document.querySelectorAll('#settings details').forEach(d=>d.open=true)")
@@ -4266,8 +4264,8 @@ def t_ui_pilot(v, a):
         if heads != ["Actions", "Actions"]:
             raise Fail(f"web page: the action cards are headed {heads}, expected Actions on both")
         ground = p.js("[...document.querySelectorAll('#groundActions button')].map(b=>b.textContent)")
-        if sorted(ground) != ["Audio test", "Mute vario"]:
-            raise Fail(f"web page: the ground Actions card holds {ground}")
+        if ground != ["Status [.]"]:
+            raise Fail(f"web page: the ground Actions card holds {ground}, expected only Status [.]")
         if p.js("document.getElementById('alerts').children.length") != 0:
             raise Fail("web page: an alert shown on the ground with a good battery")
         p.wait_text("t-gps", r"^strong$", 8, "GPS tile: signal quality as the value")
@@ -4282,15 +4280,23 @@ def t_ui_pilot(v, a):
         if p.js("document.getElementById('groundActions').offsetParent!==null"):
             raise Fail("web page: the ground Actions card is still shown in flight")
         flight = p.js("[...document.querySelectorAll('#flightActions button')].map(b=>b.textContent)")
-        if flight != ["Landing support", "Emergency support", "Update me", "Mute vario"]:
-            raise Fail(f"web page: the in-flight Actions card holds {flight}")
+        if flight != ["Landing support [..]", "Emergency support [\u2014]", "Update me [.]", "Mute vario [...]"]:
+            raise Fail(f"web page: the in-flight Actions card holds {flight} (each button says how many presses of the push button do the same)")
         if p.js("document.getElementById('flightActions').offsetParent===null"):
             raise Fail("web page: the in-flight Actions card is not shown in flight")
         m = v.mark()
         p.click("#b-tell")
         v.expect("SAY", r"^\[high\] .*landing_zone", m, timeout=5, what="the Update me button")
         v.expect("SAY", r"^\[high\] .*battery", m, timeout=5, what="the Update me button: battery")
-        notes.append("flight: the ground card is gone, the in-flight card holds Landing support, Emergency support, Update me and Mute; Update me speaks")
+        m = v.mark()
+        p.click("#b-mute")
+        v.expect("SAY", r"\[urgent\] vario_muted$", m, timeout=4, what="Mute button")
+        p.wait_text("b-mute", r"^Unmute vario \[\.\.\.\]$")
+        m = v.mark()
+        p.click("#b-mute")
+        v.expect("SAY", r"\[urgent\] vario_on$", m, timeout=4, what="Unmute button")
+        p.wait_text("b-mute", r"^Mute vario \[\.\.\.\]$")
+        notes.append("flight: the ground card is gone, the in-flight card holds Landing support [..], Emergency support [\u2014], Update me [.] and Mute vario [...]; Update me speaks; Mute and Unmute work")
 
         def strip():
             return p.js("[...document.querySelectorAll('#alerts .alert')].map(e=>e.className+'|'+e.textContent)")

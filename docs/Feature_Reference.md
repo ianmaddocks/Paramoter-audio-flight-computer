@@ -121,12 +121,12 @@ Tap **Full screen**, below the Actions card, and the address bar and the phone's
 ### Actions (card)
 The page shows one card of buttons, headed **Actions**, and which one depends on whether you are flying, so only what is useful then is on the screen.
 
-**On the ground:** *Audio test* and *Mute vario*. **In flight:** *Update me*, *Mute vario* and, on an Advanced vario, *Landing support* and *Emergency support*. *Full screen* sits below the card in both phases.
+**On the ground:** *Status*. **In flight:** *Update me*, *Mute vario* and, on an Advanced vario, *Landing support* and *Emergency support*. *Full screen* sits below the card in both phases.
 
-### Audio test
-Plays a sample announcement so you can check the speaker and the volume.
+Each button shows the presses of the push button that do the same: **[.]** one press, **[..]** two, **[...]** three, **[—]** hold.
 
-Tap it on the ground and listen. It says "System ready, 500 feet, 3 o'clock, 1.3 kilometres". If it is too loud or quiet, change *Speech volume*.
+### Status
+Speaks your height and battery (and the landing zone and wind on an Advanced vario), the same as one press of the push button. Tap it on the ground to check the speaker and the volume; if it is too loud or quiet, change *Speech volume*.
 
 <a id="basic-sounds"></a>
 ## Sounds you hear
@@ -195,7 +195,7 @@ Choose what you are used to. Everything shown on the page and every height spoke
 ### Speech volume
 How loud the spoken calls are.
 
-The scale runs from 0 (silent) to 100 (as loud as it goes). Use *Audio test* while adjusting. Default: 5 %.
+The scale runs from 0 (silent) to 100 (as loud as it goes). Use *Status* while adjusting. Default: 5 %.
 
 ### Vario volume
 How loud the beeps are.

@@ -31,14 +31,16 @@ void tell(const NavState& nav, const Wind& wind, int batteryPct, int batteryMinu
     if (moving && wind.speedMs() >= 1.0f) speech::addClock(b, wind.fromDeg() - nav.trackDeg);
     speech::addSpeed(b, wind.speedMs());
   }
-  b.add("battery");
-  if (batteryMinutes >= 0) {
-    speech::addDuration(b, (uint32_t)batteryMinutes * 60);
-  } else {
-    speech::addNumber(b, batteryPct);
-    b.add("percent");
+  if (batteryPct <= 30) { // only incldue battery if important.
+    b.add("battery");
+    if (batteryMinutes >= 0) {
+      speech::addDuration(b, (uint32_t)batteryMinutes * 60);
+    } else {
+      speech::addNumber(b, batteryPct);
+      b.add("percent");
+    }
+    audio::say(b);
   }
-  audio::say(b);
 }
 
 }  // namespace status
