@@ -1,0 +1,11 @@
+{
+  "status": 426,
+  "body": {
+    "err": "version",
+    "msg": "no common protocol version",
+    "supported": {
+      "min": 1,
+      "max": 1
+    }
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "request": {
+    "POST": "/api/v1/sensors/telemetry",
+    "body": {
+      "boot": "7788aa00",
+      "up": 61000,
+      "rec": [
+        [
+          88,
+          59000,
+          0,
+          1920,
+          0
+        ],
+        [
+          89,
+          59000,
+          1,
+          1895,
+          0
+        ],
+        [
+          90,
+          60000,
+          0,
+          1925,
+          0
+        ],
+        [
+          91,
+          60000,
+          1,
+          null,
+          1
+        ],
+        [
+          92,
+          61000,
+          0,
+          1930,
+          0
+        ],
+        [
+          93,
+          61000,
+          1,
+          null,
+          1
+        ]
+      ]
+    }
+  },
+  "note": "channel 1 reports an open circuit (st 1) with no value; the vario shows channel 0 as current and channel 1 as faulty"
+}

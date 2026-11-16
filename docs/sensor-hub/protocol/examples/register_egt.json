@@ -1,0 +1,48 @@
+{
+  "request": {
+    "POST": "/api/v1/sensors/register",
+    "X-PV-Auth": "5ccf7f0a1b2c:00000000:0:5a3d3502f2c34e40",
+    "body": {
+      "device_id": "5ccf7f0a1b2c",
+      "type": "egt",
+      "fw": "0.1.0",
+      "hw": "esp07-max31855",
+      "proto": {
+        "min": 1,
+        "max": 1
+      },
+      "boot": "0a1b2c3d",
+      "epoch": "1a2b3c4d",
+      "nonce_s": "00112233445566778899aabbccddeeff",
+      "batt": false,
+      "ch": [
+        {
+          "ch": 0,
+          "type": "egt",
+          "unit": "degC",
+          "scale": 10,
+          "min": -50,
+          "max": 1100,
+          "name": "EGT"
+        }
+      ]
+    }
+  },
+  "response": {
+    "proto": 1,
+    "session": "c0ffee11",
+    "telemetry_s": 2,
+    "heartbeat_s": 10,
+    "stale_s": 10,
+    "max_batch": 16,
+    "mac": "f4ae9e995526aab3",
+    "time": {
+      "utc": 1763241540,
+      "valid": true,
+      "src": "gps",
+      "unc_ms": 1000,
+      "vario_up": 8421551
+    },
+    "acked": 1040
+  }
+}

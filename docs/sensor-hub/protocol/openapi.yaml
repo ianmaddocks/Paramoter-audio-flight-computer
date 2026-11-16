@@ -1,0 +1,339 @@
+openapi: 3.0.3
+info:
+  title: ParaVario sensor protocol
+  version: "1"
+  description: |
+    Version 1 of the API between a ParaVario flight computer and independent sensor devices, defined in both directions: the VARIO's
+    endpoints (called by sensors, tag "vario") and the SENSOR-side endpoints (every sensor serves them, the vario calls them, tag "sensor").
+    DRAFT: not yet implemented or tested. The text in README.md is the specification; this file is its machine-readable form.
+    Authentication: header X-PV-Auth (README section 4) on every call except those marked public.
+servers:
+  - url: http://192.168.4.1
+    description: the vario (its Wi-Fi access point address; a client finds it as its default gateway)
+  - url: http://{sensor}
+    description: a sensor, at the address the vario's DHCP gave it (the endpoints tagged "sensor" are served here)
+    variables:
+      sensor: { default: 192.168.4.2 }
+tags:
+  - name: vario
+    description: served by the vario, called by sensors
+  - name: sensor
+    description: served by every sensor, called by the vario
+paths:
+  /api/v1/system/identity:
+    get:
+      tags: [vario]
+      summary: Vario identity (public)
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/Identity" } } } }
+  /api/v1/system/time:
+    get:
+      tags: [vario]
+      summary: UTC time and its validity (public)
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/Time" } } } }
+  /api/v1/pair:
+    post:
+      tags: [vario]
+      summary: Pair, authenticated with the pairing secret the owner gave the client (only while the owner has opened pairing mode)
+      security: [{ pvAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/Pair" } } } }
+      responses:
+        "200": { description: paired, content: { application/json: { schema: { $ref: "#/components/schemas/PairReply" } } } }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "426": { $ref: "#/components/responses/Error" }
+  /api/v1/sensors/register:
+    post:
+      tags: [vario]
+      summary: Open a session (authenticated with the pairing secret, session 00000000, counter 0)
+      security: [{ pvAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/Register" } } } }
+      responses:
+        "200": { description: ok (a repeat with identical content is idempotent), content: { application/json: { schema: { $ref: "#/components/schemas/RegisterReply" } } } }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+        "426": { $ref: "#/components/responses/Error" }
+  /api/v1/sensors/heartbeat:
+    post:
+      tags: [vario]
+      security: [{ pvAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/Heartbeat" } } } }
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/HeartbeatReply" } } } }
+        "401": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+        "503": { $ref: "#/components/responses/Error" }
+  /api/v1/sensors/telemetry:
+    post:
+      tags: [vario]
+      summary: Live readings (at most 16 records)
+      security: [{ pvAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/Telemetry" } } } }
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/TelemetryReply" } } } }
+        "401": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "413": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+        "503": { $ref: "#/components/responses/Error" }
+  /api/v1/sensors/unpair:
+    post:
+      tags: [vario]
+      summary: The sensor asks the vario to forget it
+      security: [{ pvAuth: [] }]
+      responses:
+        "200": { description: ok }
+        "401": { $ref: "#/components/responses/Error" }
+  /api/v1/sensors/{id}/status:
+    get:
+      tags: [vario]
+      summary: The vario's view of a sensor (for tools; the vario's web page uses its own status JSON)
+      parameters: [{ $ref: "#/components/parameters/DeviceId" }]
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/VarioSideStatus" } } } }
+        "404": { $ref: "#/components/responses/Error" }
+  /api/v1/sensors/{id}:
+    delete:
+      tags: [vario]
+      summary: Remove a pairing (the owner's action from the vario's web page; not available to sensors)
+      parameters: [{ $ref: "#/components/parameters/DeviceId" }]
+      responses:
+        "200": { description: removed }
+        "404": { $ref: "#/components/responses/Error" }
+  /api/v1/status:
+    servers: [{ url: "http://{sensor}", variables: { sensor: { default: 192.168.4.2 } } }]
+    get:
+      tags: [sensor]
+      summary: Sensor identity, health and capabilities (an unauthenticated caller may get only device_id, type, fw, proto)
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/SensorStatus" } } } }
+  /api/v1/records:
+    servers: [{ url: "http://{sensor}", variables: { sensor: { default: 192.168.4.2 } } }]
+    get:
+      tags: [sensor]
+      summary: Stored records after a sequence number (history pull by the vario)
+      security: [{ pvAuth: [] }]
+      parameters:
+        - { name: epoch, in: query, required: false, schema: { $ref: "#/components/schemas/Hex8" } }
+        - { name: after, in: query, required: false, schema: { type: integer, minimum: 0 }, description: "records with seq greater than this; absent = from the oldest stored" }
+        - { name: max, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 32, default: 32 } }
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/Records" } } } }
+        "401": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /api/v1/records/ack:
+    servers: [{ url: "http://{sensor}", variables: { sensor: { default: 192.168.4.2 } } }]
+    post:
+      tags: [sensor]
+      summary: Durable receipt of records up to and including a sequence (idempotent)
+      security: [{ pvAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/Ack" } } } }
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/AckReply" } } } }
+        "401": { $ref: "#/components/responses/Error" }
+  /api/v1/config:
+    servers: [{ url: "http://{sensor}", variables: { sensor: { default: 192.168.4.2 } } }]
+    get:
+      tags: [sensor]
+      summary: Supported configuration and current values (read-only for the vario)
+      security: [{ pvAuth: [] }]
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+components:
+  securitySchemes:
+    pvAuth:
+      type: apiKey
+      in: header
+      name: X-PV-Auth
+      description: "<sender_id>:<session>:<counter>:<mac>, sender_id = device_id (to the vario) or vario_id (to a sensor); mac = first 8 bytes (16 hex) of HMAC-SHA256(pairing secret, METHOD LF path LF session LF counter LF body). session is 00000000 for pair and register. README section 4."
+  parameters:
+    DeviceId: { name: id, in: path, required: true, schema: { $ref: "#/components/schemas/Id12" } }
+  responses:
+    Error:
+      description: error
+      headers: { Retry-After: { schema: { type: integer }, description: "seconds, on 429 and 503" } }
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+  schemas:
+    Id12: { type: string, pattern: "^[0-9a-f]{12}$" }
+    Hex8: { type: string, pattern: "^[0-9a-f]{8}$" }
+    Hex32: { type: string, pattern: "^[0-9a-f]{32}$" }
+    Hex16: { type: string, pattern: "^[0-9a-f]{16}$" }
+    Proto: { type: object, required: [min, max], properties: { min: { type: integer, minimum: 1 }, max: { type: integer, minimum: 1 } } }
+    Error:
+      type: object
+      required: [err]
+      properties:
+        err: { type: string, enum: [bad_request, auth, not_paired, unknown, conflict, too_large, invalid, version, busy] }
+        msg: { type: string, maxLength: 80 }
+        supported: { $ref: "#/components/schemas/Proto" }
+    Identity:
+      type: object
+      required: [vario_id, name, proto, pairing_open]
+      properties:
+        vario_id: { $ref: "#/components/schemas/Id12" }
+        name: { type: string, maxLength: 32 }
+        proto: { $ref: "#/components/schemas/Proto" }
+        pairing_open: { type: boolean }
+        fw: { type: string }
+    Time:
+      type: object
+      required: [valid, src]
+      properties:
+        utc: { type: integer, description: "seconds since 1970; absent when valid is false" }
+        valid: { type: boolean }
+        src: { type: string, enum: [gps, none] }
+        unc_ms: { type: integer }
+        vario_up: { type: integer, description: "vario uptime in ms when the answer was made" }
+    Pair:
+      type: object
+      required: [device_id, type, proto, nonce_s]
+      properties:
+        device_id: { $ref: "#/components/schemas/Id12" }
+        type: { type: string, maxLength: 16 }
+        proto: { $ref: "#/components/schemas/Proto" }
+        nonce_s: { $ref: "#/components/schemas/Hex32" }
+    PairReply:
+      type: object
+      required: [vario_id, name, proto, mac]
+      properties:
+        vario_id: { $ref: "#/components/schemas/Id12" }
+        name: { type: string }
+        proto: { type: integer }
+        mac: { $ref: "#/components/schemas/Hex16" }
+    Channel:
+      type: object
+      required: [ch, type, unit, scale, min, max]
+      properties:
+        ch: { type: integer, minimum: 0, maximum: 7 }
+        type: { type: string, maxLength: 8, description: "egt, cht, or another name" }
+        unit: { type: string, maxLength: 8, example: degC }
+        scale: { type: integer, minimum: 1, description: "real value = value / scale" }
+        min: { type: number, description: "measuring range, real units" }
+        max: { type: number }
+        name: { type: string, maxLength: 16 }
+    Register:
+      type: object
+      required: [device_id, type, fw, hw, proto, boot, epoch, nonce_s, ch]
+      properties:
+        device_id: { $ref: "#/components/schemas/Id12" }
+        type: { type: string, maxLength: 16 }
+        fw: { type: string, maxLength: 16 }
+        hw: { type: string, maxLength: 16 }
+        proto: { $ref: "#/components/schemas/Proto" }
+        boot: { $ref: "#/components/schemas/Hex8" }
+        epoch: { $ref: "#/components/schemas/Hex8" }
+        nonce_s: { $ref: "#/components/schemas/Hex32" }
+        batt: { type: boolean }
+        cal: { type: string, maxLength: 32 }
+        api_port: { type: integer, minimum: 1, maximum: 65535, default: 80, description: "where the sensor serves its own endpoints" }
+        ch: { type: array, minItems: 1, maxItems: 8, items: { $ref: "#/components/schemas/Channel" } }
+    RegisterReply:
+      type: object
+      required: [proto, session, telemetry_s, heartbeat_s, stale_s, max_batch, acked, mac]
+      properties:
+        proto: { type: integer }
+        session: { $ref: "#/components/schemas/Hex8" }
+        telemetry_s: { type: integer, minimum: 1 }
+        heartbeat_s: { type: integer, minimum: 1, default: 10 }
+        stale_s: { type: integer, minimum: 1, default: 10 }
+        max_batch: { type: integer, minimum: 1, maximum: 16 }
+        acked: { type: integer, minimum: 0, description: "highest seq durably stored for this epoch" }
+        mac: { $ref: "#/components/schemas/Hex16" }
+        time: { $ref: "#/components/schemas/Time" }
+    Heartbeat:
+      type: object
+      required: [boot, up]
+      properties:
+        boot: { $ref: "#/components/schemas/Hex8" }
+        up: { type: integer, minimum: 0 }
+        batt: { type: integer, minimum: 0, maximum: 100, nullable: true }
+        rssi: { type: integer }
+        last: { type: integer, minimum: 0 }
+        st: { type: integer, minimum: 0, maximum: 9 }
+    HeartbeatReply:
+      type: object
+      properties:
+        ok: { type: boolean }
+        time: { $ref: "#/components/schemas/Time" }
+    Record:
+      type: array
+      description: "[seq, up_ms, ch, value, st] with an optional 6th element utc (seconds) and, in history, an optional 7th boot (8 hex) when it differs from the response's boot"
+      minItems: 5
+      maxItems: 7
+      items:
+        nullable: true
+        oneOf: [{ type: integer }, { type: string }]
+    Telemetry:
+      type: object
+      required: [boot, up, rec]
+      properties:
+        boot: { $ref: "#/components/schemas/Hex8" }
+        up: { type: integer, minimum: 0 }
+        rec: { type: array, minItems: 1, maxItems: 16, items: { $ref: "#/components/schemas/Record" } }
+    TelemetryReply:
+      type: object
+      required: [rx]
+      properties:
+        rx: { type: integer, description: "highest seq accepted" }
+        dup: { type: integer }
+        gap: { type: integer }
+        time: { $ref: "#/components/schemas/Time" }
+    VarioSideStatus:
+      type: object
+      properties:
+        device_id: { $ref: "#/components/schemas/Id12" }
+        state: { type: string, enum: [paired, current, stale, disconnected, fault] }
+        age_ms: { type: integer }
+        last_seq: { type: integer }
+        acked: { type: integer }
+        channels:
+          type: array
+          items:
+            type: object
+            properties:
+              ch: { type: integer }
+              value: { type: number, nullable: true }
+              st: { type: integer }
+    SensorStatus:
+      type: object
+      required: [device_id, type, fw, proto]
+      properties:
+        device_id: { $ref: "#/components/schemas/Id12" }
+        type: { type: string }
+        fw: { type: string }
+        hw: { type: string }
+        proto: { $ref: "#/components/schemas/Proto" }
+        boot: { $ref: "#/components/schemas/Hex8" }
+        epoch: { $ref: "#/components/schemas/Hex8" }
+        up: { type: integer }
+        channels: { type: array, items: { $ref: "#/components/schemas/Channel" } }
+        batt: { type: integer, nullable: true }
+        st: { type: integer }
+        last: { type: integer, description: "newest stored seq" }
+        stored: { type: integer, description: "records stored" }
+        free: { type: integer, description: "records of space left" }
+    Records:
+      type: object
+      required: [epoch, boot, first, last, more, rec]
+      properties:
+        epoch: { $ref: "#/components/schemas/Hex8" }
+        boot: { $ref: "#/components/schemas/Hex8" }
+        first: { type: integer }
+        last: { type: integer }
+        more: { type: boolean }
+        lost: { type: integer, description: "records missing because the sensor's storage was full" }
+        rec: { type: array, maxItems: 32, items: { $ref: "#/components/schemas/Record" } }
+    Ack:
+      type: object
+      required: [epoch, upto]
+      properties:
+        epoch: { $ref: "#/components/schemas/Hex8" }
+        upto: { type: integer, minimum: 0 }
+    AckReply:
+      type: object
+      properties:
+        ok: { type: boolean }
+        free: { type: integer }

@@ -1,0 +1,22 @@
+{
+  "owner": "typed the 16-character secret shown on the vario into the client",
+  "request": {
+    "POST": "/api/v1/pair",
+    "X-PV-Auth": "5ccf7f0a1b2c:00000000:0:8115c1438e44baf7",
+    "body": {
+      "device_id": "5ccf7f0a1b2c",
+      "type": "egt",
+      "proto": {
+        "min": 1,
+        "max": 1
+      },
+      "nonce_s": "00112233445566778899aabbccddeeff"
+    }
+  },
+  "response": {
+    "vario_id": "ac276e8112b8",
+    "name": "ParaVario-12B8",
+    "proto": 1,
+    "mac": "9d70855c7be5656e"
+  }
+}

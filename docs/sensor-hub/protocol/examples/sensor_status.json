@@ -1,0 +1,35 @@
+{
+  "note": "vario to sensor",
+  "request": {
+    "GET": "/api/v1/status"
+  },
+  "response": {
+    "device_id": "5ccf7f0a1b2c",
+    "type": "egt",
+    "fw": "0.1.0",
+    "hw": "example",
+    "proto": {
+      "min": 1,
+      "max": 1
+    },
+    "boot": "0a1b2c3d",
+    "epoch": "1a2b3c4d",
+    "up": 123456,
+    "channels": [
+      {
+        "ch": 0,
+        "type": "egt",
+        "unit": "degC",
+        "scale": 10,
+        "min": -50,
+        "max": 1100,
+        "name": "EGT"
+      }
+    ],
+    "batt": null,
+    "st": 0,
+    "last": 1043,
+    "stored": 1043,
+    "free": 7850
+  }
+}

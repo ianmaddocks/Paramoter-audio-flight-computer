@@ -1,0 +1,20 @@
+{
+  "note": "the vario had no UTC when this was sent: no utc element; the vario will associate UTC later from its anchor for boot 0a1b2c3d",
+  "request": {
+    "boot": "0a1b2c3d",
+    "up": 4000,
+    "rec": [
+      [
+        1,
+        3000,
+        0,
+        2150,
+        0
+      ]
+    ]
+  },
+  "time_in_reply": {
+    "valid": false,
+    "src": "none"
+  }
+}

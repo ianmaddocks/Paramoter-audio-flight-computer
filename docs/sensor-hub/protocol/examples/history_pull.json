@@ -1,0 +1,37 @@
+{
+  "note": "vario to sensor",
+  "request": {
+    "GET": "/api/v1/records?epoch=1a2b3c4d&after=1040&max=32",
+    "X-PV-Auth": "ac276e8112b8:c0ffee11:1:478aa40a4958ea0f"
+  },
+  "response": {
+    "epoch": "1a2b3c4d",
+    "boot": "0a1b2c3d",
+    "first": 1041,
+    "last": 1043,
+    "more": false,
+    "rec": [
+      [
+        1041,
+        5000,
+        0,
+        6153,
+        0
+      ],
+      [
+        1042,
+        6000,
+        0,
+        6160,
+        0
+      ],
+      [
+        1043,
+        7000,
+        0,
+        6171,
+        0
+      ]
+    ]
+  }
+}

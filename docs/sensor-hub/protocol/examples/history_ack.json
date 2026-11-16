@@ -1,0 +1,14 @@
+{
+  "note": "vario to sensor, after storing 1041..1043",
+  "request": {
+    "POST": "/api/v1/records/ack",
+    "body": {
+      "epoch": "1a2b3c4d",
+      "upto": 1043
+    }
+  },
+  "response": {
+    "ok": true,
+    "free": 7850
+  }
+}

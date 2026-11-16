@@ -1,0 +1,30 @@
+{
+  "request": {
+    "POST": "/api/v1/sensors/telemetry",
+    "X-PV-Auth": "5ccf7f0a1b2c:c0ffee11:1:de61f8c8be3b22d0",
+    "body": {
+      "boot": "0a1b2c3d",
+      "rec": [
+        [
+          1041,
+          5000,
+          0,
+          6153,
+          0
+        ]
+      ]
+    }
+  },
+  "response": {
+    "rx": 1041,
+    "dup": 0,
+    "gap": 0,
+    "time": {
+      "utc": 1763241542,
+      "valid": true,
+      "src": "gps",
+      "unc_ms": 1000,
+      "vario_up": 8423551
+    }
+  }
+}

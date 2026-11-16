@@ -1,0 +1,8 @@
+{
+  "status": 503,
+  "Retry-After": "2",
+  "body": {
+    "err": "busy",
+    "msg": "low memory"
+  }
+}
