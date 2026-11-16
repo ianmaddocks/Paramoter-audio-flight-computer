@@ -2367,6 +2367,18 @@ def t_igc_two_flights(v, a):
             v._open("/api/log?name=" + urllib.parse.quote(f), method="DELETE")
 
 
+def wait_battery_pct(v, ok, what, timeout=20):
+    """Waits until the battery percentage the vario reports satisfies ok(pct): the reading is filtered, so it takes a few seconds."""
+    end = time.time() + timeout
+    pct = None
+    while time.time() < end:
+        pct = v.status()["batt"]["pct"]
+        if ok(pct):
+            return pct
+        time.sleep(1)
+    raise Fail(f"{what}: the vario reports {pct} % after {timeout} s")
+
+
 def log_list(v):
     return {f["n"]: f for f in v.get_json("/api/logs")["files"]}
 
@@ -2878,10 +2890,23 @@ def t_button_actions(v, a):
         m = v.mark()
         v.sim(button="single")
         v.expect("SAY", r"^\[high\] .*landing_zone", m, timeout=4, what="single press: height and landing zone")
-        v.expect("SAY", r"^\[high\] wind .*battery", m, timeout=4, what="single press: wind and battery")
+        v.expect("SAY", r"^\[high\] wind ", m, timeout=4, what="single press: the wind")
+        time.sleep(1.5)
+        if v.find("SAY", r"^\[high\] .*battery", m):
+            raise Fail("a single press spoke the battery although it is not low (it is only spoken at 30 % or less)")
         if v.status()["mode"] != "none":
             raise Fail("a single press started guidance")
-        notes.append("single: tell me, starts nothing")
+        notes.append("single: tell me (height, landing zone, wind; the battery only when low), starts nothing")
+
+        # a low battery is added at the end
+        v.sim(batt=3.40)
+        wait_battery_pct(v, lambda pct: pct <= 30, "a low battery reading")
+        m = v.mark()
+        v.sim(button="single")
+        v.expect("SAY", r"^\[high\] wind .*battery", m, timeout=4, what="single press with a low battery: wind and battery")
+        v.sim(batt="off")
+        wait_battery_pct(v, lambda pct: pct > 30, "the battery reading back to normal")
+        notes.append("low battery: spoken after the wind")
 
         m = v.mark()
         v.sim(button="double")
@@ -2931,16 +2956,25 @@ def t_button_actions(v, a):
         m = v.mark()
         v.sim(button="single")
         v.expect("SAY", r"^\[high\] ", m, timeout=4, what="single press without a GPS tells")
-        v.expect("SAY", r"^\[high\] battery", m, timeout=4, what="single press without a GPS: battery")
+        time.sleep(1.5)
+        if v.find("SAY", r"landing_zone|wind|battery", m):
+            raise Fail("without a GPS and with a good battery the status spoke of more than the height")
+        v.sim(batt=3.40)
+        wait_battery_pct(v, lambda pct: pct <= 30, "a low battery reading")
+        m = v.mark()
+        v.sim(button="single")
+        v.expect("SAY", r"^\[high\] battery", m, timeout=4, what="single press without a GPS and a low battery: battery")
         if v.find("SAY", r"landing_zone|wind", m):
             raise Fail("without a GPS the status spoke of the landing zone or the wind")
+        v.sim(batt="off")
+        wait_battery_pct(v, lambda pct: pct > 30, "the battery reading back to normal")
         m = v.mark()
         v.sim(button="double")
         v.expect("SAY", r"vario_muted", m, timeout=4, what="double press without a GPS mutes")
         m = v.mark()
         v.sim(button="hold")
         v.expect("SAY", r"vario_on", m, timeout=4, what="hold without a GPS unmutes")
-        notes.append("no GPS: single tells height and battery, double/hold mute")
+        notes.append("no GPS: single tells the height (and the battery when low), double/hold mute")
     finally:
         v.sim(hasGps=1)
         v.set(windManual=TEST_SETTINGS["windManual"])
@@ -4214,7 +4248,7 @@ def ui_actions_body(v, a, p, m):
         raise Fail(f"web page: the ground Actions card holds {ground}, expected only Status [.]")
     m2 = v.mark()
     p.click("#b-status")
-    v.expect("SAY", r"^\[high\] .*battery", m2, timeout=5, what="the Status button (the tell-me action)")
+    v.expect("SAY", r"^\[high\] ", m2, timeout=5, what="the Status button (the tell-me action)")
     time.sleep(4)
     p.tab("settings")
     p.js("document.querySelectorAll('#settings details').forEach(d=>d.open=true)")
@@ -4287,7 +4321,9 @@ def t_ui_pilot(v, a):
         m = v.mark()
         p.click("#b-tell")
         v.expect("SAY", r"^\[high\] .*landing_zone", m, timeout=5, what="the Update me button")
-        v.expect("SAY", r"^\[high\] .*battery", m, timeout=5, what="the Update me button: battery")
+        time.sleep(1.5)
+        if v.find("SAY", r"^\[high\] .*battery", m):
+            raise Fail("the Update me button spoke the battery although it is not low (only at 30 % or less)")
         m = v.mark()
         p.click("#b-mute")
         v.expect("SAY", r"\[urgent\] vario_muted$", m, timeout=4, what="Mute button")

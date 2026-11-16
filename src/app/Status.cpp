@@ -13,15 +13,15 @@ namespace status {
 void tell(const NavState& nav, const Wind& wind, int batteryPct, int batteryMinutes, bool hasGps) {
   const bool moving = nav.fix && nav.speedOk && nav.speedMs >= 3.0f;
   Utterance a(Priority::High);
-  speech::addHeight(a, nav.aglM);
+  speech::addHeight(a, nav.aglM);  // the height is always said first
   if (hasGps && nav.fix && nav.lzValid) {
     const float dist = geo::distanceM(nav.lat, nav.lon, nav.lzLat, nav.lzLon);
     const float brg = geo::bearingDeg(nav.lat, nav.lon, nav.lzLat, nav.lzLon);
-    a.add("landing_zone");
+    a.add("~pause").add("landing_zone");  // a short pause after the height
     if (moving) speech::addClock(a, brg - nav.trackDeg);
     speech::addDistance(a, dist);
   } else if (hasGps && !nav.lzValid) {
-    a.add("no_landing_zone");
+    a.add("~pause").add("no_landing_zone");
   }
   audio::say(a);
 
@@ -39,8 +39,8 @@ void tell(const NavState& nav, const Wind& wind, int batteryPct, int batteryMinu
       speech::addNumber(b, batteryPct);
       b.add("percent");
     }
-    audio::say(b);
   }
+  audio::say(b);
 }
 
 }  // namespace status

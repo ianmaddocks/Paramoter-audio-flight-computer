@@ -11,7 +11,7 @@ enum class Priority : uint8_t { Low, Normal, High, Urgent };
 
 // A sequence of clip names (files /v/<name>.adp on LittleFS). Names must be string literals.
 // A name starting with '~' is not a file but a short tone made in place: "~900" is 900 Hz for 120 ms (used as the
-// signal before urgent calls, and as the cue inside an utterance). A clip whose file is missing is skipped, unless the
+// signal before urgent calls, and as the cue inside an utterance). "~pause" is not a tone but a short silence. A clip whose file is missing is skipped, unless the
 // name is "a|b": then the first of a, b that exists is played ("battery_critical|battery_low", "baro_failed|~400"), so
 // a message added in a later voice-clip set still says something on a vario whose clips have not been updated.
 struct Utterance {

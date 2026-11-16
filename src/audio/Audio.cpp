@@ -22,6 +22,7 @@ constexpr int kFrames = 256;
 constexpr int kQueueLen = 6;
 constexpr uint32_t kClipGapSamples = kSampleRate * 40 / 1000;
 constexpr uint32_t kUtteranceGapSamples = kSampleRate * 250 / 1000;
+constexpr uint32_t kPauseMs = 150;  // the "~pause" in an announcement (with the 40 ms gaps either side of it, about 0.2 s of silence)
 constexpr uint32_t kRampSamples = kSampleRate * 5 / 1000;  // tone fade in/out: 5 ms
 // Volume changes are spread over time sample by sample (0 to 100 % in 100 ms), so a change of
 // volume never produces a step in the waveform.
@@ -118,6 +119,14 @@ bool openClip(const char* name) {
     memcpy(first, name, n);
     first[n] = 0;
     return openClip(first) || openClip(bar + 1);
+  }
+  if (strcmp(name, "~pause") == 0) {  // silence inside an announcement
+    spSynth = true;
+    spSynthPhase = 0;
+    spSynthInc = 0;  // the phase stays at the sine's zero point: no sound
+    spSynthTotal = spSamplesLeft = kSampleRate * kPauseMs / 1000;
+    spFile = File();
+    return true;
   }
   if (name[0] == '~') {  // a tone: "~900" = 900 Hz for 120 ms
     float hz = (float)atoi(name + 1);
