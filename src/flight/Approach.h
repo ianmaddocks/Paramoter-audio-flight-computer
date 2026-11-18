@@ -26,6 +26,10 @@ class Approach {
   // How fast the pilot turns, learned from the first turns of the circuit (see Approach.cpp). Exposed for the tests.
   int turnsLearned() const { return learned_; }
   float leadSeconds() const;  // the lead time in use now: what was learned, or the setting until two turns are measured
+  // The circuit as planned at start (for the tests): the crosswind / base leg, the shortest final and the circuit start.
+  float crossLegM() const { return crossLen_; }
+  float minFinalLenM() const { return minFinal_; }
+  float startX() const { return xStart_; }
   void cancel(bool announce);
   void update(const NavState& nav, const Wind& wind);
 
@@ -53,6 +57,7 @@ class Approach {
   float upwindDeg_ = 0;
   int side_ = 0;
   float xStart_ = 0, xCross_ = 0, xBase_ = 0, xBaseNominal_ = 0;
+  float crossLen_ = 0, minFinal_ = 0;  // the crosswind / base leg and the shortest final, shortened for the wind at start
   uint32_t phaseSinceMs_ = 0;
   uint32_t lastUpdateMs_ = 0;
   uint32_t offSinceMs_ = 0;

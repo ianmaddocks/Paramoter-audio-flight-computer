@@ -22,6 +22,8 @@ class Wind {
   const char* sourceName() const;
 
   // Ground glide ratio flying engine-off along the given track, allowing for wind.
+  // Ground speed along a track at the estimated airspeed, crabbing into any crosswind to hold the track (1 m/s at least).
+  float groundSpeed(float trackDeg) const;
   float groundGlide(float trackDeg) const;
 
  private:

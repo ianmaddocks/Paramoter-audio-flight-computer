@@ -67,7 +67,7 @@ struct Settings {
 
   int32_t glideShortS = 1;   // glide ratio tile: main value averaged over this many seconds
   int32_t glideLongS = 60;   // ... and the smaller value over this many
-  float glideRatio = 5.0f;
+  float glideRatio = 6.0f;  // from a measured flight (Ozone Moto): about 6:1 through the air
   float trimAirspeedMs = 38.0f / 3.6f;
 
   int32_t lzMode = LZ_TAKEOFF;
@@ -76,11 +76,11 @@ struct Settings {
   float lzElevM = 0.0f;
 
   int32_t circuitSide = CS_PILOT;
-  float circuitHeightM = 121.92f;
-  float upwindLegM = 400.0f;
-  float crosswindLegM = 400.0f;
-  float downwindLegM = 400.0f;
-  float finalHeightM = 50.0f;
+  float circuitHeightM = 62.0f;  // 120 m legs and a 22 m final from here, at 6:1
+  float upwindLegM = 120.0f;
+  float crosswindLegM = 120.0f;
+  float downwindLegM = 120.0f;
+  float finalHeightM = 22.0f;
   float minFinalM = 100.0f;
   float arrivalRadiusM = 80.0f;
   float turnLeadS = 3.0f;

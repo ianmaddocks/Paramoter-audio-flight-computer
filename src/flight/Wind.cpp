@@ -252,9 +252,17 @@ const char* Wind::sourceName() const {
   }
 }
 
-float Wind::groundGlide(float trackDeg) const {
-  float va = airspeedMs();
-  float along = -speedMs() * cosf((trackDeg - fromDeg()) * geo::kDegToRadF);
-  float gs = fmaxf(va + along, 1.0f);
-  return g_cfg.glideRatio * gs / va;
+// Holding a track across the wind takes a crab angle, which costs ground speed: of the airspeed only sqrt(va^2 - cross^2) points
+// along the track. (Taking the along-track wind alone, as this did before, made a crosswind leg in a strong wind look as fast as
+// flying in calm air: in a 18 km/h wind at 22 km/h airspeed the base leg was taken to cost 80 m of height instead of 140 m.)
+float Wind::groundSpeed(float trackDeg) const {
+  const float va = airspeedMs();
+  const float rel = (trackDeg - fromDeg()) * geo::kDegToRadF;
+  const float along = -speedMs() * cosf(rel);  // + = tailwind
+  const float cross = speedMs() * sinf(rel);
+  const float hold = va * va - cross * cross;
+  if (hold <= 0) return 1.0f;  // the crosswind is as strong as the airspeed: the track cannot be held
+  return fmaxf(sqrtf(hold) + along, 1.0f);
 }
+
+float Wind::groundGlide(float trackDeg) const { return g_cfg.glideRatio * groundSpeed(trackDeg) / airspeedMs(); }

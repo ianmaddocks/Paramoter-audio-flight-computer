@@ -306,8 +306,8 @@ void windUnitSuite(UnitReport& r) {
     Wind w;
     r.near(w.groundGlide(0), 2.5f, 0.001f, "glide into a 5 m/s wind (half the ground speed)");
     r.near(w.groundGlide(180), 7.5f, 0.001f, "glide with the wind");
-    r.near(w.groundGlide(90), 5.0f, 0.001f, "glide across the wind from the left");
-    r.near(w.groundGlide(270), 5.0f, 0.001f, "glide across the wind from the right");
+    r.near(w.groundGlide(90), 4.330f, 0.002f, "glide across the wind from the left (crabbing: sqrt(10^2 - 5^2) m/s)");
+    r.near(w.groundGlide(270), 4.330f, 0.002f, "glide across the wind from the right");
     r.near(w.groundGlide(360), 2.5f, 0.001f, "glide at track 360 = 0");
     r.check(w.source() == WindSource::Manual && w.valid(), "manual wind source");
     g_cfg.windSpeedMs = 20;
@@ -463,6 +463,26 @@ void circuitUnitSuite(UnitReport& r) {
     snprintf(what, sizeof what, "base turn x at %.0f m up", agl);
     r.check(p == ApPhase::Base, "%s: never turned onto base", what);
     r.near(turnX, -xb + lead, 10.5f, what);
+  }
+
+  // a strong wind shortens the legs flown into and across it, and the shortest final, in proportion to the ground speed
+  {
+    g_cfg.windFromDeg = 0;
+    g_cfg.windSpeedMs = 5;  // into wind half the ground speed; across sqrt(10^2 - 5^2) = 8.66 m/s
+    g_cfg.circuitSide = CS_RIGHT;
+    CircuitRig c(0);
+    c.ap.start(c.nav(-600, 0, 0, 150), c.wind);
+    r.near(c.ap.crossLegM(), 346.4f, 1.0f, "base leg, 5 m/s wind");
+    r.near(c.ap.minFinalLenM(), 50.0f, 0.5f, "shortest final, 5 m/s");
+    r.near(c.ap.startX(), 75.0f, 1.0f, "start: final 125, downwind 400, upwind 200");
+    c.ap.cancel(false);
+    g_cfg.windSpeedMs = 9.5f;  // nearly the airspeed: 35 % of the set lengths at least
+    CircuitRig d(0);
+    d.ap.start(d.nav(-600, 0, 0, 150), d.wind);
+    r.near(d.ap.minFinalLenM(), 35.0f, 0.5f, "shortest final, floor");
+    r.near(d.ap.crossLegM(), 140.0f, 1.0f, "base leg, floor");
+    d.ap.cancel(false);
+    g_cfg.windSpeedMs = 0;
   }
 
   // overshoot: carried on past the crosswind point the circuit does not move on; it waits for the crosswind leg

@@ -1436,10 +1436,22 @@ def to_frame(lat, lon, up):
     return e * math.sin(u) + n * math.cos(u), e * math.cos(u) - n * math.sin(u)
 
 
+def ground_speed(wfrom, wspd, track):
+    """Wind.groundSpeed: ground speed along a track at the airspeed, crabbing into the crosswind."""
+    rel = math.radians(track - wfrom)
+    along, cross = -wspd * math.cos(rel), wspd * math.sin(rel)
+    hold = AIR_MS * AIR_MS - cross * cross
+    return 1.0 if hold <= 0 else max(math.sqrt(hold) + along, 1.0)
+
+
 def ground_glide(cfg, up, wfrom, wspd, track):
     """Wind.groundGlide: engine-off glide ratio over the ground along a track."""
-    along = -wspd * math.cos(math.radians(track - wfrom))
-    return cfg["glideRatio"] * max(AIR_MS + along, 1.0) / AIR_MS
+    return cfg["glideRatio"] * ground_speed(wfrom, wspd, track) / AIR_MS
+
+
+def leg_scale(wfrom, wspd, track):
+    """Approach: a leg flown into or across the wind is shortened in proportion to its ground speed, to 35 % at least."""
+    return min(max(ground_speed(wfrom, wspd, track) / AIR_MS, 0.35), 1.0)
 
 
 class Pilot:
@@ -1447,7 +1459,7 @@ class Pilot:
 
     def __init__(self, v, cfg, up, wspd, side, sink):
         self.v, self.cfg, self.up, self.wspd, self.side, self.sink = v, cfg, up, wspd, side, sink
-        self.S = cfg["crosswindLegM"]
+        self.S = cfg["crosswindLegM"] * leg_scale(up, wspd, (up + 90) % 360)  # the base leg as the vario plans it at start
         self.legs = []     # (phase from, phase to, x, y, agl, ground speed at the time)
         self.calls = []    # (kind, x, y) of each turn call
         self.call_legs = []  # the leg named after each turn call ("turn right now, downwind"), None when there was none
@@ -1521,8 +1533,8 @@ class Pilot:
 def run_circuit(v, cfg, up, wspd, side, sink, h0, events=None, wind_change=None, ignore_first_call_s=0.0,
                 wrong_way_s=0.0, gps_gap=None, label="", turn_rate=25):
     """Flies one circuit. Returns the Pilot with everything it recorded. `events` is unused hook space."""
-    S, ld_s = cfg["crosswindLegM"], cfg["turnLeadS"]
     pl = Pilot(v, cfg, up, wspd, side, sink)
+    S, ld_s = pl.S, cfg["turnLeadS"]
     wfrom = up
     # takeoff into wind, climb, level at h0; the circuit starts back downwind of the field, with the tailwind
     airborne(v, hdg=up, air=AIR_MS, wfrom=up, wspd=wspd, climb=h0, vz=5.0)
@@ -1534,10 +1546,11 @@ def run_circuit(v, cfg, up, wspd, side, sink, h0, events=None, wind_change=None,
     t_start = time.time()
     # geometry the vario should have worked out (windManual, so the numbers are exactly known)
     gg_up = ground_glide(cfg, up, wfrom, wspd, up)
-    final_len = max(cfg["finalHeightM"] * gg_up, cfg["minFinalM"])
+    min_final = cfg["minFinalM"] * leg_scale(wfrom, wspd, up)
+    final_len = max(cfg["finalHeightM"] * gg_up, min_final)
     x_cross = -final_len + cfg["downwindLegM"]
-    x_start = x_cross - cfg["upwindLegM"]
-    pl.geom = dict(final_len=final_len, x_cross=x_cross, x_start=x_start)
+    x_start = x_cross - cfg["upwindLegM"] * leg_scale(wfrom, wspd, up)
+    pl.geom = dict(final_len=final_len, x_cross=x_cross, x_start=x_start, min_final=min_final)
     phase = "to start"
     wrong_until = time.time() + wrong_way_s
     ignore_until = None      # overshoot: the pilot does not turn when told to, until this time
@@ -1609,7 +1622,7 @@ def run_circuit(v, cfg, up, wspd, side, sink, h0, events=None, wind_change=None,
 
 def check_circuit(pl, cfg, up, wfrom, wspd, side, label, allow_steer=False, x_tol=45):
     """The vario's calls against the geometry. Raises Fail with the first thing that is wrong."""
-    S = cfg["crosswindLegM"]
+    S = pl.S
     order = ["to start->upwind", "upwind->crosswind", "crosswind->downwind", "downwind->base", "base->final"]
     pl.legs = [l for l in pl.legs if l[0] != "off"]
     got = [f"{a}->{b}" for a, b, *_ in pl.legs]
@@ -1655,7 +1668,7 @@ def check_circuit(pl, cfg, up, wfrom, wspd, side, label, allow_steer=False, x_to
     h_final = agl - S / gg_base
     xb = h_final * gg_up
     max_xb = (g["final_len"]) + cfg["downwindLegM"]
-    xb_c = min(max(xb, cfg["minFinalM"]), max_xb)
+    xb_c = min(max(xb, g["min_final"]), max_xb)
     if abs(x - (-xb_c + lead)) > 45:
         raise Fail(f"{label}base turn called at x={x} with {agl} m height: expected x about {-xb_c + lead:.0f} "
                    f"(final {xb_c:.0f} m from the field from {h_final:.0f} m at the end of base, glide {gg_up:.1f})")
@@ -1731,7 +1744,7 @@ def t_circuit_slow_pilot(v, a):
         _, _, x, y, agl, gs = legs[3]
         gg_base = ground_glide(cfg, up, up, wspd, (up - 90 * side) % 360)
         gg_up = ground_glide(cfg, up, up, wspd, up)
-        xb = max((agl - cfg["crosswindLegM"] / gg_base) * gg_up, cfg["minFinalM"])
+        xb = max((agl - pl.S / gg_base) * gg_up, pl.geom["min_final"])
         early = x - (-xb + max(gs, 5.0) * cfg["turnLeadS"])  # the leg runs towards -x, so a turn called earlier is at a larger x
         if early < 20:
             raise Fail(f"slow pilot: base turn called at x={x}, only {early:.0f} m earlier than with the setting's lead")

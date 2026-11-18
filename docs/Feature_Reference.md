@@ -761,7 +761,7 @@ The big number averages over the first (default 1 s), the small one over the sec
 ### Glide ratio (engine off)
 How far your wing glides, with the engine off, for each unit of height.
 
-A typical paraglider-style wing is about 5 to 8 :1 with a paramotor and the engine off. Enter what you know; it is used for the emergency glide range and the landing approach. Default: 5:1.
+A typical paraglider-style wing is about 5 to 8 :1 with a paramotor and the engine off. Enter what you know; it is used for the emergency glide range and the landing approach. Default: 6:1.
 
 If you are not sure, measure it: glide with the engine off in still air and read the Glide ratio tile, or use a lower figure to be safe.
 
@@ -802,22 +802,22 @@ Left-hand or right-hand circuit, or your choice on the day.
 ### Circuit height
 The height at which you should be flying the circuit.
 
-For example, at 400 ft, if you arrive far above it you hear "Descend to 400 feet". Default: 400 ft.
+For example, at 200 ft, if you arrive far above it you hear "Descend to 200 feet". Default: 203 ft (62 m).
 
 ### Upwind leg / Crosswind leg / Downwind leg (target)
 How long each leg of the circuit is.
 
-Defaults are 400 m each. Shorten them for a small field. The crosswind figure is also the length of the base leg; the downwind leg is made longer automatically if you are high.
+Defaults are 120 m each. The crosswind figure is also the length of the base leg; the downwind leg is made longer automatically if you are high. In a strong wind the upwind and the crosswind / base legs are shortened automatically, down to about a third.
 
 ### Start final at
 The height you want to have when you turn onto final.
 
-For example, at 164 ft (50 m) you should be that high as you start the last straight approach. Default: 164 ft.
+For example, at 72 ft (22 m) you should be that high as you start the last straight approach. Default: 72 ft (22 m).
 
 ### Minimum final length
 The shortest final approach the vario will plan.
 
-A minimum of 100 m keeps a little straight run before touchdown. Default: 100 m.
+A minimum of 100 m keeps a little straight run before touchdown. It is shortened automatically in a strong headwind, down to about a third. Default: 100 m.
 
 ### Circuit start capture radius
 How close to the start point counts as "arrived".

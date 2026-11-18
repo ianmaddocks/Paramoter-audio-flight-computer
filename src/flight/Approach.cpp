@@ -26,6 +26,10 @@ constexpr uint32_t kProgressHoldMs = 3000;
 constexpr uint32_t kGlideCallRepeatMs = 15000;
 constexpr float kSideDetectDeg = 45.0f;
 constexpr float kSideDetectM = 40.0f;
+// In a strong wind the legs flown into and across the wind are shortened in proportion to the ground speed on them, so they take
+// about as long as in calm air: the heights stay the same and the turns move closer to the field (the advice in gliding, light
+// aircraft and canopy flying alike). Never below this share of the set length.
+constexpr float kMinLegScale = 0.35f;
 }  // namespace
 
 const char* Approach::phaseName() const { return nameOf(phase_); }
@@ -195,10 +199,14 @@ bool Approach::start(const NavState& nav, const Wind& wind) {
   }
   upwindDeg_ = wind.fromDeg();
   side_ = g_cfg.circuitSide == CS_LEFT ? -1 : g_cfg.circuitSide == CS_RIGHT ? 1 : 0;
-  float finalLen = fmaxf(g_cfg.finalHeightM * wind.groundGlide(upwindDeg_), g_cfg.minFinalM);
+  const float va = wind.airspeedMs();
+  auto legScale = [&](float trackDeg) { return constrain(wind.groundSpeed(trackDeg) / va, kMinLegScale, 1.0f); };
+  crossLen_ = g_cfg.crosswindLegM * legScale(headingOf(90.0f));  // across the wind: the same either side
+  minFinal_ = g_cfg.minFinalM * legScale(upwindDeg_);
+  float finalLen = fmaxf(g_cfg.finalHeightM * wind.groundGlide(upwindDeg_), minFinal_);
   xBaseNominal_ = xBase_ = -finalLen;
-  xCross_ = xBase_ + g_cfg.downwindLegM;
-  xStart_ = xCross_ - g_cfg.upwindLegM;
+  xCross_ = xBase_ + g_cfg.downwindLegM;  // the downwind leg is not shortened: the base turn is placed from the height
+  xStart_ = xCross_ - g_cfg.upwindLegM * legScale(upwindDeg_);
   descendCalled_ = tooLowCalled_ = false;
   lastSteerMs_ = lastGlideCallMs_ = 0;
   graceUntilMs_ = progressUntilMs_ = 0;
@@ -207,8 +215,8 @@ bool Approach::start(const NavState& nav, const Wind& wind) {
   learned_ = 0;
   setPhase(ApPhase::ToStart, nav.ms);
   callStartPoint(nav, toFrame(nav), true);
-  LOGI("APR", "Approach: upwind %.0f, start x=%.0f, crosswind x=%.0f, nominal base x=%.0f", upwindDeg_,
-        xStart_, xCross_, xBase_);
+  LOGI("APR", "Approach: upwind %.0f, start x=%.0f, crosswind x=%.0f, nominal base x=%.0f, base leg %.0f m, shortest final %.0f m",
+       upwindDeg_, xStart_, xCross_, xBase_, crossLen_, minFinal_);
   return true;
 }
 
@@ -222,7 +230,7 @@ void Approach::update(const NavState& nav, const Wind& wind) {
   if (phase_ == ApPhase::Off || !nav.fix) return;
   const uint32_t now = nav.ms;
   const XY pos = toFrame(nav);
-  const float S = g_cfg.crosswindLegM;
+  const float S = crossLen_;
   const float ld = lead(nav);
   tracePos_ = pos;
   traceAgl_ = nav.aglM;
@@ -288,8 +296,8 @@ void Approach::update(const NavState& nav, const Wind& wind) {
       float hAtFinal = nav.aglM - S / wind.groundGlide(headingOf(-90.0f * side_));
       float xb = hAtFinal * wind.groundGlide(upwindDeg_);
       float maxXb = -xBaseNominal_ + g_cfg.downwindLegM;
-      if (xb < g_cfg.minFinalM) {
-        xb = g_cfg.minFinalM;
+      if (xb < minFinal_) {
+        xb = minFinal_;
         if (!tooLowCalled_) {
           tooLowCalled_ = true;
           speech::say(Priority::High, "too_low");
