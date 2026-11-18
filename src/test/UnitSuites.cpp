@@ -901,6 +901,9 @@ void flightUnitSuite(UnitReport& r) {
   r.check(hold(true, 0.5f, true, 0, 60, 20) == 20 * T, "multiplier 20: %lu", (unsigned long)hold(true, 0.5f, true, 0, 60, 20));
   r.check(hold(true, 0.5f, false, 0, 60) == 5 * T, "the trusted speed rule does not need the barometer: %lu", (unsigned long)hold(true, 0.5f, false, 0, 60));
   r.check(hold(false, 0, true, 0.0f, 3) == 2 * T, "no trusted speed, near the ground, steady: %lu, expected 60000", (unsigned long)hold(false, 0, true, 0.0f, 3));
+  r.check(Flight::landingHoldMs(false, 0, kLand, true, 0.0f, 3, kMaxAgl, 5000, 5) == 60000, "no speed, 5 s: 60 s");
+  r.check(Flight::landingHoldMs(true, 0.5f, kLand, true, 0.0f, 3, kMaxAgl, 5000, 5) == 5000, "speed, 5 s");
+  r.check(Flight::landingHoldMs(false, 0, kLand, true, 0.0f, 3, kMaxAgl, 45000, 5) == 90000, "no speed, 45 s: 90 s");
   r.check(hold(false, 0, true, 0.0f, 60) == 0, "no trusted speed at 60 m is never still");
   r.check(hold(false, 0, false, 0.0f, 3) == 0, "no speed and no barometer is never still");
   r.check(hold(false, 0, true, 0.5f, 3) == 0, "no trusted speed and a 0.5 m/s climb is not still");

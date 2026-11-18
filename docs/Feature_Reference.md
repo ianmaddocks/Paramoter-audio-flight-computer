@@ -190,12 +190,12 @@ Choose what you are used to. Everything shown on the page and every height spoke
 ### Speech volume
 How loud the spoken calls are.
 
-The scale runs from 0 (silent) to 100 (as loud as it goes). Use *Status* while adjusting. Default: 5 %.
+The scale runs from 0 (silent) to 100 (as loud as it goes). Use *Status* while adjusting. Default: 25 %.
 
 ### Vario volume
 How loud the beeps are.
 
-Set it so the beeps are clear over your engine noise or wind but not painful. The start-up beep is at this volume, so it is a quick way to check. Default: 5 %.
+Set it so the beeps are clear over your engine noise or wind but not painful. The start-up beep is at this volume, so it is a quick way to check. Default: 25 %.
 
 ### Fastest volume change
 Stops the volume from changing suddenly.
@@ -321,7 +321,7 @@ Many pilots want calls on the way down (to the landing) and fewer on the way up.
 ### Boundaries when climbing / Boundaries when descending
 The heights at which the vario speaks.
 
-A list separated by commas, in your height unit. Climbing default: `50, 100, 250, 500, 750, 1000`. Descending default: `10, 15, 20, 30, 40, 50, 75, 100`. To hear every 100 feet on the way down, type `100, 200, 300, 400, 500`.
+A list separated by commas, in your height unit. Climbing default: `50, 100`. Descending default: `5, 10, 15, 20, 30, 40, 50, 100`. To hear every 100 feet on the way down, type `100, 200, 300, 400, 500`.
 
 The climbing list is only used on the way up and the descending list on the way down. Each is greyed out while its *Announce* switch is off.
 
@@ -367,19 +367,19 @@ Without this, the zero would creep upwards with a slow climb and the takeoff wou
 ### Landed after
 How long you must be still before the vario decides you have landed.
 
-With a good GPS speed, "still" means your ground speed is below *Landed by ground speed* for this long, **near the ground** (under *Counts as near the ground below*). Higher up it has to last *Landed above that height: wait this many times longer* times as long (default 5, so 150 s), because a paramotor holding station in a strong headwind has a ground speed near zero and is level too. Without one (a Basic vario, no GPS fix, or a weak fix) the vario cannot tell from speed, so it needs the barometer to read a steady height **and** your height to be close to the ground (see *Counts as near the ground below*), for twice this time: with 30 s, 60 s of steady height on the ground is declared a landing and you hear "Landed, flight time ...". Default: 30 s.
+With a good GPS speed, "still" means your ground speed is below *Landed by ground speed* for this long, **near the ground** (under *Counts as near the ground below*). Higher up it has to last *Landed above that height: wait this many times longer* times as long (default 5, so 25 s), because a paramotor holding station in a strong headwind has a ground speed near zero and is level too. Without one (a Basic vario, no GPS fix, or a weak fix) the vario cannot tell from speed, so it needs the barometer to read a steady height **and** your height to be close to the ground (see *Counts as near the ground below*), for twice this time, and never less than 60 s: with 30 s, 60 s of steady height on the ground is declared a landing and you hear "Landed, flight time ...". Default: 5 s.
 
 Flying level in the air is never taken for a landing without a GPS speed, however long it lasts, and neither is a lost or weak GPS fix. After a landing the vario needs another climb of the takeoff height gain before it notices you are flying again.
 
 ### Counts as near the ground below
-How close to the landing zone's height counts as "near the ground" when deciding that you have landed. Default: 50 ft (15 m).
+How close to the landing zone's height counts as "near the ground" when deciding that you have landed. Default: 10 ft (3 m).
 
 Two things depend on it. With no GPS, no fix or a weak fix the vario does not know your speed and a steady height alone could be level flight, so it needs your height above the landing zone to be under this before it will declare a landing. With a good GPS speed, a landing near the ground is declared after *Landed after*, but a landing higher than this takes longer (see the next setting).
 
 If you land on a hillside more than this above where you took off (or above the landing zone you set) and the GPS is not working, the landing will not be noticed until the GPS recovers: raise it for that. Setting it too high lets very level flight low over the ground be taken for a landing.
 
 ### Landed above that height: wait this many times longer
-How much longer a still aircraft above the near-ground height must stay still before it counts as landed. Default: 5 (so 150 s with the default *Landed after* of 30 s). 1 gives the old rule (the same time at any height).
+How much longer a still aircraft above the near-ground height must stay still before it counts as landed. Default: 5 (so 25 s with the default *Landed after* of 5 s). 1 gives the old rule (the same time at any height).
 
 This is for a strong headwind: the vario can hold station with a ground speed near zero, level, high above the ground. That is not a landing, and it can last a minute or two, but a pilot who lands on a hillside above the landing zone is still found, just later. Raise it if you fly in strong wind; lower it if you often land well above the landing zone.
 
@@ -729,22 +729,22 @@ Choose the one you think in; the Ground speed tile follows it. Takeoff and landi
 ### Takeoff ground speed
 The speed at which the vario starts to think you are taking off.
 
-For example, at 15 km/h, your takeoff run has to exceed that. Default: 8 km/h.
+For example, at 15 km/h, your takeoff run has to exceed that. Default: 5 km/h.
 
 ### Takeoff speed held for
 How long that speed must be kept.
 
-For example, at 5 s, a quick sprint does not count; a proper run does. Default: 5 s.
+For example, at 5 s, a quick sprint does not count; a proper run does. Default: 3 s.
 
 ### Takeoff height gain
 How much you must also climb, as well as the speed.
 
-For example, at 10 ft (3 m), "Take off" is announced once you have held takeoff speed and risen that far. Default: 15 ft.
+For example, at 10 ft (3 m), "Take off" is announced once you have held takeoff speed and risen that far. Default: 10 ft.
 
 ### Landed by ground speed
 The ground speed below which you count as stopped, so you have landed.
 
-For example, at 5 km/h, walking pace or slower. Default: 5 km/h.
+For example, at 5 km/h, walking pace or slower. Default: 2 km/h.
 
 With a good GPS fix, landing is declared when your ground speed stays below this for *Landed after* seconds (shown in Part 1; it is half the time needed without a GPS speed). A weak fix (few satellites or poor accuracy) is not used for the speed: the vario falls back on the barometer and your height, as with no GPS (see *Counts as near the ground below*), so a weak fix in flight no longer ends the flight.
 
@@ -756,7 +756,7 @@ With a good GPS fix, landing is declared when your ground speed stays below this
 ### Glide ratio tile: average over / second average over
 The two time windows for the Glide ratio tile.
 
-The big number averages over the first (default 1 s), the small one over the second (default 60 s). Make the first 3 to 5 s for a calmer number in turbulence. Allowed: 1 to 10 s and 10 to 120 s.
+The big number averages over the first (default 1 s), the small one over the second (default 20 s). Make the first 3 to 5 s for a calmer number in turbulence. Allowed: 1 to 10 s and 10 to 120 s.
 
 ### Glide ratio (engine off)
 How far your wing glides, with the engine off, for each unit of height.
@@ -802,7 +802,7 @@ Left-hand or right-hand circuit, or your choice on the day.
 ### Circuit height
 The height at which you should be flying the circuit.
 
-For example, at 200 ft, if you arrive far above it you hear "Descend to 200 feet". Default: 203 ft (62 m).
+For example, at 500 ft, if you arrive far above it you hear "Descend to 500 feet". Default: 500 ft (152 m).
 
 ### Upwind leg / Crosswind leg / Downwind leg (target)
 How long each leg of the circuit is.
@@ -812,7 +812,7 @@ Defaults are 120 m each. The crosswind figure is also the length of the base leg
 ### Start final at
 The height you want to have when you turn onto final.
 
-For example, at 72 ft (22 m) you should be that high as you start the last straight approach. Default: 72 ft (22 m).
+For example, at 50 ft (15 m) you should be that high as you start the last straight approach. Default: 50 ft (15 m).
 
 ### Minimum final length
 The shortest final approach the vario will plan.
@@ -837,7 +837,7 @@ Landing support times the first two turns of the circuit (from "Turn now" until 
 ### Off-heading warning
 How far off a leg's heading you may drift before being told.
 
-For example, at 30°, "Steer left" or "Steer right" is said if you are off by more than 30° for a few seconds. It is also the limit used in emergency glide. Default: 15°.
+For example, at 30°, "Steer left" or "Steer right" is said if you are off by more than 30° for a few seconds. It is also the limit used in emergency glide. Default: 30°.
 
 ### Guidance update every
 How often distance and direction are repeated on the way to the circuit start.
@@ -857,7 +857,7 @@ The default is every 30 s. Shorter gives more frequent calls but more talking. D
 ### On-course tolerance
 How close to straight at the LZ counts as "On course".
 
-For example, at 15°, when you point within 15° of the LZ you hear "On course". Default: 15°.
+For example, at 15°, when you point within 15° of the LZ you hear "On course". Default: 30°.
 
 <a id="adv-settings-wind"></a>
 ## Settings: Wind

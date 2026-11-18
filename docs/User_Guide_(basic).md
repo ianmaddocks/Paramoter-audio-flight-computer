@@ -63,7 +63,7 @@ All of these can be changed or switched off in Settings; see the *Height calls*,
 With no GPS the vario uses the barometer alone.
 
 - **Takeoff:** you have climbed about 50 feet (15 m) from where you stood. A slow rise, such as walking up a slope or carrying the vario upstairs, is not taken for a takeoff, because the vario follows slow changes in pressure while you are on the ground and only "locks" the ground level when it sees a real climb (faster than 0.5 m/s).
-- **Landing:** the height has stayed steady for twice the *Landed after* time (60 seconds by default) **and** you are within 50 feet (15 m) of the landing zone height (*Counts as near the ground below*).
+- **Landing:** the height has stayed steady for twice the *Landed after* time, and at least 60 seconds **and** you are within 50 feet (15 m) of the landing zone height (*Counts as near the ground below*).
 
 **Things to know**
 

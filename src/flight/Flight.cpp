@@ -16,6 +16,7 @@ constexpr int kMinAltSats = 6;
 constexpr float kMinGpsAltM = -500.0f;
 constexpr float kMaxGpsAltM = 9000.0f;
 constexpr float kMaxDatumJumpM = 200.0f;  // GPS altitude this far from the baro datum is rejected
+constexpr uint32_t kNoSpeedMinHoldMs = 60000;  // steady height without a GPS speed: at least this long before it counts as landed
 }  // namespace
 
 bool Flight::looksStill(bool speedOk, float speedMs, float landingSpeedMs, bool baroOk, float varioMs, float aglM,
@@ -27,7 +28,9 @@ bool Flight::looksStill(bool speedOk, float speedMs, float landingSpeedMs, bool 
 uint32_t Flight::landingHoldMs(bool speedOk, float speedMs, float landingSpeedMs, bool baroOk, float varioMs, float aglM,
                                float nearGroundM, uint32_t landingTimeMs, int highMult) {
   if (!looksStill(speedOk, speedMs, landingSpeedMs, baroOk, varioMs, aglM, nearGroundM)) return 0;
-  if (!speedOk) return landingTimeMs * 2;
+  // No trusted speed: twice the landing time, and never under a minute, so a short "Landed after" chosen for a GPS vario cannot make a
+  // vario without GPS call a landing after a few seconds of steady height.
+  if (!speedOk) return landingTimeMs * 2 > kNoSpeedMinHoldMs ? landingTimeMs * 2 : kNoSpeedMinHoldMs;
   if (highMult < 1) highMult = 1;
   return aglM < nearGroundM ? landingTimeMs : landingTimeMs * (uint32_t)highMult;
 }

@@ -16,8 +16,8 @@ struct Settings {
   int32_t distUnit = DU_METRES;
   int32_t speedUnit = SU_KMH;
 
-  int32_t speechVolume = 5;
-  int32_t varioVolume = 5;
+  int32_t speechVolume = 25;
+  int32_t varioVolume = 25;
   int32_t volumeRampPctS = 40;  // fastest change of the applied volume, % per second
   bool autoVolume = true;
   float noiseQuietDb = -52.0f;  // dBFS at the mic: at or below this the set volumes are used
@@ -44,9 +44,9 @@ struct Settings {
   int32_t varioSettleS = 5;  // vario held at 0 after power-on until this long without movement
 
   // Climbing: 50, 100, 250, 500, 750, 1000 ft.
-  char boundariesUp[128] = "15.24,30.48,76.2,152.4,228.6,304.8";
+  char boundariesUp[128] = "15.24,30.48";  // 50, 100 ft
   // Descending (key kept as "boundaries" so values saved before the split carry over).
-  char boundaries[128] = "3.05,4.57,6.10,9.14,12.19,15.24,22.86,30.48";
+  char boundaries[128] = "1.52,3.05,4.57,6.10,9.14,12.19,15.24,30.48";  // 5, 10, 15, 20, 30, 40, 50, 100 ft
   float boundaryStepM = 30.48f;  // 100 ft
   float boundaryHystM = 3.0f;
   bool boundaryClimbing = true;
@@ -54,19 +54,19 @@ struct Settings {
   int32_t heightIntervalS = 60;
   int32_t flightTimeIntervalMin = 10;
 
-  float takeoffSpeedMs = 8.0f / 3.6f;
-  int32_t takeoffTimeS = 5;
-  float takeoffGainM = 4.572f;  // 15 ft
+  float takeoffSpeedMs = 5.0f / 3.6f;
+  int32_t takeoffTimeS = 3;
+  float takeoffGainM = 3.048f;  // 10 ft
   float baroTakeoffGainM = 6.096f;   // height gain that counts as takeoff with no usable GPS
   float groundHoldVarioMs = 0.5f;   // ground level stops following the baro above this rate
-  float landingSpeedMs = 5.0f / 3.6f;
-  int32_t landingTimeS = 30;
+  float landingSpeedMs = 2.0f / 3.6f;
+  int32_t landingTimeS = 5;
   int32_t resumeMaxMin = 180;  // a flight is resumed after a restart in the air only within this long (0 = never)
-  float landingNoSpeedAglM = 15.0f;  // "near the ground": below this height above the landing zone (for the landing decision)
+  float landingNoSpeedAglM = 3.048f;  // 10 ft  // "near the ground": below this height above the landing zone (for the landing decision)
   int32_t landingHighMult = 5;       // a still aircraft ABOVE that height needs this many times the landing time (F10)
 
   int32_t glideShortS = 1;   // glide ratio tile: main value averaged over this many seconds
-  int32_t glideLongS = 60;   // ... and the smaller value over this many
+  int32_t glideLongS = 20;   // ... and the smaller value over this many
   float glideRatio = 6.0f;  // from a measured flight (Ozone Moto): about 6:1 through the air
   float trimAirspeedMs = 38.0f / 3.6f;
 
@@ -76,20 +76,20 @@ struct Settings {
   float lzElevM = 0.0f;
 
   int32_t circuitSide = CS_PILOT;
-  float circuitHeightM = 62.0f;  // 120 m legs and a 22 m final from here, at 6:1
+  float circuitHeightM = 152.4f;  // 500 ft
   float upwindLegM = 120.0f;
   float crosswindLegM = 120.0f;
   float downwindLegM = 120.0f;
-  float finalHeightM = 22.0f;
+  float finalHeightM = 15.24f;  // 50 ft
   float minFinalM = 100.0f;
   float arrivalRadiusM = 80.0f;
   float turnLeadS = 3.0f;
   bool turnLearn = true;  // landing support learns how fast the pilot turns from the first two turns and calls the later ones to suit
-  float offHeadingDeg = 15.0f;
+  float offHeadingDeg = 30.0f;
   int32_t guidanceUpdateS = 20;
 
   int32_t emergencyUpdateS = 30;
-  float onCourseDeg = 15.0f;
+  float onCourseDeg = 30.0f;
 
   bool windManual = false;
   float windFromDeg = 0.0f;
