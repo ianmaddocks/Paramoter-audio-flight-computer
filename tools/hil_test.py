@@ -548,7 +548,7 @@ def near(value, target, tol, what):
 # Settings the tests run with (the vario's own are restored afterwards).
 TEST_SETTINGS = dict(
     heightUnit=0, distUnit=0, speedUnit=0, autoVolume=False, volumeRampPctS=500, glideShortS=1, glideLongS=20, noiseQuietDb=-50, noiseLoudDb=-30,
-    varioEnabled=True, varioOnlyInFlight=False, varioClimbBeeps=True, varioSinkAlarm=True,
+    varioEnabled=True, muteUntilFlight=False, varioClimbBeeps=True, varioSinkAlarm=True,
     climbThreshold=0.3, sinkThreshold=-2.0, varioBaseHz=700, varioHzPerMs=100, varioAccelNoise=1.0,
     boundariesUp="15.24,30.48", boundaries="15.24,30.48", boundaryStepM=152.4, boundaryHystM=3.0,
     boundaryClimbing=True, boundaryDescending=True, heightIntervalS=0, flightTimeIntervalMin=0,
@@ -2367,18 +2367,6 @@ def t_igc_two_flights(v, a):
             v._open("/api/log?name=" + urllib.parse.quote(f), method="DELETE")
 
 
-def wait_battery_pct(v, ok, what, timeout=20):
-    """Waits until the battery percentage the vario reports satisfies ok(pct): the reading is filtered, so it takes a few seconds."""
-    end = time.time() + timeout
-    pct = None
-    while time.time() < end:
-        pct = v.status()["batt"]["pct"]
-        if ok(pct):
-            return pct
-        time.sleep(1)
-    raise Fail(f"{what}: the vario reports {pct} % after {timeout} s")
-
-
 def log_list(v):
     return {f["n"]: f for f in v.get_json("/api/logs")["files"]}
 
@@ -2643,11 +2631,11 @@ def t_net_trail(v, a):
 
 
 def t_vario_only_flying(v, a):
-    """With 'Only when flying' on (the default), the vario makes no sound on the ground, even when the height changes (carried
+    """With 'Mute until flight' on (the default), the vario makes no sound on the ground, even when the height changes (carried
     upstairs, a lift): the tones start once the takeoff has been detected."""
-    saved = v.settings()["varioOnlyInFlight"]
+    saved = v.settings()["muteUntilFlight"]
     try:
-        v.set(varioOnlyInFlight=True)
+        v.set(muteUntilFlight=True)
         m = on_ground_with_fix(v)
         m2 = v.mark()
         v.sim(vz=3.0, to=GROUND_M + 25)
@@ -2663,7 +2651,7 @@ def t_vario_only_flying(v, a):
         v.expect("TONE", r"^climb", m3, timeout=15, what="the climb tone once flying")
         return "silent on the ground while climbing 25 m, climb tone after takeoff"
     finally:
-        v.set(varioOnlyInFlight=saved)
+        v.set(muteUntilFlight=saved)
         v.sim(speed=0, vz=0, fly=0)
 
 
@@ -2893,20 +2881,10 @@ def t_button_actions(v, a):
         v.expect("SAY", r"^\[high\] wind ", m, timeout=4, what="single press: the wind")
         time.sleep(1.5)
         if v.find("SAY", r"^\[high\] .*battery", m):
-            raise Fail("a single press spoke the battery although it is not low (it is only spoken at 30 % or less)")
+            raise Fail("a single press spoke the battery (the status is height, landing zone and wind only)")
         if v.status()["mode"] != "none":
             raise Fail("a single press started guidance")
-        notes.append("single: tell me (height, landing zone, wind; the battery only when low), starts nothing")
-
-        # a low battery is added at the end
-        v.sim(batt=3.40)
-        wait_battery_pct(v, lambda pct: pct <= 30, "a low battery reading")
-        m = v.mark()
-        v.sim(button="single")
-        v.expect("SAY", r"^\[high\] wind .*battery", m, timeout=4, what="single press with a low battery: wind and battery")
-        v.sim(batt="off")
-        wait_battery_pct(v, lambda pct: pct > 30, "the battery reading back to normal")
-        notes.append("low battery: spoken after the wind")
+        notes.append("single: status (height, landing zone, wind; no battery), starts nothing")
 
         m = v.mark()
         v.sim(button="double")
@@ -2958,23 +2936,14 @@ def t_button_actions(v, a):
         v.expect("SAY", r"^\[high\] ", m, timeout=4, what="single press without a GPS tells")
         time.sleep(1.5)
         if v.find("SAY", r"landing_zone|wind|battery", m):
-            raise Fail("without a GPS and with a good battery the status spoke of more than the height")
-        v.sim(batt=3.40)
-        wait_battery_pct(v, lambda pct: pct <= 30, "a low battery reading")
-        m = v.mark()
-        v.sim(button="single")
-        v.expect("SAY", r"^\[high\] battery", m, timeout=4, what="single press without a GPS and a low battery: battery")
-        if v.find("SAY", r"landing_zone|wind", m):
-            raise Fail("without a GPS the status spoke of the landing zone or the wind")
-        v.sim(batt="off")
-        wait_battery_pct(v, lambda pct: pct > 30, "the battery reading back to normal")
+            raise Fail("without a GPS the status spoke of more than the height")
         m = v.mark()
         v.sim(button="double")
         v.expect("SAY", r"vario_muted", m, timeout=4, what="double press without a GPS mutes")
         m = v.mark()
         v.sim(button="hold")
         v.expect("SAY", r"vario_on", m, timeout=4, what="hold without a GPS unmutes")
-        notes.append("no GPS: single tells the height (and the battery when low), double/hold mute")
+        notes.append("no GPS: single tells the height, double/hold mute")
     finally:
         v.sim(hasGps=1)
         v.set(windManual=TEST_SETTINGS["windManual"])
@@ -3825,7 +3794,7 @@ def check_tile_layout(p, gps, mic, eng=False):
     want_main = ["t-agl", "t-flight", "t-vario"] + (["t-speed", "t-lz", "t-wind", "t-glide"] if gps else []) + ["t-batt"]
     if info["main"] != want_main:
         raise Fail(f"web page: top tiles are {info['main']}, expected {want_main}")
-    want_more = (["t-gps"] if gps else []) + (["t-rpm"] + (["t-noise"] if eng else []) if mic else [])
+    want_more = (["t-gps"] if gps else []) + (["t-rpm"] if mic else []) + ["t-vol"] + (["t-noise"] if mic and eng else [])
     if info["more"] != want_more:
         raise Fail(f"web page: lower tile group is {info['more']}, expected {want_more}")
     if not info["graphInVario"]:
@@ -4225,7 +4194,22 @@ def t_ui_flight(v, a):
     p.wait_text("ready-t", r"^Waiting for satellites$")
     p.wait_text("ready-s", r"^4 / 6 satellites$")
     p.wait_text("t-speedv", r"^0 km/h$", 8, "weak-fix speed shown as 0")
-    return "banner, 11 tiles, height graph and layout correct; speed, vario, battery and GPS changes followed"
+    # the Volume tile: the volume being applied, and + / - that change the vario and speech volume settings together
+    p.wait_text("t-vol", r"^\d+ %$", 8, "Volume tile shows the applied volume")
+    before = v.settings()
+    p.click("#b-volp")
+    p.click("#b-volp")
+    time.sleep(2.5)
+    after = v.settings()
+    if after["varioVolume"] != min(100, before["varioVolume"] + 10) or after["speechVolume"] != min(100, before["speechVolume"] + 10):
+        raise Fail(f"web page: two taps of + changed the volumes {before['varioVolume']}/{before['speechVolume']} -> {after['varioVolume']}/{after['speechVolume']}, expected +10 each")
+    p.click("#b-volm")
+    p.click("#b-volm")
+    time.sleep(2.5)
+    back = v.settings()
+    if back["varioVolume"] != before["varioVolume"] or back["speechVolume"] != before["speechVolume"]:
+        raise Fail(f"web page: two taps of - did not restore the volumes: {back['varioVolume']}/{back['speechVolume']}")
+    return "banner, 12 tiles incl. Volume with + and -, height graph and layout correct; speed, vario, battery and GPS changes followed"
 
 
 def t_ui_actions(v, a):
@@ -4314,16 +4298,16 @@ def t_ui_pilot(v, a):
         if p.js("document.getElementById('groundActions').offsetParent!==null"):
             raise Fail("web page: the ground Actions card is still shown in flight")
         flight = p.js("[...document.querySelectorAll('#flightActions button')].map(b=>b.textContent)")
-        if flight != ["Landing support [..]", "Emergency support [\u2014]", "Update me [.]", "Mute vario [...]"]:
+        if flight != ["Landing support [..]", "Emergency support [\u2014]", "Status [.]", "Mute vario [...]"]:
             raise Fail(f"web page: the in-flight Actions card holds {flight} (each button says how many presses of the push button do the same)")
         if p.js("document.getElementById('flightActions').offsetParent===null"):
             raise Fail("web page: the in-flight Actions card is not shown in flight")
         m = v.mark()
         p.click("#b-tell")
-        v.expect("SAY", r"^\[high\] .*landing_zone", m, timeout=5, what="the Update me button")
+        v.expect("SAY", r"^\[high\] .*landing_zone", m, timeout=5, what="the Status button")
         time.sleep(1.5)
         if v.find("SAY", r"^\[high\] .*battery", m):
-            raise Fail("the Update me button spoke the battery although it is not low (only at 30 % or less)")
+            raise Fail("the Status button spoke the battery")
         m = v.mark()
         p.click("#b-mute")
         v.expect("SAY", r"\[urgent\] vario_muted$", m, timeout=4, what="Mute button")
@@ -4332,7 +4316,7 @@ def t_ui_pilot(v, a):
         p.click("#b-mute")
         v.expect("SAY", r"\[urgent\] vario_on$", m, timeout=4, what="Unmute button")
         p.wait_text("b-mute", r"^Mute vario \[\.\.\.\]$")
-        notes.append("flight: the ground card is gone, the in-flight card holds Landing support [..], Emergency support [\u2014], Update me [.] and Mute vario [...]; Update me speaks; Mute and Unmute work")
+        notes.append("flight: the ground card is gone, the in-flight card holds Landing support [..], Emergency support [\u2014], Status [.] and Mute vario [...]; Status speaks; Mute and Unmute work")
 
         def strip():
             return p.js("[...document.querySelectorAll('#alerts .alert')].map(e=>e.className+'|'+e.textContent)")

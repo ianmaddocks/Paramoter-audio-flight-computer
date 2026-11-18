@@ -91,12 +91,8 @@ void updateTone(const NavState& n, bool muted) {
 }  // namespace
 
 ToneCommand toneFor(const NavState& n, bool muted, const Settings& cfg) {
-#if PV_TEST
-  const bool onlyFlying = cfg.varioOnlyInFlight;  // the test build keeps the option so the tests can hear tones on the ground
-#else
-  const bool onlyFlying = true;  // the vario makes no sound until the takeoff has been detected, and none after landing
-#endif
-  const bool allowed = cfg.varioEnabled && !muted && n.baroOk && (!onlyFlying || n.flying);
+  // "Mute until flight": no beeps until the takeoff has been detected, and none after landing
+  const bool allowed = cfg.varioEnabled && !muted && n.baroOk && (!cfg.muteUntilFlight || n.flying);
   const float v = n.varioMs;
   ToneCommand c = {ToneCommand::Mode::Off, 0.0f, 0, 0};
   if (allowed && cfg.varioClimbBeeps && v >= cfg.climbThreshold) {

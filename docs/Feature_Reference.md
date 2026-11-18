@@ -99,14 +99,9 @@ A Basic vario is ready as soon as the barometer works and has settled. (An Advan
 ### Push button
 The one button on the vario.
 
-On a Basic vario a **single press** tells you the height and the battery ("Update me"), and a **double press, triple press or a hold** switches the vario beeps off or on again. You hear "Vario muted" or "Vario on" to confirm. Every press gives a short click; 0.8 s into a hold a rising tone says "keep holding" (a hold counts at 1.5 s; let go earlier and nothing happens).
+On a Basic vario a **single press** tells you the height ("Status"), and a **double press, triple press or a hold** switches the vario beeps off or on again. You hear "Vario muted" or "Vario on" to confirm. Every press gives a short click; 0.8 s into a hold a rising tone says "keep holding" (a hold counts at 1.5 s; let go earlier and nothing happens).
 
 Spoken calls are never muted, only the beeps. (On an Advanced vario the button does more; see Part 2.)
-
-### Update me (page button)
-The same as a single press of the button.
-
-Speaks your height and the battery: the minutes left when the vario has learned them, otherwise the percentage.
 
 ### Mute vario (page button)
 The same as the push button.
@@ -121,12 +116,12 @@ Tap **Full screen**, below the Actions card, and the address bar and the phone's
 ### Actions (card)
 The page shows one card of buttons, headed **Actions**, and which one depends on whether you are flying, so only what is useful then is on the screen.
 
-**On the ground:** *Status*. **In flight:** *Update me*, *Mute vario* and, on an Advanced vario, *Landing support* and *Emergency support*. *Full screen* sits below the card in both phases.
+**On the ground:** *Status*. **In flight:** *Status*, *Mute vario* and, on an Advanced vario, *Landing support* and *Emergency support*. *Full screen* sits below the card in both phases.
 
 Each button shows the presses of the push button that do the same: **[.]** one press, **[..]** two, **[...]** three, **[—]** hold.
 
 ### Status
-Speaks your height and battery (and the landing zone and wind on an Advanced vario), the same as one press of the push button. Tap it on the ground to check the speaker and the volume; if it is too loud or quiet, change *Speech volume*.
+Speaks your height (and the landing zone and wind on an Advanced vario), the same as one press of the push button. Tap it on the ground to check the speaker and the volume; if it is too loud or quiet, change *Speech volume*.
 
 <a id="basic-sounds"></a>
 ## Sounds you hear
@@ -261,8 +256,8 @@ The master switch for the beeps.
 
 Turn off to have no beeps and no sink alarm at all. Spoken calls are not affected. Default: On.
 
-### The beeps only sound while flying
-There is no setting for this: the vario makes **no beeps and no sink alarm on the ground**, however the height changes (walking up to the launch, lifting it, a lift), and starts once takeoff has been detected. On a Basic vario that is after you have climbed about 20 feet. After landing the beeps stop again. (Earlier versions had a setting, *Only when flying*; it is gone, and a stored value for it is ignored.) Spoken calls are not affected.
+### Mute until flight
+No beeps and no sink alarm until takeoff has been detected, and none again after landing. Spoken calls are not affected. Default: On.
 
 ### Climb beeps
 Switch the climb beeps on or off.
@@ -628,7 +623,7 @@ Blue `Approach` with the current circuit leg, or red `Emergency` with your glide
 
 One button, four gestures, with a click on every press.
 
-*Single press*: **Update me**: your height, the landing zone (clock position and distance), the wind and the battery. It never starts or cancels anything. *Double press*: start landing approach (double press again to cancel). *Hold* for 1.5 s: start emergency glide (hold again to cancel); a rising tone at 0.8 s says "keep holding", and letting go before 1.5 s does nothing. *Triple press*: mute or unmute the beeps.
+*Single press*: **Status**: your height, the landing zone (clock position and distance) and the wind. It never starts or cancels anything. *Double press*: start landing approach (double press again to cancel). *Hold* for 1.5 s: start emergency glide (hold again to cancel); a rising tone at 0.8 s says "keep holding", and letting go before 1.5 s does nothing. *Triple press*: mute or unmute the beeps.
 
 *Five presses, then five more and a 2 s hold* (on the ground only): the **factory reset**. The first five give the instruction "To restore factory settings, press the button 5 times, and then hold it down for 2 seconds"; after the next five and a sixth press held for 2 s you hear "Restoring factory settings", every setting (Wi-Fi names and passwords included) goes back to its default and the vario restarts. Letting go early, a long press while counting, 8 s between presses, 30 s with nothing done, or taking off: "Factory reset cancelled", nothing changes. The clicks do nothing else meanwhile. The triple press now waits 0.6 s after the last click (as the single and double always did) so that five clicks can be told from three.
 

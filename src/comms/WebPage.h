@@ -137,6 +137,9 @@ summary .help a{margin-left:12px;color:var(--acc)}
 #helpBody .hbtn{margin:0 0 10px;font-size:14px}
 #helpBody .jump{margin:6px 0 2px;color:var(--mut);font-size:13px}#helpBody .jump a{margin-right:12px;color:var(--acc);white-space:nowrap}
 .tile.wide{grid-column:span 2}
+.volrow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.volb{display:flex;gap:6px;flex:none}.volb button{width:42px;height:36px;padding:0;font-size:22px;line-height:1}
+body.replay .volb{display:none}
 .btns .wide{grid-column:span 2}
 #hgCv{width:100%;height:56px;display:block;margin-top:2px}
 .tiles.more{margin-top:10px}
@@ -184,6 +187,7 @@ R"HTML(
 <section class="tiles more" id="tilesMore">
 <div class="tile needgps"><div class="k">GPS</div><div class="v" id="t-gps">–</div><div class="s" id="t-gpss"></div></div>
 <div class="tile needmic"><div class="k">Engine RPM</div><div class="v" id="t-rpm">–</div><div class="s" id="t-rpms"></div></div>
+<div class="tile" id="tile-volume"><div class="k">Volume</div><div class="vrow volrow"><span class="v" id="t-vol">–</span><span class="volb"><button type="button" id="b-volm" data-d="-5" aria-label="Quieter">−</button><button type="button" id="b-volp" data-d="5" aria-label="Louder">+</button></span></div><div class="s" id="t-vols"></div></div>
 <div class="tile needmic" id="tile-noise" hidden><div class="k">Background noise</div><div class="v" id="t-noise">–</div><div class="s" id="t-noises"></div></div>
 </section>
  </div>
@@ -337,8 +341,8 @@ function buildHelp(){
   const adv=hwNow.gps,el=$('#helpBody');el.innerHTML='';
   // What the one push button does, right at the top.
   const bp=document.createElement('p');bp.className='hbtn';
-  bp.innerHTML=adv?'<b>Push button.</b> One press updates you (height, landing zone, wind, battery). Two quick presses start landing support (again to cancel). Hold for 1.5 seconds for emergency support (again to cancel). Three presses mute or unmute the beeps.'
-    :'<b>Push button.</b> One press updates you (height, battery). Two or three presses, or a hold, switch the vario beeps off or on.';
+  bp.innerHTML=adv?'<b>Push button.</b> One press tells you the status (height, landing zone, wind). Two quick presses start landing support (again to cancel). Hold for 1.5 seconds for emergency support (again to cancel). Three presses mute or unmute the beeps.'
+    :'<b>Push button.</b> One press tells you your height. Two or three presses, or a hold, switch the vario beeps off or on.';
   el.appendChild(bp);
   const doc=(t,sub,file)=>{const a=mkLink(t,file,'','doc'),s=document.createElement('small');s.textContent=sub;a.appendChild(s);el.appendChild(a)};
   doc('User guide','How to use this vario, from switching on to landing',adv?DOCS.adv:DOCS.basic);
@@ -553,6 +557,8 @@ function renderStatus(s,replay){
       txt('t-noise',s.mic.noise!=null?s.mic.noise.toFixed(0)+' dBFS':'–');
       txt('t-noises',s.mic.ok?'vario vol '+s.vol.vario+'%'+(replay&&s.vol.speech!=null?' · speech '+s.vol.speech+'%':''):'');
     }
+    if(s.vol){txt('t-vol',s.vol.vario+' %');
+      txt('t-vols','speech '+s.vol.speech+' %'+(!replay&&cfg.varioVolume!=null&&cfg.varioVolume!==s.vol.vario?' · set '+cfg.varioVolume+' %':''))}
     if(!replay){
     txt('fwver','Installed: '+(s.version||'unknown')+(s.git?' · git '+s.git:'')+(s.debug?' (debug build)':' (release build)'));
     txt('hver','v'+(s.version||'unknown')+(s.debug?' debug':''));
@@ -570,6 +576,11 @@ function syncInputs(f){
     if(f.t==='bool')i.checked=!!cfg[f.k];else if(f.t==='enum'||f.t==='str')i.value=cfg[f.k];
     else if(f.t!=='list')i.value=rnd(cfg[f.k]*c.f,f.t==='double'?7:f.t==='int'?0:c.d)});
 }
+// The + and - in the Volume tile change the vario volume and the speech volume setting together, 5 points a tap.
+document.querySelectorAll('.volb button').forEach(b=>b.onclick=()=>{
+  if(!schema.length)return;
+  for(const k of ['varioVolume','speechVolume']){const f=schema.find(x=>x.k===k);if(f)setVal(f,Math.max(0,Math.min(100,(+cfg[k]||0)+(+b.dataset.d))))}
+  if(cfg.varioVolume!=null)txt('t-vols','set '+cfg.varioVolume+' %')});
 function setVal(f,v){
   if(cfg[f.k]===v)return;
   cfg[f.k]=v;saveRevision++;txt('saveState','Unsaved changes');syncInputs(f);

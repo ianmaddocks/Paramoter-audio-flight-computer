@@ -1507,8 +1507,8 @@ void statusUnitSuite(UnitReport& r) {
   auto said = [&](int i) { return std::string(audio::testSaidText(i)); };
   auto has = [&](int i, const char* w) { return said(i).find(w) != std::string::npos; };
 
-  // The battery is only spoken when it is low (30 % or less): with a good battery the second call is the wind alone.
-  status::tell(n, wind, 80, 25, true);
+  // The status is the height and landing zone, then the wind. The battery is never part of it.
+  status::tell(n, wind, true);
   r.check(audio::testSaid() == 2, "tell me made %d calls, expected 2", audio::testSaid());
   r.check(said(0).rfind("[high]", 0) == 0 && said(1).rfind("[high]", 0) == 0, "calls are not high priority: %s | %s",
           said(0).c_str(), said(1).c_str());
@@ -1518,73 +1518,49 @@ void statusUnitSuite(UnitReport& r) {
           said(0).c_str());
   r.check(said(0).find("~pause") != std::string::npos && said(0).find("~pause") < said(0).find("landing_zone") &&
               said(0).find("~pause") > 8,
-          "a pause between the height and the landing zone: %s", said(0).c_str());
+          "pause: %s", said(0).c_str());
   r.check(has(0, "n12 oclock"), "LZ dead ahead should be 12 o'clock: %s", said(0).c_str());
-  r.check(has(1, "wind") && has(1, "kmh") && !has(1, "battery"), "good battery: second call is the wind alone: %s", said(1).c_str());
-  r.check(has(1, "n3 oclock"), "wind from 090 relative to track 000 should be 3 o'clock: %s", said(1).c_str());
-
-  audio::testCapture(true);  // a low battery is spoken after the wind, as minutes when they are known
-  status::tell(n, wind, 25, 12, true);
-  r.check(audio::testSaid() == 2, "low battery: %d calls, expected 2", audio::testSaid());
-  r.check(has(1, "wind") && has(1, "kmh") && has(1, "battery") && has(1, "minutes"), "low battery, second call: %s", said(1).c_str());
-  r.check(said(1).find("wind") < said(1).find("battery"), "wind comes before the battery: %s", said(1).c_str());
-
-  audio::testCapture(true);  // the limit: 30 % is spoken, 31 % is not
-  status::tell(n, wind, 30, 12, true);
-  r.check(has(1, "battery"), "30 %% battery is spoken: %s", said(1).c_str());
-  audio::testCapture(true);
-  status::tell(n, wind, 31, 12, true);
-  r.check(!has(1, "battery") && has(1, "wind"), "31 %% battery is not spoken: %s", said(1).c_str());
+  r.check(has(1, "wind") && has(1, "kmh") && has(1, "n3 oclock"), "wind from 090 relative to track 000: %s", said(1).c_str());
+  r.check(!has(0, "battery") && !has(1, "battery"), "no battery in the status: %s | %s", said(0).c_str(), said(1).c_str());
 
   audio::testCapture(true);  // units follow the setting
   g_cfg.speedUnit = SU_KNOTS;
-  status::tell(n, wind, 80, 25, true);
+  status::tell(n, wind, true);
   r.check(has(1, "knots"), "speed unit knots: %s", said(1).c_str());
   audio::testCapture(true);
   g_cfg.speedUnit = SU_MPH;
-  status::tell(n, wind, 80, 25, true);
+  status::tell(n, wind, true);
   r.check(has(1, "mph"), "speed unit mph: %s", said(1).c_str());
-
-  audio::testCapture(true);  // low battery, minutes unknown: the percentage
-  status::tell(n, wind, 25, -1, true);
-  r.check(has(1, "percent") && !has(1, "minutes"), "unknown minutes should say percent: %s", said(1).c_str());
 
   audio::testCapture(true);  // standing still: no clock positions (there is no direction of travel)
   n.speedMs = 0.5f;
-  status::tell(n, wind, 80, 25, true);
+  status::tell(n, wind, true);
   r.check(!has(0, "oclock") && has(0, "landing_zone"), "standing still, first call: %s", said(0).c_str());
   r.check(!has(1, "oclock"), "standing still, wind clock: %s", said(1).c_str());
   n.speedMs = 10;
 
   audio::testCapture(true);  // no landing zone
   n.lzValid = false;
-  status::tell(n, wind, 80, 25, true);
+  status::tell(n, wind, true);
   r.check(has(0, "no_landing_zone"), "no landing zone: %s", said(0).c_str());
   n.lzValid = true;
 
   audio::testCapture(true);  // no fix: height and wind, no landing zone
   n.fix = false;
-  status::tell(n, wind, 80, 25, true);
+  status::tell(n, wind, true);
   r.check(!has(0, "landing_zone") && !has(0, "oclock"), "no fix: %s", said(0).c_str());
   n.fix = true;
 
-  audio::testCapture(true);  // wind unknown and a good battery: the height and landing zone only, nothing more is said
+  audio::testCapture(true);  // wind unknown: the height and landing zone only, nothing more is said
   g_cfg.windManual = false;
-  status::tell(n, wind, 80, 25, true);
-  r.check(audio::testSaid() == 1 && !has(0, "wind") && !has(0, "battery"), "wind unknown, good battery: %d calls: %s", audio::testSaid(),
-          said(0).c_str());
-  audio::testCapture(true);  // wind unknown and a low battery: the battery alone
-  status::tell(n, wind, 25, 12, true);
-  r.check(audio::testSaid() == 2 && !has(1, "wind") && has(1, "battery"), "wind unknown, low battery: %s", said(1).c_str());
+  status::tell(n, wind, true);
+  r.check(audio::testSaid() == 1 && !has(0, "wind"), "no wind: %d calls: %s", audio::testSaid(), said(0).c_str());
   g_cfg.windManual = true;
 
-  audio::testCapture(true);  // a vario with no GPS: the height, and the battery only when it is low
-  status::tell(n, wind, 80, 25, false);
-  r.check(audio::testSaid() == 1 && !has(0, "landing_zone") && !has(0, "no_landing_zone") && !has(0, "~pause") && !has(0, "battery"),
-          "no GPS, good battery: %d calls: %s", audio::testSaid(), said(0).c_str());
-  audio::testCapture(true);
-  status::tell(n, wind, 25, 12, false);
-  r.check(!has(0, "landing_zone") && !has(1, "wind") && has(1, "battery"), "no GPS, low battery: %s | %s", said(0).c_str(), said(1).c_str());
+  audio::testCapture(true);  // a vario with no GPS: the height alone
+  status::tell(n, wind, false);
+  r.check(audio::testSaid() == 1 && !has(0, "landing_zone") && !has(0, "~pause"), "no GPS: %d calls: %s", audio::testSaid(),
+          said(0).c_str());
   audio::testCapture(false);
 }
 

@@ -61,9 +61,7 @@ const Field kFields[] = {
     B(spectrumEnabled, "Engine RPM", "Show the Spectrum tab"),
 
     B(varioEnabled, "Vario", "Vario beeps enabled"),
-#if PV_TEST
-    B(varioOnlyInFlight, "Vario", "Only when flying"),  // test build only: the release vario only sounds when flying
-#endif
+    B(muteUntilFlight, "Vario", "Mute until flight"),
     B(varioClimbBeeps, "Vario", "Climb beeps"),
     B(varioSinkAlarm, "Vario", "Sink alarm"),
     FL(climbThreshold, "Vario", "Climb threshold", "m/s", 0.0f, 5.0f),

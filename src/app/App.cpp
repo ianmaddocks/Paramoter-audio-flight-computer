@@ -277,7 +277,7 @@ void actionToggleEmergency() {
 }
 
 void actionTellMe() {
-  status::tell(app.nav, app.wind, app.battery.percent(), app.battery.minutesLeftOrUnknown(), hw::hasGps());
+  status::tell(app.nav, app.wind, hw::hasGps());
 }
 
 // The way out of a vario that thinks it is flying when it is not (also available as a button on the Logs & system tab):

@@ -16,7 +16,7 @@ void varioToneSelfTest() {
 
   Settings s;  // a clean set of settings, whatever the vario has stored
   s.varioEnabled = true;
-  s.varioOnlyInFlight = false;
+  s.muteUntilFlight = false;
   s.varioClimbBeeps = true;
   s.varioSinkAlarm = true;
   s.climbThreshold = 0.3f;
@@ -109,14 +109,14 @@ void varioToneSelfTest() {
   check("no barometer: climb", 1.0f, Mode::Off);
   check("no barometer: sink", -3.0f, Mode::Off);
   n.baroOk = true;
-  s.varioOnlyInFlight = true;
+  s.muteUntilFlight = true;
   check("only when flying, on the ground: climb", 1.0f, Mode::Off);
   check("only when flying, on the ground: sink", -3.0f, Mode::Off);
   n.flying = true;
   check("only when flying, flying: climb", 1.0f, Mode::Climb);
   check("only when flying, flying: sink", -3.0f, Mode::Sink);
   n.flying = false;
-  s.varioOnlyInFlight = false;
+  s.muteUntilFlight = false;
   s.varioClimbBeeps = false;
   check("climb beeps off: climb", 1.0f, Mode::Off);
   check("climb beeps off: the sink alarm still works", -3.0f, Mode::Sink);

@@ -10,7 +10,7 @@ using audio::Utterance;
 
 namespace status {
 
-void tell(const NavState& nav, const Wind& wind, int batteryPct, int batteryMinutes, bool hasGps) {
+void tell(const NavState& nav, const Wind& wind, bool hasGps) {
   const bool moving = nav.fix && nav.speedOk && nav.speedMs >= 3.0f;
   Utterance a(Priority::High);
   speech::addHeight(a, nav.aglM);  // the height is always said first
@@ -30,15 +30,6 @@ void tell(const NavState& nav, const Wind& wind, int batteryPct, int batteryMinu
     b.add("wind");
     if (moving && wind.speedMs() >= 1.0f) speech::addClock(b, wind.fromDeg() - nav.trackDeg);
     speech::addSpeed(b, wind.speedMs());
-  }
-  if (batteryPct <= 30) { // only incldue battery if important.
-    b.add("battery");
-    if (batteryMinutes >= 0) {
-      speech::addDuration(b, (uint32_t)batteryMinutes * 60);
-    } else {
-      speech::addNumber(b, batteryPct);
-      b.add("percent");
-    }
   }
   audio::say(b);
 }

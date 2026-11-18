@@ -32,7 +32,7 @@ struct Settings {
   bool spectrumEnabled = false;  // show the Spectrum tab (needs a build with the spectrum feature)
 
   bool varioEnabled = true;
-  bool varioOnlyInFlight = true;
+  bool muteUntilFlight = true;  // no vario beeps or sink alarm until the takeoff has been detected (and again after landing)
   bool varioClimbBeeps = true;
   bool varioSinkAlarm = true;
   float climbThreshold = 0.3f;
