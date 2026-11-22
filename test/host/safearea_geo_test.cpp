@@ -20,7 +20,8 @@ static int failures = 0;
 static bool near(float a, float b, float tol) { return fabsf(a - b) <= tol; }
 
 int main() {
-  // A 1000 m square, the pilot in it at (200, -100) from its centre; the edges are 300 / 700 east-west and 400 / 600 north-south away.
+  // A 1000 m square; the pilot is in it, 200 m east and 100 m south of its centre. The edges are 300 (east), 700 (west), 400 (south) and
+  // 600 (north) m away.
   const Pt sq[4] = {{-500, -500}, {-500, 500}, {500, 500}, {500, -500}};  // clockwise
   // In the pilot's frame the pilot is the origin, so shift the square by (-200, +100).
   Pt p[4];
@@ -52,59 +53,28 @@ int main() {
   CHECK(contains(L, 6, 750, 250), "inside the wide arm");
   CHECK(!contains(L, 6, 750, 750), "the notch is outside");
 
-  // Inward normal of the east edge of the square points west.
+  // Keeping out: a restricted square 100 m ahead (north), 1000 m wide. The line past its corner (500, 100) is atan(500/100) = 78.7 degrees
+  // off; with 3 degrees to spare and whole clock positions (30 degrees) that is 90 (a tie turns right), never a U-turn.
   {
-    const Near e = nearest(p, 4, 290, 0);  // close to the east edge (x = 300)
-    const Pt n = inwardNormal(p, 4, e.edge, e.at);
-    CHECK(near(n.e, -1.0f, 0.01f) && near(n.n, 0.0f, 0.01f), "inward normal (%.2f, %.2f), expected (-1, 0)", n.e, n.n);
-  }
-
-  // Escape heading: flying east, 150 m short of the east edge, with 300 m to keep clear: the smallest turn that stays inside that far is
-  // 60 degrees (150 / cos 60 = 300), not a U-turn.
-  {
-    Pt q[4];
-    for (int i = 0; i < 4; ++i) q[i] = {sq[i].e - 350, sq[i].n};  // pilot 150 m from the east edge, mid-height
-    CHECK(contains(q, 4, 0, 0), "setup: inside");
-    const Pt d = unit(90);
-    int edge = -1;
-    const float hit = rayHit(q, 4, 0, 0, d.e, d.n, 1e6f, &edge);
-    CHECK(near(hit, 150.0f, 0.5f), "setup: hit %.2f", hit);
-    (void)edge;
-    const float h = escapeHeading(q, 4, 90.0f, 300.0f);
-    const float turn = fabsf(wrap180(h - 90.0f));
-    CHECK(turn >= 55 && turn <= 70, "escape heading %.1f is a turn of %.1f, expected about 60", h, turn);
-  }
-
-  // Near the north-east corner flying east: along the east edge to the north is blocked by the corner, so the way along the south side
-  // or straight back in must be chosen, never a heading that leaves the area within the clear distance.
-  {
-    Pt q[4];
-    for (int i = 0; i < 4; ++i) q[i] = {sq[i].e - 400, sq[i].n - 450};  // pilot at (400, 450): 100 m from the east and 50 m from the north edge
-    CHECK(contains(q, 4, 0, 0), "setup 2: inside");
-    const Pt d = unit(90);
-    int edge = -1;
-    const float hit = rayHit(q, 4, 0, 0, d.e, d.n, 1e6f, &edge);
-    (void)hit;
-    (void)edge;
-    const float h = escapeHeading(q, 4, 90.0f, 200.0f);
-    const Pt hd = unit(h);
-    CHECK(rayHit(q, 4, 0, 0, hd.e, hd.n, 200.0f) < 0, "the escape heading %.1f leaves the area within 200 m", h);
-  }
-
-  // Keeping out: a restricted square 100 m ahead (north), 1000 m wide. With a 500 m warning distance the smallest turn that does not run
-  // into it within 500 m is about 79 degrees (100 * tan(79) = 500), either way, not a U-turn.
-  {
-    const Pt r[4] = {{-500, 100}, {-500, 1100}, {500, 100 + 1000}, {500, 100}};
+    const Pt r[4] = {{-500, 100}, {-500, 1100}, {500, 1100}, {500, 100}};
     CHECK(!contains(r, 4, 0, 0), "setup: outside the restricted square");
     const Pt d = unit(0);
     CHECK(near(rayHit(r, 4, 0, 0, d.e, d.n, 500.0f), 100.0f, 0.5f), "restricted square is 100 m ahead");
-    const float h = escapeHeading(r, 4, 0.0f, 500.0f);
-    const float turn = fabsf(wrap180(h));
-    CHECK(turn >= 75 && turn <= 85, "avoid heading %.1f is a turn of %.1f, expected about 79", h, turn);
-    // A narrow square beside the track needs only a small turn: 100 m ahead, 100 m wide, 300 m clear -> about 20 degrees to pass west of it.
+    const float h = avoidHeading(r, 4, 0.0f);
+    CHECK(near(h, 90.0f, 0.01f), "avoid heading %.1f, expected 90", h);
+    // A small square ahead needs a small turn: 100 m ahead and 100 m wide, the corner (50, 100) is 26.6 degrees off: 26.6 + 3 -> 30.
     const Pt n[4] = {{-50, 100}, {-50, 200}, {50, 200}, {50, 100}};
-    const float h2 = escapeHeading(n, 4, 0.0f, 300.0f);
-    CHECK(fabsf(wrap180(h2)) >= 15 && fabsf(wrap180(h2)) <= 70, "narrow square: avoid heading %.1f", h2);
+    const float h2 = avoidHeading(n, 4, 0.0f);
+    CHECK(near(h2, 30.0f, 0.01f), "narrow square: avoid heading %.1f, expected 30", h2);
+    // Off to one side: the square is to the right of the track, so turning left is the smaller turn.
+    const Pt s[4] = {{20, 100}, {20, 200}, {120, 200}, {120, 100}};  // its near corner (20, 100) is 11.3 degrees to the right
+    const float h3 = avoidHeading(s, 4, 0.0f);
+    CHECK(near(h3, -30.0f, 0.01f), "square just right of the track: avoid heading %.1f, expected 30 to the left", h3);
+    // Whatever heading it gives, a line along it must not enter the square.
+    const Pt dh = unit(h), dh2 = unit(h2), dh3 = unit(h3);
+    CHECK(rayHit(r, 4, 0, 0, dh.e, dh.n, 1e5f) < 0, "line along the avoid heading enters the square");
+    CHECK(rayHit(n, 4, 0, 0, dh2.e, dh2.n, 1e5f) < 0, "line along the avoid heading enters the narrow square");
+    CHECK(rayHit(s, 4, 0, 0, dh3.e, dh3.n, 1e5f) < 0, "line along the avoid heading enters the right-hand square");
   }
 
   // Area.

@@ -558,6 +558,7 @@ TEST_SETTINGS = dict(
     onCourseDeg=15, offHeadingDeg=30, battLowV=3.5, battFullV=4.09, battRuntimeMin=360,
     igcEnabled=True, igcPreS=20, igcQnhAlt=True, gpsMode=1,
     rpmPulsesPerRev=1.0, rpmMin=1200, rpmMax=10000, rpmMinConfidence=3.0, spectrumEnabled=True,
+    safeAreaOn=False, restrictedAreaOn=False,  # the area tests switch them on; the pilot's own areas must not talk in the other tests
 )
 
 GROUND_M = 100.0  # simulated field elevation
@@ -3181,9 +3182,9 @@ def t_memory_events(v, a):
         v.set(climbThreshold=TEST_SETTINGS["climbThreshold"])
         for _ in range(40):
             v._open("/api/debuglog?since=0")
-        for name in ("geo", "wind", "battery"):
+        for name in PART_SUITES.get(a.part, PART_SUITES[None])[:3]:
             for _ in range(4):
-                unit_suite(v, name, 10)
+                unit_suite(v, name, 5)
         for _ in range(15):
             v.sim(reset=1)
         for i in range(12):
@@ -4881,6 +4882,294 @@ def t_memory(v, a):
         raise Fail("memory was not given back after the tests (leak?): " + note)
     return note
 
+# --------------------------------------------------------------------------------------------
+# Areas: safe and restricted polygons (flight/SafeArea.cpp, the Areas tab)
+M_PER_DEG = 111194.93
+
+
+def area_rect(lat0, lon0, kind, warn, e0, n0, e1, n1, name="T", on=True, w=True):
+    """One rectangular area as the page sends it: corners (e0,n0)..(e1,n1) in metres east and north of (lat0, lon0)."""
+    cs = [(e0, n0), (e0, n1), (e1, n1), (e1, n0)]
+    pts = [[round(lat0 + n / M_PER_DEG, 6), round(lon0 + e / (M_PER_DEG * math.cos(math.radians(lat0))), 6)] for e, n in cs]
+    d = {"n": name, "on": on, "k": kind, "p": pts}
+    if w:
+        d["w"] = warn
+    return d
+
+
+def post_areas(v, areas):
+    code, raw = v._open("/api/areas", data=json.dumps({"a": areas}).encode(), method="POST")
+    try:
+        return code, json.loads(raw)
+    except ValueError:
+        return code, {"raw": raw[:60]}
+
+
+def sim_pos(v):
+    s = v.get_json("/api/sim")
+    return float(s["lat"]), float(s["lon"])
+
+
+def rel_pos(v, lat0, lon0):
+    """East and north of (lat0, lon0) of the simulated aircraft, metres."""
+    lat, lon = sim_pos(v)
+    return (lon - lon0) * M_PER_DEG * math.cos(math.radians(lat0)), (lat - lat0) * M_PER_DEG
+
+
+def area_status(v):
+    return v.status().get("area") or {}
+
+
+def t_areas_logic(v, a):
+    """Software-level unit test of the areas (flight/SafeArea.cpp) driven by scripted positions: what is accepted and the
+    defaults; a safe area (leaving, repeat, return, edge warning with a distance, nothing on the ground, under guidance or
+    switched off); a restricted area (the turn to make ahead of it, repeats, inside it, warning distance 0, passing beside it,
+    flying away, switched off, both kinds together)."""
+    n = unit_suite(v, "areas", 50)
+    return f"{n} cases passed: data and defaults, safe area leaving/return/edge, restricted ahead/inside/beside, what is left out"
+
+
+def t_areas_api(v, a):
+    """The areas on the web API and the page: invalid data is refused and changes nothing; valid data is kept, with the
+    defaults (safe 0 m, restricted 500 m, an unknown kind is safe); the status shows the state; the areas survive a restart;
+    the Areas tab is on the page; with no GPS the Areas settings are not listed."""
+    notes = []
+    base = [area_rect(51.5, 0.5, "safe", 0, -200, -200, 200, 200, "Keep")]
+    code, r = post_areas(v, base)
+    if code != 200:
+        raise Fail(f"a valid area was refused: {code} {r}")
+    good = [[51.5, 0.5], [51.5, 0.51], [51.51, 0.51]]
+    many = [[round(51.5 + 0.001 * math.cos(i * 0.26), 6), round(0.5 + 0.001 * math.sin(i * 0.26), 6)] for i in range(25)]
+    bad = {
+        "not json": b"nope",
+        "no list": json.dumps({"x": 1}).encode(),
+        "two corners": json.dumps({"a": [{"n": "x", "p": good[:2]}]}).encode(),
+        "latitude 91": json.dumps({"a": [{"n": "x", "p": [[91, 0.5], [51.6, 0.5], [51.6, 0.6]]}]}).encode(),
+        "26 areas": json.dumps({"a": [{"n": "x", "p": good}] * 26}).encode(),
+        "25 corners": json.dumps({"a": [{"n": "x", "p": many}]}).encode(),
+        "a few metres across": json.dumps({"a": [{"n": "x", "p": [[51.5, 0.5], [51.5, 0.50003], [51.50003, 0.50003]]}]}).encode(),
+    }
+    for what, body in bad.items():
+        code, raw = v._open("/api/areas", data=body, method="POST")
+        if code != 400:
+            raise Fail(f"{what}: expected 400, got {code} {raw[:60]!r}")
+    kept = v.get_json("/api/areas")["a"]
+    if len(kept) != 1 or kept[0]["n"] != "Keep":
+        raise Fail(f"refused data changed the stored areas: {kept}")
+    notes.append(f"{len(bad)} kinds of bad data refused (400) and nothing changed")
+
+    two = [{"n": "Field", "p": good}, {"n": "Zone", "k": "restricted", "p": good}, {"n": "Odd", "k": "banana", "on": False, "p": good}]
+    code, r = post_areas(v, [dict(x) for x in two])
+    if code != 200:
+        raise Fail(f"valid areas refused: {code} {r}")
+    got = v.get_json("/api/areas")["a"]
+    want = [("Field", "safe", 0, True), ("Zone", "restricted", 500, True), ("Odd", "safe", 0, False)]
+    seen = [(x["n"], x["k"], x["w"], x["on"]) for x in got]
+    if seen != want:
+        raise Fail(f"stored areas {seen}, expected {want}")
+    if any(abs(p[0] - q[0]) > 2e-6 or abs(p[1] - q[1]) > 2e-6 for x in got for p, q in zip(x["p"], good)):
+        raise Fail("the corners were not kept as sent")
+    notes.append("defaults: safe 0 m, restricted 500 m, unknown kind safe; corners kept")
+
+    st = area_status(v)
+    if "state" not in st or "rstate" not in st:
+        raise Fail(f"the status has no area state: {st}")
+    notes.append(f"status: {st}")
+
+    # a restart: the file on the vario's storage holds them
+    restart_vario(v, "areas persist")
+    again = v.get_json("/api/areas")["a"]
+    if [(x["n"], x["k"], x["w"], x["on"]) for x in again] != want:
+        raise Fail(f"after a restart the areas are {again}")
+    notes.append("kept over a restart")
+
+    code, raw = v._open("/")
+    page = raw.decode("utf-8", "replace")
+    for needle in ('data-tab="area"', '>Areas</button>', 'id="areaKind"', 'id="areaWarn"', 'id="areaPts"', "Add corner at cross",
+                   "leaflet.min.js", "areaCopy"):
+        if needle not in page:
+            raise Fail(f"the page has no {needle!r}")
+    if 'data-tab="area" class="needgps"' not in page:
+        raise Fail("the Areas tab is not marked as needing a GPS")
+    notes.append("page: Areas tab with the type, warning distance, corner list, cross and copy")
+
+    isolate(v, a)
+    v.sim(hasGps=0)
+    time.sleep(2)
+    hw = v.status().get("hw", {})
+    schema = json.dumps(v.get_json("/api/schema"))
+    v.sim(hasGps=1)
+    if hw.get("gps") is not False:
+        raise Fail(f"hasGps=0 did not make a vario with no GPS: {hw}")
+    if '"g":"Areas"' in schema:
+        raise Fail("a vario with no GPS lists the Areas settings")
+    time.sleep(2)
+    if '"g":"Areas"' not in json.dumps(v.get_json("/api/schema")):
+        raise Fail("a vario with a GPS does not list the Areas settings")
+    notes.append("no GPS: no Areas settings")
+    return "; ".join(notes)
+
+
+def t_areas_safe_flight(v, a):
+    """Simulated flight in and out of a safe area: 'left_area' (no turn, no distance) when leaving, 'outside_area' repeated
+    while outside, 'back_inside' on return; with a warning distance 'safe_edge' with a distance before 'left_area'."""
+    notes = []
+    v.set(safeAreaOn=True, restrictedAreaOn=True, safeAreaRepeatS=20)
+    airborne(v, hdg=0, air=10, wfrom=0, wspd=0)
+    lat0, lon0 = sim_pos(v)
+    # 300 m either side, 400 m behind and 250 m ahead of the aircraft, which flies north at 10 m/s
+    code, r = post_areas(v, [area_rect(lat0, lon0, "safe", 0, -300, -400, 300, 250, "Field")])
+    if code != 200:
+        raise Fail(f"area refused: {r}")
+    time.sleep(2)
+    st = area_status(v)
+    if st.get("state") != "inside":
+        raise Fail(f"inside the area the status says {st}")
+    m = v.mark()
+    t0 = time.time()
+    line, _ = v.expect("SAY", r"\[high\] left_area", m, timeout=45, what="leaving the safe area")
+    took = time.time() - t0
+    if re.search(r"turn|oclock|metres", line.msg):
+        raise Fail(f"leaving the safe area was said with directions or a distance: {line.msg}")
+    if not 12 <= took <= 40:
+        raise Fail(f"left the area (250 m ahead at 10 m/s) after {took:.0f} s, expected about 25")
+    if area_status(v).get("state") != "outside":
+        raise Fail(f"after leaving the status says {area_status(v)}")
+    notes.append(f"left after {took:.0f} s: '{line.msg}'")
+    m2 = v.mark()
+    v.expect("SAY", r"\[high\] outside_area\|~400$", m2, timeout=30, what="'outside the safe area' repeated about 20 s later")
+    notes.append("repeated while outside")
+    v.sim(hdg=180)
+    m3 = v.mark()
+    v.expect("SAY", r"\[high\] back_inside", m3, timeout=70, what="back inside the safe area")
+    if area_status(v).get("state") not in ("inside", "edge"):
+        raise Fail(f"back inside the status says {area_status(v)}")
+    notes.append("back inside announced")
+
+    # with a warning distance: told near the edge, without a direction
+    lat1, lon1 = sim_pos(v)
+    code, r = post_areas(v, [area_rect(lat1, lon1, "safe", 150, -300, -500, 300, 300, "Field")])
+    if code != 200:
+        raise Fail(f"area refused: {r}")
+    v.sim(hdg=0)
+    m4 = v.mark()
+    el, _ = v.expect("SAY", r"\[high\] safe_edge\|~700", m4, timeout=40, what="near the edge of the safe area")
+    if "metres" not in el.msg or re.search(r"turn|oclock", el.msg):
+        raise Fail(f"the edge warning should give a distance and no turn: {el.msg}")
+    ll, _ = v.expect("SAY", r"\[high\] left_area", m4, timeout=40, what="leaving after the edge warning")
+    if ll.t < el.t:
+        raise Fail("left_area came before safe_edge")
+    notes.append(f"edge warning first: '{el.msg}'")
+    return "; ".join(notes)
+
+
+def t_areas_restricted_flight(v, a):
+    """Simulated flight at a restricted area: a warning with the turn about 400 m ahead, again every 10 s, 'in_restricted' with the
+    way out after entering; then the pilot turns as told and the track does not enter it."""
+    notes = []
+    v.set(safeAreaOn=True, restrictedAreaOn=True, restrictedRepeatS=10)
+    airborne(v, hdg=0, air=10, wfrom=0, wspd=0)
+    lat0, lon0 = sim_pos(v)
+    # 400 m wide, 300 m deep, starting 700 m ahead of the aircraft (flying north at 10 m/s); warn 400 m ahead
+    E0, E1, N0, N1 = -200, 200, 700, 1000
+    code, r = post_areas(v, [area_rect(lat0, lon0, "restricted", 400, E0, N0, E1, N1, "Zone")])
+    if code != 200:
+        raise Fail(f"area refused: {r}")
+
+    def inside_zone():
+        e, n = rel_pos(v, lat0, lon0)
+        return E0 <= e <= E1 and N0 <= n <= N1, e, n
+
+    m = v.mark()
+    t0 = time.time()
+    line, _ = v.expect("SAY", r"\[high\] restricted_area\|~600 ", m, timeout=50, what="a restricted area ahead")
+    took = time.time() - t0
+    if "metres" not in line.msg or not re.search(r"turn_(right|left)\|turn_(right|left)_now", line.msg) or "oclock" not in line.msg:
+        raise Fail(f"the warning ahead has no distance and turn: {line.msg}")
+    if "in_restricted" in line.msg:
+        raise Fail(f"said 'in restricted' before entering: {line.msg}")
+    if not 20 <= took <= 40:
+        raise Fail(f"warned after {took:.0f} s; 400 m ahead of an area 700 m away at 10 m/s is about 30 s")
+    notes.append(f"{took:.0f} s in: '{line.msg}'")
+    # ignore it, as a pilot might: it repeats, then says it is inside
+    m2 = v.mark()
+    v.expect("SAY", r"\[high\] restricted_area\|~600 ", m2, timeout=16, what="the warning repeated about 10 s later")
+    inl, _ = v.expect("SAY", r"\[high\] in_restricted\|restricted_area\|~600", m2, timeout=60, what="inside the restricted area")
+    mm = re.search(r"n(\d+) oclock", inl.msg)
+    if not mm or int(mm.group(1)) not in (5, 6, 7) or "turn_" not in inl.msg:
+        raise Fail(f"inside the area (entered from the south, nearest edge behind): expected a turn to about 6 o'clock: {inl.msg}")
+    if area_status(v).get("rstate") != "inside":
+        raise Fail(f"inside the area the status says {area_status(v)}")
+    notes.append(f"inside: '{inl.msg}'")
+    # do as it says: turn back out
+    v.sim(hdg=180)
+    for _ in range(60):
+        time.sleep(1)
+        if area_status(v).get("rstate") != "inside":
+            break
+    else:
+        raise Fail("still 'inside' 60 s after turning round")
+    time.sleep(12)  # a little way clear of it
+    notes.append("out again after turning as told")
+
+    # head for it again, and this time do as the warning says
+    v.sim(hdg=0)
+    m3 = v.mark()
+    line2, _ = v.expect("SAY", r"\[high\] restricted_area\|~600 ", m3, timeout=50, what="a restricted area ahead, second approach")
+    cm = re.search(r"n(\d+) oclock", line2.msg)
+    right = "turn_right" in line2.msg
+    if not cm:
+        raise Fail(f"no clock position in the warning: {line2.msg}")
+    rel = (int(cm.group(1)) % 12) * 30
+    hdg = rel if right else (360 - rel) % 360
+    v.sim(hdg=hdg)
+    entered = False
+    for _ in range(45):
+        time.sleep(1)
+        ins, e, n = inside_zone()
+        if ins:
+            entered = True
+            break
+    if entered:
+        raise Fail(f"after turning {'right' if right else 'left'} to {cm.group(1)} o'clock (heading {hdg}) the aircraft still entered the area at {e:.0f} E, {n:.0f} N")
+    notes.append(f"obeyed '{'right' if right else 'left'} to {cm.group(1)} o'clock': stayed out for 45 s")
+    return "; ".join(notes)
+
+
+
+def t_areas_fast_wind(v, a):
+    """50 mph (22.4 m/s) over the ground in a strong tailwind, with 25 areas stored (24 of them far away, so looked at only now and
+    then): the restricted area ahead is still warned of at its warning distance, and the aircraft is not in it when told."""
+    v.set(safeAreaOn=True, restrictedAreaOn=True, restrictedRepeatS=10)
+    airborne(v, hdg=0, air=10, wfrom=0, wspd=0)
+    v.sim(windFrom=180, windSpd=12.4)  # from the south: a tailwind for a northbound aircraft
+    time.sleep(6)
+    s = v.get_json("/api/sim")
+    gs = float(s["speed"])
+    if not 21.0 <= gs <= 23.5:
+        raise Fail(f"the simulated ground speed is {gs:.1f} m/s, expected about 22.4 (50 mph)")
+    lat0, lon0 = sim_pos(v)
+    E0, E1, N0, N1 = -250, 250, 1800, 2300
+    areas = [area_rect(lat0, lon0 + 0.3 + 0.01 * i, "restricted", 500, 0, 0, 400, 400, f"Far {i}") for i in range(24)]
+    areas.append(area_rect(lat0, lon0, "restricted", 500, E0, N0, E1, N1, "Zone"))
+    code, r = post_areas(v, areas)
+    if code != 200:
+        raise Fail(f"25 areas refused: {code} {r}")
+    if len(v.get_json("/api/areas")["a"]) != 25:
+        raise Fail("25 areas were not all kept")
+    m = v.mark()
+    line, _ = v.expect("SAY", r"\[high\] restricted_area\|~600 ", m, timeout=90, what="the restricted area ahead at 50 mph")
+    e, n = rel_pos(v, lat0, lon0)
+    left = N0 - n
+    if not 380 <= left <= 540:
+        raise Fail(f"warned with {left:.0f} m to go; the warning distance is 500 m: {line.msg}")
+    if "in_restricted" in line.msg or "metres" not in line.msg:
+        raise Fail(f"the warning ahead: {line.msg}")
+    # ignoring it, it is told it is inside, and the track really did enter
+    v.expect("SAY", r"\[high\] in_restricted", m, timeout=60, what="inside the restricted area at 50 mph")
+    v.sim(windSpd=0, hdg=180)
+    return f"ground speed {gs:.1f} m/s, 25 areas: warned {left:.0f} m short of the area (warning distance 500 m): '{line.msg}'"
+
 
 TESTS = [
     ("boot", t_boot), ("settings", t_settings), ("vario_climb", t_vario_climb),
@@ -4897,7 +5186,33 @@ TESTS = [
     ("ui_flight", t_ui_flight), ("ui_pilot", t_ui_pilot), ("ui_layout", t_ui_layout), ("ui_actions", t_ui_actions), ("ui_guidance", t_ui_guidance),
     ("ui_settings", t_ui_settings), ("ui_spectrum", t_ui_spectrum), ("spectrum_setting", t_spectrum_setting), ("ui_system", t_ui_system), ("ui_help", t_ui_help),
     ("ota_guard", t_ota_guard), ("memory", t_memory),
+    ("areas_logic", t_areas_logic), ("areas_api", t_areas_api), ("areas_safe_flight", t_areas_safe_flight),
+    ("areas_restricted_flight", t_areas_restricted_flight), ("areas_fast_wind", t_areas_fast_wind),
 ]
+
+# The test build comes in three parts (see src/test/UnitTest.h): each has a third of the on-device unit suites, and so each can run only
+# the tests whose suites it holds. Every other test is in exactly one part too, so the three runs together are one full run (about 40
+# minutes each). tools/hil_parts.py builds, uploads and runs them in turn.
+PARTS = {
+    1: ["boot", "settings", "vario_climb", "vario_sink", "vario_thresholds", "vario_logic", "mute", "auto_volume", "rpm_logic", "rpm",
+        "rpm_speech", "rpm_glitch", "geo_logic", "circuit_logic", "height_logic", "moving_logic", "status_logic", "wind", "circuit_events",
+        "circuit_right", "fault_baro", "factory_reset", "glide", "soak", "ui_flight", "ui_pilot", "ui_actions", "areas_restricted_flight"],
+    2: ["wind_logic", "battery_logic", "alerts_logic", "resume_logic", "ble_info", "voice_pack", "igc_two_flights", "vario_only_flying",
+        "maint_retry", "log_list_memory", "net_trail", "stalled_client", "igc_segments", "igc_room", "ui_replay", "height_trace", "maint_voice",
+        "names_default", "landing_gps_quality", "wind_faults", "circuit_slow_pilot", "landing_hover", "wind_change", "battery_flight",
+        "fault_gps", "ui_layout", "ui_guidance", "areas_api", "areas_safe_flight", "areas_fast_wind"],
+    3: ["flight_logic", "button_logic", "audio_logic", "rpmtrack_logic", "baro_logic", "areas_logic", "resume_flight", "memory_events",
+        "circuit_left_wind", "baro_only", "flight", "alerts_flight", "variant_no_gps", "fault_battery", "guidance", "gps_states", "battery",
+        "battery_learner", "speech", "volume_ramp", "variant_no_mic", "gps_detect", "button_actions", "ui_settings", "ui_spectrum",
+        "spectrum_setting", "ui_system", "ui_help", "ota_guard", "memory"],
+}
+# The unit suites in each part (the same split as PV_UNIT_PART in src/test/UnitTest.cpp); None = a build with all of them.
+PART_SUITES = {1: ("geo", "circuit", "status", "rpm", "moving", "height"), 2: ("wind", "battery", "alerts", "resume"),
+               3: ("flight", "baro", "button", "rpmtrack", "audio", "areas"), None: ("geo", "wind", "battery")}
+_all = [n for n, _ in TESTS]
+_in_parts = [n for p in PARTS.values() for n in p]
+assert sorted(_all) == sorted(_in_parts), ("tests not in exactly one part", set(_all) ^ set(_in_parts),
+                                           [n for n in set(_in_parts) if _in_parts.count(n) > 1])
 
 
 # Tests during which the log legitimately loses lines (the vario restarts, so its log ring starts again).
@@ -4971,13 +5286,16 @@ def main():
     ap.add_argument("--volume", type=int, default=20, help="speech and vario volume during the tests (%%)")
     ap.add_argument("--memory", action="store_true", help="print the vario's free memory after each test")
     ap.add_argument("--soak-minutes", type=int, default=10, help="length of the soak test's flight (default 10)")
+    ap.add_argument("--part", type=int, choices=(1, 2, 3), help="run only the tests of this part of the test build (env test_1, test_2, test_3)")
+    ap.add_argument("--delete-logs", action="store_true", help="delete the flight logs the tests made (by default they stay on the vario)")
+    ap.add_argument("--save-logs", metavar="DIR", help="copy the flight logs the tests made to this folder (they hold the vario's GPS position: do not commit them)")
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--shuffle", nargs="?", const=-1, type=int, metavar="SEED", help="run the selected tests in a random order "
                     "(to show that they do not depend on each other); the seed is printed so a failing order can be repeated")
     ap.add_argument("-v", "--verbose", action="store_true", help="print every log line received")
     a = ap.parse_args()
     tests = [(n, f) for n, f in TESTS if (not a.names or any(w in n for w in a.names))
-             and (a.ui or not n.startswith("ui_"))]
+             and (a.ui or not n.startswith("ui_")) and (not a.part or n in PARTS[a.part])]
     unmatched = [w for w in a.names if not any(w in n for n, _ in TESTS)]
     if unmatched or not tests:
         known = ", ".join(n for n, _ in TESTS)
@@ -5004,6 +5322,12 @@ def main():
           f"{'' if a.audio else ', microphone checks off'}")
     v.heap_start = st["heap"]
     saved = v.settings()
+    # The pilot's own areas: kept in a file here as well, so that a run that dies cannot lose them. Put back at the end.
+    saved_areas = v.get_json("/api/areas")
+    areas_file = os.path.join(tempfile.gettempdir(), "paravario_areas_backup.json")
+    with open(areas_file, "w", encoding="utf-8") as f:
+        json.dump(saved_areas, f)
+    print(f"The vario's {len(saved_areas.get('a', []))} stored area(s) are kept in {areas_file} and put back at the end.")
     logs_before = {f["n"] for f in v.get_json("/api/logs")["files"]}
     results = []
     touched = []  # tests during which something other than the harness was using the vario
@@ -5075,14 +5399,27 @@ def main():
         step("simulation off", lambda: v.sim(off=1))
         step("flight logic reset", lambda: v.sim(reset=1))
         step("settings restored", lambda: v.set(**saved))
+        step("areas restored", lambda: post_areas(v, saved_areas.get("a", [])))
 
-        def delete_stray():
-            stray = [f["n"] for f in v.get_json("/api/logs")["files"] if f["n"] not in logs_before]
-            for fname in stray:  # IGC files a failed test left behind
-                v._open("/api/log?name=" + urllib.parse.quote(fname), method="DELETE")
-            cleanup.append((f"{len(stray)} leftover test log(s) deleted", None)) if stray else None
+        def keep_stray():
+            new = [f["n"] for f in v.get_json("/api/logs")["files"] if f["n"] not in logs_before]
+            if a.delete_logs:
+                for fname in new:
+                    v._open("/api/log?name=" + urllib.parse.quote(fname), method="DELETE")
+                cleanup.append((f"{len(new)} test flight log(s) deleted", None)) if new else None
+                return
+            saved_to = ""
+            if a.save_logs and new:
+                os.makedirs(a.save_logs, exist_ok=True)
+                for fname in new:
+                    code, body = v._open("/api/log?name=" + urllib.parse.quote(fname))
+                    if code == 200:
+                        with open(os.path.join(a.save_logs, fname), "wb") as f:
+                            f.write(body)
+                saved_to = f" and copied to {a.save_logs}"
+            cleanup.append((f"{len(new)} test flight log(s) kept on the vario{saved_to}", None)) if new else None
 
-        step("leftover test logs", delete_stray)
+        step("test flight logs", keep_stray)
         if reloads:
             print(f"Note: the web page came up without its settings {reloads} time(s) and was reloaded.")
         bad = [(l, e) for l, e in cleanup if e]

@@ -55,6 +55,7 @@ float wrapDiff(float a, float b) { return fabsf(geo::wrap180(a - b)); }
 }  // namespace
 
 // ---------------------------------------------------------------------------------------------- geo
+#if PV_UNIT_HAS(1)
 void geoUnitSuite(UnitReport& r) {
   using namespace geo;
   r.near(wrap360(0), 0, 1e-4f, "wrap360(0)");
@@ -109,6 +110,7 @@ void geoUnitSuite(UnitReport& r) {
   r.check(clockFace(14.9f) == 12 && clockFace(15.1f) == 1, "clock boundary at 15 deg: %d %d", clockFace(14.9f), clockFace(15.1f));
   r.check(clockFace(359) == 12, "clock 359 -> %d", clockFace(359));
 }
+#endif
 
 // ---------------------------------------------------------------------------------------------- wind
 namespace {
@@ -147,6 +149,7 @@ struct WindRig {
 
 }  // namespace
 
+#if PV_UNIT_HAS(2)
 void windUnitSuite(UnitReport& r) {
   CfgGuard guard;
   g_cfg.windManual = false;
@@ -319,6 +322,7 @@ void windUnitSuite(UnitReport& r) {
     r.near(w.fromDeg(), 90, 0.001f, "manual from");
   }
 }
+#endif
 
 // ---------------------------------------------------------------------------------------------- circuit
 namespace {
@@ -365,6 +369,7 @@ struct CircuitRig {
 
 }  // namespace
 
+#if PV_UNIT_HAS(1)
 void circuitUnitSuite(UnitReport& r) {
   CfgGuard guard;
   audio::testCapture(true);
@@ -695,8 +700,10 @@ void circuitUnitSuite(UnitReport& r) {
   }
   audio::testCapture(false);
 }
+#endif
 
 // ---------------------------------------------------------------------------------------------- battery
+#if PV_UNIT_HAS(2)
 void batteryUnitSuite(UnitReport& r) {
   CfgGuard guard;
   audio::testCapture(true);
@@ -849,9 +856,11 @@ void batteryUnitSuite(UnitReport& r) {
   alerts::reset();
   audio::testCapture(false);
 }
+#endif
 
 // ---------------------------------------------------------------------------------------------- flight
 // Flight::looksStill(speedOk, speedMs, landingSpeedMs, baroOk, varioMs, aglM, maxAglM)
+#if PV_UNIT_HAS(3)
 void flightUnitSuite(UnitReport& r) {
   const float kLand = 1.4f, kMaxAgl = 15.0f;
   auto still = [&](bool speedOk, float gs, bool baroOk, float vz, float agl) {
@@ -922,8 +931,10 @@ void flightUnitSuite(UnitReport& r) {
   r.check(!gpsCoordsValid(0.0, 0.0), "0, 0 accepted");
   r.check(gpsCoordsValid(0.0, 0.000001) && gpsCoordsValid(0.000001, 0.0), "a point on the equator or the meridian rejected");
 }
+#endif
 
 // ---------------------------------------------------------------------------------------------- baro
+#if PV_UNIT_HAS(3)
 void baroUnitSuite(UnitReport& r) {
   using V = BaroGuard::Verdict;
   r.check(BaroGuard::pressureValid(101325.0f), "sea level pressure invalid");
@@ -1050,8 +1061,10 @@ void baroUnitSuite(UnitReport& r) {
     r.check(bad == 0, "frozen reading reported with the check switched off");
   }
 }
+#endif
 
 // ---------------------------------------------------------------------------------------------- rpmtrack
+#if PV_UNIT_HAS(3)
 void rpmTrackUnitSuite(UnitReport& r) {
   struct Rig {
     RpmTracker t;
@@ -1168,6 +1181,7 @@ void rpmTrackUnitSuite(UnitReport& r) {
     r.near(g.t.rpm(), 0, 0.01f, "reading after 17 s of 'speech'");
   }
 }
+#endif
 
 // ---------------------------------------------------------------------------------------------- button
 namespace {
@@ -1201,6 +1215,7 @@ struct ButtonScript {
 
 }  // namespace
 
+#if PV_UNIT_HAS(3)
 void buttonUnitSuite(UnitReport& r) {
   char s[24];
   const uint32_t kGap = ButtonDecoder::kGapMs;
@@ -1402,8 +1417,10 @@ void buttonUnitSuite(UnitReport& r) {
     r.check(f.at(ButtonEvent::None, true, 2100, false) == FR::Action::Cancelled, "reset while flying");
   }
 }
+#endif
 
 // ---------------------------------------------------------------------------------------------- height trace
+#if PV_UNIT_HAS(1)
 void heightUnitSuite(UnitReport& r) {
   HeightHistory h;
   int16_t out[HeightHistory::kSamples];
@@ -1452,8 +1469,10 @@ void heightUnitSuite(UnitReport& r) {
   for (int i = 0; i < 400; ++i) k.update(2000u * (uint32_t)(i + 1), 10.0f + (i % 5), true);
   r.check(k.copy(out) == HeightHistory::kSamples, "ring holds %d samples, expected %d", k.copy(out), HeightHistory::kSamples);
 }
+#endif
 
 // ---------------------------------------------------------------------------------------------- direction arrows
+#if PV_UNIT_HAS(1)
 void movingUnitSuite(UnitReport& r) {
   const float show = 2.0f, hide = 1.0f;
   const uint32_t hold = 3000;
@@ -1507,8 +1526,10 @@ void movingUnitSuite(UnitReport& r) {
   c.update(1000, true, 2.5f, 2.0f, 3.0f, 0);
   r.check(c.on(), "hide limit above the show limit: arrows not on at 2.5 with show 2.0");
 }
+#endif
 
 // ---------------------------------------------------------------------------------------------- status ("tell me")
+#if PV_UNIT_HAS(1)
 void statusUnitSuite(UnitReport& r) {
   CfgGuard guard;
   audio::testCapture(true);
@@ -1586,9 +1607,11 @@ void statusUnitSuite(UnitReport& r) {
           said(0).c_str());
   audio::testCapture(false);
 }
+#endif
 
 // ---------------------------------------------------------------------------------------------- alerts
 // What the battery and barometer warnings say, and when. (When the battery calls are made is in the battery suite.)
+#if PV_UNIT_HAS(2)
 void alertsUnitSuite(UnitReport& r) {
   CfgGuard guard;
   g_cfg.gpsMode = GPS_ALWAYS;  // the messages depend on there being a GPS
@@ -1739,10 +1762,12 @@ void alertsUnitSuite(UnitReport& r) {
   alerts::reset();
   audio::testCapture(false);
 }
+#endif
 
 // ---------------------------------------------------------------------------------------------- resume
 // resumeDecide(): when a flight saved in the air is believed again at power-up. Expectations are written out from the
 // rules, with distances computed here and not by the code under test.
+#if PV_UNIT_HAS(2)
 void resumeUnitSuite(UnitReport& r) {
   using V = ResumeVerdict;
   ResumeParams p;
@@ -1801,9 +1826,11 @@ void resumeUnitSuite(UnitReport& r) {
   // the order of the checks: no time is reported before the position, and age before position
   r.check(verdict(1000000 + 24 * 3600, at(900000), 0.5, 0) == V::Stale, "stale record, far away and still: not 'stale'");
 }
+#endif
 
 // ---------------------------------------------------------------------------------------------- audio
 // What is queued for an utterance: the signal tone before urgent calls.
+#if PV_UNIT_HAS(3)
 void audioUnitSuite(UnitReport& r) {
   using audio::Priority;
   using audio::Utterance;
@@ -1883,5 +1910,6 @@ void audioUnitSuite(UnitReport& r) {
     audio::testCapture(false);
   }
 }
+#endif
 
 #endif

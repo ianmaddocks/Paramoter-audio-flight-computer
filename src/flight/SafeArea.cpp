@@ -3,6 +3,8 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 
+#include <new>
+
 #include "Log.h"
 #include "SafeAreaGeo.h"
 #include "Settings.h"
@@ -20,6 +22,10 @@ constexpr float kCloseM = 25.0f;        // this close to a restricted area, movi
 constexpr float kMinSpeedMs = 3.0f;     // below this there is no direction of travel to turn from
 constexpr float kMaxExtentM = 100000.0f;
 constexpr float kMinAreaM2 = 100.0f;
+constexpr size_t kMaxFileBytes = 16384;  // 25 areas of 24 corners
+constexpr float kFarM = 100.0f;          // an area more than this beyond its warning distance is not looked at every time
+constexpr float kMaxSpeedMs = 40.0f;     // the fastest the pilot could close in on it (so the look is never later than the earliest arrival)
+constexpr uint32_t kMaxLookMs = 60000;   // ...and never longer than a minute apart
 constexpr uint8_t kConfirm = 2;  // evaluations (half a second each) on the same side in a row before a change is believed: GPS noise on an edge
 
 // A stored corner in the local frame around (lat0, lon0).
@@ -33,23 +39,26 @@ void SafeArea::begin() {
   File f = LittleFS.open(kFile, "r");
   if (!f) return;
   const size_t len = f.size();
-  if (len == 0 || len > 4096) {
+  if (len == 0 || len > kMaxFileBytes) {
     f.close();
     return;
   }
   String s = f.readString();
   f.close();
-  Area tmp[kMaxAreas];
+  Area* tmp = nullptr;
+  int n = 0;
   const char* err = nullptr;
-  if (!parse(s.c_str(), tmp, &err)) {
+  if (!parse(s.c_str(), tmp, n, &err)) {
     LOGW("SAF", "Stored safe areas not used: %s", err ? err : "?");
     return;
   }
-  for (int i = 0; i < kMaxAreas; ++i) areas_[i] = tmp[i];
+  adopt(tmp, n);
   LOGI("SAF", "%d safe and %d restricted area(s) loaded", safeCount(), restrictedCount());
 }
 
-bool SafeArea::parse(const char* json, Area* out, const char** err) {
+bool SafeArea::parse(const char* json, Area*& result, int& count, const char** err) {
+  result = nullptr;
+  count = 0;
   JsonDocument doc;
   if (deserializeJson(doc, json) != DeserializationError::Ok || !doc["a"].is<JsonArray>()) {
     *err = "not valid JSON";
@@ -60,10 +69,23 @@ bool SafeArea::parse(const char* json, Area* out, const char** err) {
     *err = "too many areas";
     return false;
   }
+  Area* out = arr.size() ? new (std::nothrow) Area[arr.size()] : nullptr;
+  if (arr.size() && !out) {
+    *err = "out of memory";
+    return false;
+  }
   int na = 0;
+  struct Free {  // the areas are not handed on unless all of them are good
+    Area* p;
+    bool keep;
+    explicit Free(Area* a) : p(a), keep(false) {}
+    ~Free() {
+      if (!keep) delete[] p;
+    }
+  };
+  Free guard(out);
   for (JsonObject a : arr) {
     Area& ar = out[na];
-    ar = Area();
     strlcpy(ar.name, a["n"] | "", sizeof(ar.name));
     for (char* c = ar.name; *c; ++c)
       if (*c == '"' || *c == '\\' || (uint8_t)*c < 32) *c = ' ';
@@ -109,25 +131,30 @@ bool SafeArea::parse(const char* json, Area* out, const char** err) {
     }
     ++na;
   }
-  for (int i = na; i < kMaxAreas; ++i) out[i] = Area();
+  guard.keep = true;
+  result = out;
+  count = na;
   return true;
 }
 
 bool SafeArea::setFromJson(const char* json, const char** err) {
   static const char* none = "";
   if (!err) err = &none;
-  Area tmp[kMaxAreas];
-  if (!parse(json, tmp, err)) return false;
-  Area keep[kMaxAreas];
-  for (int i = 0; i < kMaxAreas; ++i) {
-    keep[i] = areas_[i];
-    areas_[i] = tmp[i];
-  }
+  Area* tmp = nullptr;
+  int n = 0;
+  if (!parse(json, tmp, n, err)) return false;
+  Area* keep = areas_;  // put back if the file cannot be written
+  const int keepN = nAreas_;
+  areas_ = tmp;
+  nAreas_ = n;
   if (!save()) {
-    for (int i = 0; i < kMaxAreas; ++i) areas_[i] = keep[i];
+    areas_ = keep;
+    nAreas_ = keepN;
+    delete[] tmp;
     *err = "could not store the areas";
     return false;
   }
+  delete[] keep;
   reset();
   LOGI("SAF", "%d safe and %d restricted area(s) stored", safeCount(), restrictedCount());
   return true;
@@ -136,7 +163,8 @@ bool SafeArea::setFromJson(const char* json, const char** err) {
 void SafeArea::toJson(String& out) const {
   out = "{\"a\":[";
   bool firstArea = true;
-  for (const Area& a : areas_) {
+  for (int ai = 0; ai < nAreas_; ++ai) {
+    const Area& a = areas_[ai];
     if (a.n == 0) continue;
     if (!firstArea) out += ',';
     firstArea = false;
@@ -170,8 +198,8 @@ bool SafeArea::save() const {
 
 int SafeArea::count(Kind k) const {
   int c = 0;
-  for (const Area& a : areas_)
-    if (a.n >= 3 && a.on && a.kind == k) ++c;
+  for (int i = 0; i < nAreas_; ++i)
+    if (areas_[i].n >= 3 && areas_[i].on && areas_[i].kind == k) ++c;
   return c;
 }
 
@@ -181,6 +209,7 @@ void SafeArea::reset() {
   edgeM_ = rDistM_ = -1;
   outsideCount_ = insideCount_ = rInsideCount_ = 0;
   lastSpokeMs_ = lastRSpokeMs_ = 0;
+  lookAgain();
 }
 
 const char* SafeArea::restrictedStateName() const {
@@ -204,6 +233,7 @@ namespace {
 // "Turn right to 2 o'clock": the turn to the heading `target`, from the track.
 void adviseTurn(Utterance& u, float target, float track) {
   const float rel = safearea::wrap180(target - track);
+  if (fabsf(rel) < 10.0f) return;  // already going that way: nothing to turn
   u.add(rel > 0 ? "turn_right|turn_right_now" : "turn_left|turn_left_now");
   speech::addClock(u, rel);
 }
@@ -214,6 +244,7 @@ void SafeArea::update(const NavState& nav, bool guidanceActive) {
     state_ = State::None;
     rstate_ = RState::Clear;
     edgeM_ = rDistM_ = -1;
+    lookAgain();  // the position will have moved on by the time there is a fix again
     return;
   }
   if (nav.ms - lastEvalMs_ < kEvalMs) return;
@@ -232,15 +263,36 @@ void SafeArea::update(const NavState& nav, bool guidanceActive) {
   float rExitDist = 1e30f;
   Pt rExitAt = {0, 0};  // its nearest edge
   float rAhead = -1;    // the nearest restricted area the track runs into within its warning distance
-  uint16_t rAheadWarn = 0;
   Pt rBuf[kMaxPoints];
   int rN = 0;
-  for (const Area& a : areas_) {
+  for (int ai = 0; ai < nAreas_; ++ai) {
+    Area& a = areas_[ai];
     if (a.n < 3 || !a.on) continue;
     Pt buf[kMaxPoints];
-    for (int i = 0; i < a.n; ++i) buf[i] = local(a.lat[i], a.lon[i], nav.lat, nav.lon, c0);
-    const safearea::Near nr = safearea::nearest(buf, a.n, 0, 0);
-    const bool in = safearea::contains(buf, a.n, 0, 0);
+    safearea::Near nr;
+    bool in;
+    const bool fresh = nav.ms >= a.nextMs;
+    if (fresh) {
+      for (int i = 0; i < a.n; ++i) buf[i] = local(a.lat[i], a.lon[i], nav.lat, nav.lon, c0);
+      nr = safearea::nearest(buf, a.n, 0, 0);
+      in = safearea::contains(buf, a.n, 0, 0);
+      // An area well clear of the pilot (and of its warning distance) cannot matter until the pilot could have flown there: look again then
+      const float slack = nr.dist - (float)a.warnM;
+      a.nextMs = 0;
+      if (slack > kFarM && !(in && a.kind == Restricted)) {
+        const float s = fminf(slack / kMaxSpeedMs * 1000.0f, (float)kMaxLookMs);
+        a.nextMs = nav.ms + (uint32_t)s;
+        if (a.nextMs == 0) a.nextMs = 1;
+      }
+      a.in = in;
+      a.dist = nr.dist;
+      a.atE = nr.at.e;
+      a.atN = nr.at.n;
+    } else {  // the last look still stands
+      in = a.in;
+      nr.dist = a.dist;
+      nr.at = {a.atE, a.atN};
+    }
     if (a.kind == Safe) {
       if (in) {
         const float margin = nr.dist - a.warnM;  // how far inside the warning distance: the area the pilot is safest in counts
@@ -261,11 +313,11 @@ void SafeArea::update(const NavState& nav, bool guidanceActive) {
       }
     } else if (a.warnM > 0) {
       float ahead = -1;
-      if (moving) ahead = safearea::rayHit(buf, a.n, 0, 0, dir.e, dir.n, (float)a.warnM);
-      if (ahead < 0 && nr.dist < kCloseM && nav.speedMs > 1.0f) ahead = nr.dist;  // right beside it
+      if (moving && fresh) ahead = safearea::rayHit(buf, a.n, 0, 0, dir.e, dir.n, (float)a.warnM);
+      // right beside it, and not moving away from it
+      if (ahead < 0 && fresh && nr.dist < kCloseM && nav.speedMs > 1.0f && dir.e * nr.at.e + dir.n * nr.at.n > 0) ahead = nr.dist;
       if (ahead >= 0 && (rAhead < 0 || ahead < rAhead)) {
         rAhead = ahead;
-        rAheadWarn = a.warnM;
         rN = a.n;
         for (int i = 0; i < a.n; ++i) rBuf[i] = buf[i];
       }
@@ -354,8 +406,20 @@ void SafeArea::update(const NavState& nav, bool guidanceActive) {
   } else {
     u.add("restricted_area|~600");
     speech::addDistance(u, rAhead);
-    if (moving) adviseTurn(u, safearea::escapeHeading(rBuf, rN, nav.trackDeg, (float)rAheadWarn), nav.trackDeg);
+    if (moving) adviseTurn(u, safearea::avoidHeading(rBuf, rN, nav.trackDeg), nav.trackDeg);
     LOGI("SAF", "restricted area ahead: %.0f m, track %.0f", rAhead, nav.trackDeg);
   }
   audio::say(u);
 }
+
+#if PV_TEST
+bool SafeArea::testSet(const char* json) {
+  Area* tmp = nullptr;
+  int n = 0;
+  const char* err = nullptr;
+  if (!parse(json, tmp, n, &err)) return false;
+  adopt(tmp, n);
+  reset();
+  return true;
+}
+#endif

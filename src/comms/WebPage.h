@@ -1069,10 +1069,10 @@ function areaList(){
     bs.append(areaBtn('Edit',()=>areaEdit(i)),' ',areaBtn('Copy',()=>areaCopy(i)),' ',areaBtn('Delete',()=>{if(confirm('Delete '+a.n+'?')){aAreas.splice(i,1);if(aIdx===i)areaCancel();areaPost().then(areaLoad)}}));
     d.append(lab,bs);el.append(d);
   });
-  if(aAreas.length<3){const p=document.createElement('p');p.append(areaBtn('New area',()=>areaEdit(-1)));el.append(p)}
+  if(aAreas.length<25){const p=document.createElement('p');p.append(areaBtn('New area',()=>areaEdit(-1)));el.append(p)}
 }
 function areaCopy(i){
-  if(aAreas.length>=3){toast('At most 3 areas');return}
+  if(aAreas.length>=25){toast('At most 25 areas');return}
   const a=aAreas[i];
   aAreas.push({n:(a.n+' copy').slice(0,23),on:a.on,k:a.k||'safe',w:a.w||0,p:a.p.map(p=>p.slice())});
   areaPost().then(areaLoad);

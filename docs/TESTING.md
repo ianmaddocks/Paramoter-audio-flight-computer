@@ -6,18 +6,29 @@ sets up each situation and checks what the firmware did.
 
 ## Running
 
-1. Flash the test build (debug build plus the simulation, off until a test switches it on):
+The test build holds the simulation (off until a test switches it on) and the on-device unit suites. The suites no longer fit the update slot
+all together (the full `pio run -e test` image is about 30 kB too big), so the test build comes in **three parts**: the PlatformIO
+environments `test_1`, `test_2` and `test_3`, each with a third of the unit suites (`PV_UNIT_PART`, `src/test/UnitTest.h`). Every test belongs to
+exactly one part (`PARTS` in `tools/hil_test.py`; `python tools/hil_test.py --list --part 2` lists one), and the three runs together are one
+full run (about 40 minutes each).
+
+1. The whole run, one part after the other (it builds and uploads each part, waits for the vario, runs the tests, keeps the logs in a
+   temporary folder):
 
    ```
-   pio run -e test -t upload
+   python tools/hil_parts.py            # add --release to put the release build back at the end
    ```
 
-2. Run the tests (about fifteen minutes; they make noise, so a quiet room helps the microphone
-   checks):
+2. Or one part by hand (they make noise, so a quiet room helps the microphone checks):
 
    ```
-   python tools/hil_test.py
+   pio run -e test_2 -t upload
+   python tools/hil_test.py --part 2
    ```
+
+The flight logs the tests make stay on the vario (`--delete-logs` removes them) and are copied to `results/hil_parts/igc` after each part, with the
+console log of each part in `results/hil_parts` (git ignores that folder). The vario's own settings are saved first and put back, and so are its stored areas (also kept in a file in the temporary folder, in case a run
+dies); the area warnings are off in every test but the area tests. The logs hold the vario's real GPS position: do not commit them.
 
 Useful options:
 

@@ -8,3 +8,6 @@ __pycache__/
 # live output of tools/net_watch.py (changes while it runs)
 results/net_watch.csv
 results/net_watch*.log
+
+# the console and flight logs of the hardware test runs (tools/hil_parts.py): they hold the vario's real GPS position
+results/hil_parts/

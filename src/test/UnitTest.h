@@ -4,6 +4,14 @@
 #include <Arduino.h>
 #include <stdarg.h>
 
+// The unit suites together no longer fit the update slot with everything else in the test build, so there are several test builds
+// (the PlatformIO environments test_1, test_2, test_3), each with its own share of the suites: PV_UNIT_PART = 1, 2 or 3 (0 = all of them).
+// A suite that is not in the build is not linked in at all (the linker drops what nothing refers to).
+#ifndef PV_UNIT_PART
+#define PV_UNIT_PART 0
+#endif
+#define PV_UNIT_HAS(part) (PV_UNIT_PART == 0 || PV_UNIT_PART == (part))
+
 // A tiny unit-test harness for the test build: suites of production functions run on the vario itself
 // (there is no host compiler for this project) when /api/sim?unit=<suite> is requested. The reply is
 // JSON {"suite":..,"pass":n,"fail":m,"failures":[..]} so the HIL runner can assert on it. Suites use
@@ -56,4 +64,5 @@ void statusUnitSuite(UnitReport& r);
 void alertsUnitSuite(UnitReport& r);
 void resumeUnitSuite(UnitReport& r);
 void audioUnitSuite(UnitReport& r);
+void areasUnitSuite(UnitReport& r);
 #endif

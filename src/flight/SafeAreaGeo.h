@@ -81,46 +81,22 @@ inline float wrap180(float d) {
   return d;
 }
 
-// The unit vector of an edge's normal that points into the polygon.
-inline Pt inwardNormal(const Pt* p, int cnt, int edge, Pt at) {
-  const Pt a = p[edge], b = p[(edge + 1) % cnt];
-  const float ex = b.e - a.e, ey = b.n - a.n, len = sqrtf(ex * ex + ey * ey);
-  if (len <= 0) return {0, 1};
-  Pt nrm = {-ey / len, ex / len};
-  if (!contains(p, cnt, at.e + nrm.e * 2.0f, at.n + nrm.n * 2.0f)) nrm = {-nrm.e, -nrm.n};
-  return nrm;
-}
-
-// The heading to turn to, from track `trackDeg`, for a pilot inside the polygon (at the origin) who is about to leave it: the smallest
-// turn, either way, after which a straight line stays inside for clearM. When no direction is clear (a small area) the one that
-// stays inside longest.
-inline float escapeHeading(const Pt* p, int cnt, float trackDeg, float clearM) {
-  for (int step = 1; step <= 36; ++step) {  // 5 degree steps out to a U-turn
-    const float turn = 5.0f * step;
-    const float right = trackDeg + turn, left = trackDeg - turn;
-    const Pt dr = unit(right), dl = unit(left);
-    const bool okR = rayHit(p, cnt, 0, 0, dr.e, dr.n, clearM) < 0;
-    const bool okL = rayHit(p, cnt, 0, 0, dl.e, dl.n, clearM) < 0;
-    if (okR || okL) {
-      if (okR && okL) {  // both clear: the side that stays inside longer
-        const float hr = rayHit(p, cnt, 0, 0, dr.e, dr.n, 1e7f), hl = rayHit(p, cnt, 0, 0, dl.e, dl.n, 1e7f);
-        const bool r = hr < 0 || (hl >= 0 && hr >= hl);
-        return r ? right : left;
-      }
-      return okR ? right : left;
-    }
+// The heading to turn to, from track `trackDeg`, for a pilot outside the polygon (at the origin) whose track runs into it: the smallest
+// turn, either way, to a heading from which a straight line never enters the polygon, with 3 degrees to spare either side so the track
+// passes clear of the corner and not along it. The turn is a whole number of clock positions (30 degrees, 60, ... 180): that is how it is
+// spoken ("turn right to 2 o'clock"), so the heading the pilot takes is the one that was tested. A tie turns right.
+inline float avoidHeading(const Pt* p, int cnt, float trackDeg) {
+  auto clear = [&](float h) {
+    const Pt d = unit(h);
+    return rayHit(p, cnt, 0, 0, d.e, d.n, 1e5f) < 0;
+  };
+  for (int step = 1; step <= 6; ++step) {  // clock positions out to a U-turn
+    const float turn = 30.0f * step;
+    const bool right = clear(trackDeg + turn - 3.0f) && clear(trackDeg + turn) && clear(trackDeg + turn + 3.0f);
+    const bool left = clear(trackDeg - turn - 3.0f) && clear(trackDeg - turn) && clear(trackDeg - turn + 3.0f);
+    if (right || left) return right ? trackDeg + turn : trackDeg - turn;
   }
-  float best = trackDeg + 180.0f, bestD = -1;
-  for (int a = 0; a < 360; a += 10) {
-    const Pt d = unit((float)a);
-    const float h = rayHit(p, cnt, 0, 0, d.e, d.n, 1e7f);
-    if (h < 0) return (float)a;
-    if (h > bestD) {
-      bestD = h;
-      best = (float)a;
-    }
-  }
-  return best;
+  return trackDeg + 180.0f;
 }
 
 // Area of a polygon, m^2 (always positive).

@@ -11,13 +11,18 @@
 // See docs/Feature_Reference.md.
 class SafeArea {
  public:
-  static constexpr int kMaxAreas = 3;
+  static constexpr int kMaxAreas = 25;
   static constexpr int kMaxPoints = 24;
   static constexpr int kNameLen = 24;
   static constexpr int kMaxWarnM = 5000;
   enum class State : uint8_t { None, Inside, Edge, Outside };         // the safe areas
   enum class RState : uint8_t { Clear, Near, Inside };               // the restricted areas
   enum Kind : uint8_t { Safe = 0, Restricted = 1 };
+
+  SafeArea() = default;
+  ~SafeArea() { delete[] areas_; }
+  SafeArea(const SafeArea&) = delete;
+  SafeArea& operator=(const SafeArea&) = delete;
 
   void begin();  // loads the stored areas
   // Replaces all the areas from the page's JSON {"a":[{"n":name,"on":true,"k":"safe","w":0,"p":[[lat,lon],...]}]} and stores them.
@@ -29,6 +34,9 @@ class SafeArea {
   // calls come first, so this stays quiet). (It also keeps the state shown on the page up to date on the ground.)
   void update(const NavState& nav, bool guidanceActive);
   void reset();  // forget the state (not the areas)
+#if PV_TEST
+  bool testSet(const char* json);  // like setFromJson, but nothing is stored: the tests must not touch the pilot's own areas
+#endif
 
   int safeCount() const { return count(Safe); }
   int restrictedCount() const { return count(Restricted); }
@@ -48,11 +56,24 @@ class SafeArea {
     uint16_t warnM = 0;
     int32_t lat[kMaxPoints] = {};  // micro-degrees
     int32_t lon[kMaxPoints] = {};
+    // what the last look found (not stored): an area far from the pilot is looked at again only when the pilot could have got there
+    bool in = false;
+    float dist = 0, atE = 0, atN = 0;
+    uint32_t nextMs = 0;
   };
-  Area areas_[kMaxAreas];
+  Area* areas_ = nullptr;  // only as many as there are (the stored areas, up to kMaxAreas)
+  int nAreas_ = 0;
+  void adopt(Area* p, int n) {
+    delete[] areas_;
+    areas_ = p;
+    nAreas_ = n;
+  }
+  void lookAgain() {
+    for (int i = 0; i < nAreas_; ++i) areas_[i].nextMs = 0;
+  }
   int count(Kind k) const;
   bool save() const;
-  static bool parse(const char* json, Area* out, const char** err);
+  static bool parse(const char* json, Area*& out, int& n, const char** err);  // out: new[], the caller owns it
 
   State state_ = State::None;
   RState rstate_ = RState::Clear;

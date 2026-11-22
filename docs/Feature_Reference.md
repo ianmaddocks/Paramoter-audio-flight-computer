@@ -855,7 +855,7 @@ Areas are places on the map that the vario knows about: **safe** areas, which yo
 
 Every corner is listed under the map, in the order they join up. Tap a corner's position to centre the map on it, use the arrows to move it up or down the list (the first has no up arrow, the last no down arrow), or **Delete** it. You can also drag a numbered corner on the map.
 
-You can keep up to 3 areas. In the list of areas tick or untick one to switch it on or off, or tap **Edit**, **Copy** (a copy to change, for a neighbouring field) or **Delete**. When the tab opens, the map zooms to show all your areas. The layers button on the map switches between a street map and a satellite picture. The map comes from the internet, so the phone needs mobile data (or another Wi-Fi) when you set an area up. Flying needs no internet: the areas are stored on the vario.
+You can keep up to 25 areas. In the list of areas tick or untick one to switch it on or off, or tap **Edit**, **Copy** (a copy to change, for a neighbouring field) or **Delete**. When the tab opens, the map zooms to show all your areas. The layers button on the map switches between a street map and a satellite picture. The map comes from the internet, so the phone needs mobile data (or another Wi-Fi) when you set an area up. Flying needs no internet: the areas are stored on the vario.
 
 **Type.** Safe areas are drawn green on the map and in the list, restricted areas red; a switched-off area is grey. An area is flat: it applies at every height.
 
