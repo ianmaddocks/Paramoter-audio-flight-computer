@@ -544,7 +544,7 @@ function renderStatus(s,replay){
   {
     // Optional hardware: tiles, buttons and tabs for parts that are not fitted are hidden.
     const hw=s.hw||{gps:true,mic:true,spectrum:true},G=s.gps||{};
-    document.body.classList.toggle('nogps',!hw.gps);document.body.classList.toggle('nomic',!hw.mic);document.body.classList.toggle('nospec',hw.spectrum===false);
+    document.body.classList.toggle('nogps',!hw.gps);if(!hw.gps&&!$('#areaPage').hidden)selectTab('flight');document.body.classList.toggle('nomic',!hw.mic);document.body.classList.toggle('nospec',hw.spectrum===false);
     hwNow=hw;
     document.body.classList.remove('loading');
     const k=hw.gps+'/'+hw.mic;if(k!==layKey){layKey=k;layout();buildHelp();addGroupHelp()}

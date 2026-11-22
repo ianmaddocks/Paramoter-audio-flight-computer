@@ -187,7 +187,7 @@ bool listed(const char* const* list, size_t n, const char* name) {
 
 bool available(const Field& f) {
   if (strcmp(f.key, "gpsMode") == 0) return true;  // the one GPS setting to show even with no GPS
-  static const char* const kGpsGroups[] = {"Glide", "Landing zone", "Landing approach", "Emergency",
+  static const char* const kGpsGroups[] = {"Glide", "Landing zone", "Landing approach", "Safe area", "Emergency",
                                            "Wind",  "GPS",          "Logging"};
   static const char* const kGpsKeys[] = {"distUnit",       "speedUnit", "takeoffSpeedMs", "takeoffTimeS",
                                          "takeoffGainM",   "landingSpeedMs", "bleGps",    "bleGpsRateHz"};
