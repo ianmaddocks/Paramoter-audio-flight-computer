@@ -750,7 +750,7 @@ function selectTab(name){
   document.querySelectorAll('button[data-tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===name));
   document.querySelectorAll('.page').forEach(p=>p.hidden=p.id!==name+'Page');
   if(name==='system')loadLogs();
-  if(name==='area'){areaLoad();areaMapInit();if(aMap)setTimeout(()=>aMap.invalidateSize(),50)}
+  if(name==='area'){areaLoad();areaMapInit();if(aMap)setTimeout(()=>{aMap.invalidateSize();if(!aDraft)areaFit()},50)}
 )HTML"
 #if PV_HAS_SPECTRUM
 R"HTML(  const was=specOn;specOn=name==='spectrum';if(specOn&&!was)specLoop();
@@ -1030,7 +1030,7 @@ function areaStatus(s){
   txt('areaState',!a?(aAreas.length?'No GPS fix yet.':'No safe area is set.'):a.state==='inside'?'Inside the safe area, '+fD(a.edge)+' from the edge.':a.state==='outside'?'Outside the safe area, '+fD(a.edge)+' from it.':'');
   if(aMe&&aMap&&aPos){aMe.setLatLng(aPos);if(!aMap.hasLayer(aMe))aMe.addTo(aMap)}
 }
-function areaLoad(){return fetch('/api/areas',{cache:'no-store'}).then(r=>r.json()).then(j=>{aAreas=j.a||[];areaList();areaDraw()}).catch(()=>{})}
+function areaLoad(){return fetch('/api/areas',{cache:'no-store'}).then(r=>r.json()).then(j=>{aAreas=j.a||[];areaList();areaDraw();if(!aDraft)areaFit()}).catch(()=>{})}
 function areaPost(){
   return fetch('/api/areas',{method:'POST',body:JSON.stringify({a:aAreas})}).then(async r=>{const j=await r.json();if(!r.ok)throw j.error;toast('Saved');return true})
     .catch(e=>{toast('Not saved: '+e);areaLoad();return false});
