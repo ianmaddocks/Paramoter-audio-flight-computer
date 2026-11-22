@@ -113,7 +113,10 @@ R"HTML(
 #areaBox{position:relative}
 #areaCross{position:absolute;left:50%;top:50%;width:36px;height:36px;margin:-18px 0 0 -18px;pointer-events:none;z-index:1001}
 #areaCross[hidden]{display:none}
-.apt{display:flex;align-items:center;gap:6px;padding:6px 0;border-top:1px solid var(--bd)}
+#areaPts{height:222px;overflow-y:auto;overscroll-behavior:contain;border:1px solid var(--bd);border-radius:8px;padding:0 8px;margin:8px 0}
+#areaPts:empty{display:none}
+.apt{display:flex;align-items:center;gap:6px;height:44px;border-top:1px solid var(--bd)}
+.apt:first-child{border-top:0}
 .apt .n{flex:none;width:22px;height:22px;border-radius:50%;background:#f08c00;color:#fff;font:600 12px/22px system-ui,sans-serif;text-align:center}
 .apt .c{flex:1;min-width:0;font:13px ui-monospace,Menlo,Consolas,monospace;cursor:pointer;overflow:hidden;text-overflow:ellipsis}
 .apt button{padding:4px 9px;min-width:36px}
@@ -1051,14 +1054,15 @@ function areaCopy(i){
   areaPost().then(areaLoad);
 }
 function areaEdit(i){
-  aIdx=i;aDraft=i>=0?aAreas[i].p.map(p=>p.slice()):[];
+  aIdx=i;aDraft=i>=0?aAreas[i].p.map(p=>p.slice()):[];aPtsN=aDraft.length;
   $a('areaName').value=i>=0?aAreas[i].n:'';$a('areaTitle').textContent=i>=0?'Edit '+aAreas[i].n:'New area';
   areaDraw();areaFit();$a('areaTitle').scrollIntoView({behavior:'smooth'});
 }
 function areaCancel(){aDraft=null;aIdx=-1;$a('areaName').value='';$a('areaTitle').textContent='New area';areaDraw()}
+let aPtsN=0;
 function areaPoints(){
-  const el=$a('areaPts');el.textContent='';
-  if(!aDraft)return;
+  const el=$a('areaPts'),top=el.scrollTop;el.textContent='';
+  if(!aDraft){aPtsN=0;return}
   const mv=(i,j)=>{const t=aDraft[i];aDraft[i]=aDraft[j];aDraft[j]=t;areaDraw()};
   aDraft.forEach((p,i)=>{
     const r=document.createElement('div');r.className='apt';
@@ -1070,6 +1074,7 @@ function areaPoints(){
     up.setAttribute('aria-label','Move corner '+(i+1)+' up');dn.setAttribute('aria-label','Move corner '+(i+1)+' down');
     r.append(n,c,up,dn,rm);el.append(r);
   });
+  el.scrollTop=aDraft.length>aPtsN?el.scrollHeight:top;aPtsN=aDraft.length;
 }
 function areaDraw(){
   areaPoints();
