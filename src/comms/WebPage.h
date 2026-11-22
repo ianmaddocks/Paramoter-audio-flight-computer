@@ -110,6 +110,9 @@ R"HTML(#specCv{width:100%;height:280px;display:block}
 R"HTML(
 #areaMap{height:340px;border-radius:10px;border:1px solid var(--bd);background:var(--bg)}
 #areaMap[hidden]{display:none}
+#areaBox{position:relative}
+#areaCross{position:absolute;left:50%;top:50%;width:36px;height:36px;margin:-18px 0 0 -18px;pointer-events:none;z-index:1001}
+#areaCross[hidden]{display:none}
 .acn{width:22px;height:22px;border-radius:50%;background:#f08c00;border:2px solid #fff;color:#fff;font:600 12px/18px system-ui,sans-serif;text-align:center}
 #areaPaste{width:100%;height:90px;font:12px ui-monospace,Menlo,Consolas,monospace;background:var(--bg);color:var(--fg);border:1px solid var(--bd);border-radius:8px;padding:6px}
 body.nogps .needgps,body.nomic .needmic,body.nospec .needspec{display:none}
@@ -204,17 +207,22 @@ R"HTML(
 <div id="areaPage" class="page" role="tabpanel" hidden>
 <section class="card"><h2>Safe areas</h2>
 <p class="mut" id="areaState">No safe area is set.</p>
-<p class="mut">While you fly you are told, with the way to turn, when your track will leave a safe area, and when you are outside every area. Tap the map to place the corners of an area.</p>
+<p class="mut">While you fly you are told, with the way to turn, when your track will leave a safe area, and when you are outside every area. Add the corners of an area one at a time with the cross on the map.</p>
 <div id="areaList"></div>
 </section>
 <section class="card"><h2 id="areaTitle">New area</h2>
-<div id="areaMap" hidden></div><p class="mut" id="areaMapMsg">Open this tab to load the map. It needs internet on this phone (mobile data or another Wi-Fi).</p>
+<div id="areaBox"><div id="areaMap" hidden></div>
+<svg id="areaCross" viewBox="0 0 36 36" hidden><circle cx="18" cy="18" r="10" fill="none" stroke="#fff" stroke-width="4"/><circle cx="18" cy="18" r="10" fill="none" stroke="#e03131" stroke-width="2"/><path d="M18 1v10M18 25v10M1 18h10M25 18h10" stroke="#fff" stroke-width="4"/><path d="M18 1v10M18 25v10M1 18h10M25 18h10" stroke="#e03131" stroke-width="2"/></svg></div>
+<p class="mut" id="areaMapMsg">Open this tab to load the map. It needs internet on this phone (mobile data or another Wi-Fi).</p>
 <div class="row"><span>Name</span><input type="text" id="areaName" maxlength="23" autocomplete="off"></div>
+<p class="mut" id="areaHelp">Drag the map until the red cross is on a corner, then tap <b>Add corner at cross</b>. Drag a numbered corner to move it.</p>
 <div class="btns">
-<button type="button" id="areaHere">Add corner here</button>
+<button type="button" id="areaCursor" class="pri wide">Add corner at cross</button>
+<button type="button" id="areaHere">Add corner at my position</button>
+<button type="button" id="areaGo">Show my position</button>
 <button type="button" id="areaUndo">Remove last corner</button>
-<button type="button" id="areaSave" class="pri">Save area</button>
 <button type="button" id="areaCancel">Cancel</button>
+<button type="button" id="areaSave" class="pri wide">Save area</button>
 </div>
 <details class="sub"><summary>Paste corners</summary>
 <p class="mut">One corner per line as latitude, longitude, or the coordinates from geojson.io.</p>
@@ -1037,6 +1045,7 @@ function areaEdit(i){
 }
 function areaCancel(){aDraft=null;aIdx=-1;$a('areaName').value='';$a('areaTitle').textContent='New area';areaDraw()}
 function areaDraw(){
+  if(aDraft)$a('areaTitle').textContent=(aIdx>=0?'Edit '+aAreas[aIdx].n:'New area')+' – '+aDraft.length+' corner'+(aDraft.length===1?'':'s');
   if(!aMap)return;
   aLayer.clearLayers();
   aAreas.forEach((a,i)=>{if(i===aIdx&&aDraft)return;L.polygon(a.p,{color:a.on?'#2a9d5c':'#888',weight:2,fillOpacity:.12}).bindTooltip(a.n).addTo(aLayer)});
@@ -1066,7 +1075,7 @@ function areaMapInit(){
   document.head.append(s);
 }
 function areaMapStart(){
-  $a('areaMapMsg').hidden=true;$a('areaMap').hidden=false;
+  $a('areaMapMsg').hidden=true;$a('areaMap').hidden=false;$a('areaCross').removeAttribute('hidden');
   aMap=L.map('areaMap');
   const street=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'});
   const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Imagery © Esri'});
@@ -1082,6 +1091,13 @@ $a('areaHere').onclick=()=>{
   if(aDraft.length>=24){toast('At most 24 corners');return}
   aDraft.push(aPos.slice());areaDraw();if(aMap)aMap.panTo(aPos);
 };
+$a('areaCursor').onclick=()=>{
+  if(!aMap){toast('The map has not loaded');return}
+  if(!aDraft)areaEdit(-1);
+  if(aDraft.length>=24){toast('At most 24 corners');return}
+  const c=aMap.getCenter();aDraft.push([c.lat,c.lng]);areaDraw();
+};
+$a('areaGo').onclick=()=>{if(!aPos){toast('No GPS fix');return}if(!aMap){toast('The map has not loaded');return}aMap.setView(aPos,Math.max(aMap.getZoom(),17))};
 $a('areaUndo').onclick=()=>{if(aDraft&&aDraft.length){aDraft.pop();areaDraw()}};
 $a('areaCancel').onclick=areaCancel;
 $a('areaSave').onclick=async()=>{

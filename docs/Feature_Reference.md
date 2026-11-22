@@ -851,9 +851,9 @@ For example, at 20 s you hear it every 20 s (sooner if you are well off course).
 
 Safe areas are places you want to stay inside, such as your flying field. You draw each one on a map on the **Safe area** tab. In flight the vario warns you before you leave it, tells you if you are outside, and says which way to turn.
 
-**Drawing an area.** Open the **Safe area** tab and tap **New area**. Tap the map to place the corners (at least 3, at most 24), drag a numbered corner to move it, and tap **Remove last corner** to undo. Give it a name and tap **Save area**. You can keep up to 3 areas. Tick or untick an area in the list to switch it on or off, or tap **Edit** or **Delete**. The layers button on the map switches between a street map and a satellite picture.
+**Drawing an area.** Open the **Safe area** tab and tap **New area**. Drag the map until the red cross is on a corner and tap **Add corner at cross**; do that for each corner (at least 3, at most 24). Drag a numbered corner to move it, and tap **Remove last corner** to undo. Give it a name and tap **Save area**. You can keep up to 3 areas. Tick or untick an area in the list to switch it on or off, or tap **Edit** or **Delete**. The layers button on the map switches between a street map and a satellite picture.
 
-The map comes from the internet, so the phone needs mobile data (or another Wi-Fi) when you set an area up. Flying needs no internet: the areas are stored on the vario. Without a map you can still tap **Add corner here** to add your present position (walk round the edge and add each corner), or open **Paste corners** and paste a list of latitude, longitude pairs, or the coordinates from a site such as geojson.io.
+The map comes from the internet, so the phone needs mobile data (or another Wi-Fi) when you set an area up. Flying needs no internet: the areas are stored on the vario. **Show my position** centres the map on you. Without a map you can still tap **Add corner at my position** (walk round the edge and add each corner), or open **Paste corners** and paste a list of latitude, longitude pairs, or the coordinates from a site such as geojson.io.
 
 An area is flat: it applies at every height. You are safe if you are inside any area that is switched on.
 
