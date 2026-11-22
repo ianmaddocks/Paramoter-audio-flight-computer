@@ -164,7 +164,7 @@ body.replay .volb{display:none}
 <button type="button" role="tab" aria-selected="true" data-tab="flight">Flight</button>
 <button type="button" role="tab" aria-selected="false" data-tab="system">Logs &amp; system</button>
 <button type="button" role="tab" aria-selected="false" data-tab="settings">Settings</button>
-<button type="button" role="tab" aria-selected="false" data-tab="area" class="needgps">Safe area</button>
+<button type="button" role="tab" aria-selected="false" data-tab="area" class="needgps">Areas</button>
 )HTML"
 #if PV_HAS_SPECTRUM
 R"HTML(<button type="button" role="tab" aria-selected="false" data-tab="spectrum" class="needmic needspec">Spectrum</button>
@@ -213,17 +213,19 @@ R"HTML(
 <section class="card" id="restartBar" hidden><p>A restart is needed for some of the changes to take effect.</p><div class="btns"><button data-a="restart" class="pri">Restart</button></div></section>
 </div>
 <div id="areaPage" class="page" role="tabpanel" hidden>
-<section class="card"><h2>Safe areas</h2>
+<section class="card"><h2>Areas</h2>
 <p class="mut" id="areaState">No safe area is set.</p>
-<p class="mut">While you fly you are told when you leave the safe area, and when you are back in it. Add the corners of an area one at a time with the cross on the map.</p>
+<p class="mut">Safe areas (green) are places you want to stay inside: while you fly you are told when you leave one, and when you are back in it. Restricted areas (red) are shown but give no warning yet. Add the corners of an area one at a time with the cross on the map.</p>
 <div id="areaList"></div>
 </section>
 <section class="card"><h2 id="areaTitle">New area</h2>
 <div id="areaBox"><div id="areaMap" hidden></div>
-<svg id="areaCross" viewBox="0 0 36 36" hidden><circle cx="18" cy="18" r="10" fill="none" stroke="#fff" stroke-width="4"/><circle cx="18" cy="18" r="10" fill="none" stroke="#e03131" stroke-width="2"/><path d="M18 1v10M18 25v10M1 18h10M25 18h10" stroke="#fff" stroke-width="4"/><path d="M18 1v10M18 25v10M1 18h10M25 18h10" stroke="#e03131" stroke-width="2"/></svg></div>
+<svg id="areaCross" viewBox="0 0 36 36" hidden><circle cx="18" cy="18" r="10" fill="none" stroke="#fff" stroke-width="4"/><circle cx="18" cy="18" r="10" fill="none" stroke="#111" stroke-width="2"/><path d="M18 1v10M18 25v10M1 18h10M25 18h10" stroke="#fff" stroke-width="4"/><path d="M18 1v10M18 25v10M1 18h10M25 18h10" stroke="#111" stroke-width="2"/></svg></div>
 <p class="mut" id="areaMapMsg">Open this tab to load the map. It needs internet on this phone (mobile data or another Wi-Fi).</p>
 <div class="row"><span>Name</span><input type="text" id="areaName" maxlength="23" autocomplete="off"></div>
-<p class="mut" id="areaHelp">Drag the map until the red cross is on a corner, then tap <b>Add corner at cross</b>. Drag a numbered corner to move it.</p>
+<div class="row"><span>Type</span><select id="areaKind"><option value="safe">Safe (green)</option><option value="restricted">Restricted (red)</option></select></div>
+<p class="mut" id="areaKindNote" hidden>A restricted area is shown here and on the map but gives no warning yet.</p>
+<p class="mut" id="areaHelp">Drag the map until the cross is on a corner, then tap <b>Add corner at cross</b>. Drag a numbered corner to move it.</p>
 <div id="areaPts"></div>
 <div class="btns">
 <button type="button" id="areaCursor" class="pri wide">Add corner at cross</button>
@@ -1019,7 +1021,7 @@ $('#fwgo').onclick=()=>{
   x.onerror=()=>done('Update failed: connection lost');
   fwBusy=true;$('#fwgo').disabled=true;setFw(0,'Uploading 0%');x.send(fd);
 };
-// ---- Safe area tab: the areas are drawn on a map (Leaflet, loaded from the internet when this tab is first opened) ----
+// ---- Areas tab: the areas are drawn on a map (Leaflet, loaded from the internet when this tab is first opened) ----
 let aAreas=[],aDraft=null,aIdx=-1,aMap=null,aLayer=null,aMe=null,aTried=false,aPos=null;
 const $a=id=>document.getElementById(id);
 function areaStatus(s){
@@ -1033,6 +1035,9 @@ function areaPost(){
   return fetch('/api/areas',{method:'POST',body:JSON.stringify({a:aAreas})}).then(async r=>{const j=await r.json();if(!r.ok)throw j.error;toast('Saved');return true})
     .catch(e=>{toast('Not saved: '+e);areaLoad();return false});
 }
+const AC={safe:'#2a9d5c',restricted:'#e03131'};
+const areaCol=a=>a.on?AC[a.k]||AC.safe:'#888';
+function areaKindShow(){const k=$a('areaKind').value;$a('areaKindNote').hidden=k!=='restricted';areaDraw()}
 function areaBtn(t,f){const b=document.createElement('button');b.type='button';b.textContent=t;b.onclick=f;b.style.padding='6px 10px';return b}
 function areaList(){
   const el=$a('areaList');el.textContent='';
@@ -1040,7 +1045,8 @@ function areaList(){
     const d=document.createElement('div');d.className='log';
     const lab=document.createElement('label'),cb=document.createElement('input');cb.type='checkbox';cb.checked=!!a.on;
     cb.onchange=()=>{a.on=cb.checked;areaPost().then(areaDraw)};
-    lab.append(cb,' '+a.n+' ('+a.p.length+' corners)');
+    const chip=document.createElement('span');chip.style.cssText='display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 2px 0 6px;background:'+areaCol(a);
+    lab.append(cb,chip,' '+a.n+' ('+(a.k==='restricted'?'restricted, ':'')+a.p.length+' corners)');
     const bs=document.createElement('span');
     bs.append(areaBtn('Edit',()=>areaEdit(i)),' ',areaBtn('Copy',()=>areaCopy(i)),' ',areaBtn('Delete',()=>{if(confirm('Delete '+a.n+'?')){aAreas.splice(i,1);if(aIdx===i)areaCancel();areaPost().then(areaLoad)}}));
     d.append(lab,bs);el.append(d);
@@ -1056,9 +1062,10 @@ function areaCopy(i){
 function areaEdit(i){
   aIdx=i;aDraft=i>=0?aAreas[i].p.map(p=>p.slice()):[];aPtsN=aDraft.length;
   $a('areaName').value=i>=0?aAreas[i].n:'';$a('areaTitle').textContent=i>=0?'Edit '+aAreas[i].n:'New area';
+  $a('areaKind').value=i>=0&&aAreas[i].k==='restricted'?'restricted':'safe';$a('areaKindNote').hidden=$a('areaKind').value!=='restricted';
   areaDraw();areaFit();$a('areaTitle').scrollIntoView({behavior:'smooth'});
 }
-function areaCancel(){aDraft=null;aIdx=-1;$a('areaName').value='';$a('areaTitle').textContent='New area';areaDraw()}
+function areaCancel(){aDraft=null;aIdx=-1;$a('areaName').value='';$a('areaKind').value='safe';$a('areaKindNote').hidden=true;$a('areaTitle').textContent='New area';areaDraw()}
 let aPtsN=0;
 function areaPoints(){
   const el=$a('areaPts'),top=el.scrollTop;el.textContent='';
@@ -1081,10 +1088,11 @@ function areaDraw(){
   if(aDraft)$a('areaTitle').textContent=(aIdx>=0?'Edit '+aAreas[aIdx].n:'New area')+' – '+aDraft.length+' corner'+(aDraft.length===1?'':'s');
   if(!aMap)return;
   aLayer.clearLayers();
-  aAreas.forEach((a,i)=>{if(i===aIdx&&aDraft)return;L.polygon(a.p,{color:a.on?'#2a9d5c':'#888',weight:2,fillOpacity:.12}).bindTooltip(a.n).addTo(aLayer)});
+  aAreas.forEach((a,i)=>{if(i===aIdx&&aDraft)return;L.polygon(a.p,{color:areaCol(a),weight:2,fillOpacity:.12}).bindTooltip(a.n).addTo(aLayer)});
   if(!aDraft)return;
-  if(aDraft.length>=3)L.polygon(aDraft,{color:'#f08c00',weight:2,fillOpacity:.15}).addTo(aLayer);
-  else if(aDraft.length===2)L.polyline(aDraft,{color:'#f08c00',weight:2}).addTo(aLayer);
+  const kc=AC[$a('areaKind').value]||AC.safe;
+  if(aDraft.length>=3)L.polygon(aDraft,{color:kc,weight:3,dashArray:'6 6',fillColor:kc,fillOpacity:.15}).addTo(aLayer);
+  else if(aDraft.length===2)L.polyline(aDraft,{color:kc,weight:3,dashArray:'6 6'}).addTo(aLayer);
   aDraft.forEach((p,i)=>{
     const m=L.marker(p,{draggable:true,icon:L.divIcon({className:'',html:'<div class="acn">'+(i+1)+'</div>',iconSize:[22,22],iconAnchor:[11,11]})});
     m.on('dragend',()=>{const l=m.getLatLng();aDraft[i]=[l.lat,l.lng];areaDraw()});
@@ -1133,12 +1141,13 @@ $a('areaCursor').onclick=()=>{
 $a('areaGo').onclick=()=>{if(!aPos){toast('No GPS fix');return}if(!aMap){toast('The map has not loaded');return}aMap.setView(aPos,Math.max(aMap.getZoom(),17))};
 $a('areaUndo').onclick=()=>{if(aDraft&&aDraft.length){aDraft.pop();areaDraw()}};
 $a('areaCancel').onclick=areaCancel;
+$a('areaKind').onchange=areaKindShow;
 $a('areaSave').onclick=async()=>{
   if(!aDraft||aDraft.length<3){toast('An area needs at least 3 corners');return}
   const n=($a('areaName').value.trim()||'Area '+(aAreas.length+(aIdx<0?1:0))).slice(0,23);
-  const e={n:n,on:aIdx>=0?aAreas[aIdx].on:true,k:aIdx>=0?(aAreas[aIdx].k||'safe'):'safe',p:aDraft.map(p=>[+p[0].toFixed(6),+p[1].toFixed(6)])};
+  const e={n:n,on:aIdx>=0?aAreas[aIdx].on:true,k:$a('areaKind').value,p:aDraft.map(p=>[+p[0].toFixed(6),+p[1].toFixed(6)])};
   if(aIdx>=0)aAreas[aIdx]=e;else aAreas.push(e);
-  if(await areaPost()){aDraft=null;aIdx=-1;$a('areaName').value='';$a('areaTitle').textContent='New area';areaLoad()}
+  if(await areaPost()){aDraft=null;aIdx=-1;$a('areaName').value='';$a('areaKind').value='safe';$a('areaKindNote').hidden=true;$a('areaTitle').textContent='New area';areaLoad()}
 };
 $a('areaUse').onclick=()=>{
   const t=$a('areaPaste').value,nums=(t.match(/-?\d+(?:\.\d+)?/g)||[]).map(Number);

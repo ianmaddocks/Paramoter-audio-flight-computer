@@ -849,15 +849,17 @@ For example, at 20 s you hear it every 20 s (sooner if you are well off course).
 
 *GPS Module*
 
-Safe areas are places you want to stay inside, such as your flying field. You draw each one on a map on the **Safe area** tab. In flight the vario tells you when you leave it.
+Safe areas are places you want to stay inside, such as your flying field. You draw each one on a map on the **Areas** tab. In flight the vario tells you when you leave it.
 
-**Drawing an area.** Open the **Safe area** tab and tap **New area**. Drag the map until the red cross is on a corner and tap **Add corner at cross**; do that for each corner (at least 3, at most 24). **Show my position** centres the map on you. Without a map you can still tap **Add corner at my position** (walk round the edge and add each corner), or open **Paste corners** and paste a list of latitude, longitude pairs, or the coordinates from a site such as geojson.io. Give the area a name and tap **Save area**.
+**Drawing an area.** Open the **Areas** tab and tap **New area**. Drag the map until the cross is on a corner and tap **Add corner at cross**; do that for each corner (at least 3, at most 24). **Show my position** centres the map on you. Without a map you can still tap **Add corner at my position** (walk round the edge and add each corner), or open **Paste corners** and paste a list of latitude, longitude pairs, or the coordinates from a site such as geojson.io. Give the area a name, choose its **Type** and tap **Save area**.
 
 Every corner is listed under the map, in the order they join up. Tap a corner's position to centre the map on it, use the arrows to move it up or down the list (the first has no up arrow, the last no down arrow), or **Delete** it. You can also drag a numbered corner on the map.
 
 You can keep up to 3 areas. In the list of areas tick or untick one to switch it on or off, or tap **Edit**, **Copy** (a copy to change, for a neighbouring field) or **Delete**. The layers button on the map switches between a street map and a satellite picture. The map comes from the internet, so the phone needs mobile data (or another Wi-Fi) when you set an area up. Flying needs no internet: the areas are stored on the vario.
 
-An area is flat: it applies at every height. You are safe if you are inside any area that is switched on. (Each area also has a kind, *safe* or *restricted*. Only safe areas are used so far; restricted areas are for a later version.)
+**Type.** Each area is *Safe* or *Restricted*. Safe areas are drawn green on the map and in the list, restricted areas red; a switched-off area is grey. Safe areas are the places you want to stay inside, and are what the warnings below are about. Restricted areas are places to keep out of; they are stored and shown, but the vario gives no warning for them yet.
+
+An area is flat: it applies at every height. You are safe if you are inside any safe area that is switched on.
 
 **What you hear** (while flying):
 - **"You have left the safe area."** You are outside every area. It is said once, then **"Outside the safe area"** is repeated while you stay outside. No directions are given.

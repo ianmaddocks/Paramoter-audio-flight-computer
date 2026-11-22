@@ -52,7 +52,7 @@ On the **Logs & system** tab, each flight has **Replay**, **Download** and **Del
 | Land where I took off again | Settings → Landing zone → *Takeoff point* |
 | Have beeps on the ground | Settings → Vario → Mute until flight (off) |
 | Choose the circuit side | Settings → Landing approach → Circuit direction |
-| Stay inside my flying area | Safe area tab → New area, put the cross on each corner and tap Add corner, Save area |
+| Stay inside my flying area | Areas tab → New area, put the cross on each corner and tap Add corner, Save area |
 
 ## 10. FlyGaggle
 Add a Bluetooth vario and pick **ParaVario-XXXX**.
