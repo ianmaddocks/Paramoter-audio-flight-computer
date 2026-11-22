@@ -30,7 +30,7 @@ Press twice and follow the calls. At the crosswind call, turn either way. Press 
 Hold the button and follow the calls. Hold again to cancel.
 
 ## 6. Safe area
-If you have set a safe area, the vario says **"You have left the safe area"** when you go outside it, and **"Back in the safe area"** when you return.
+If you have set a safe area, the vario says **"You have left the safe area"** when you go outside it, and **"Back in the safe area"** when you return. Before you reach a restricted area you hear **"Restricted area, 400 metres. Turn right to 2 o'clock."**
 
 ## 7. After landing
 On the **Logs & system** tab, each flight has **Replay**, **Download** and **Delete**. Download each day's flights: the oldest are deleted when space runs out.

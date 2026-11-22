@@ -108,5 +108,10 @@ maint_connected|Connected to maintenance server Wi-Fi
 
 # Safe area warnings. A vario whose clips have not been updated falls back to tones.
 left_area|You have left the safe area
+safe_edge|Safe area edge
+restricted_area|Restricted area
+in_restricted|You are in a restricted area
+turn_right|Turn right to
+turn_left|Turn left to
 outside_area|Outside the safe area
 back_inside|Back in the safe area

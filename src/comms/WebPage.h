@@ -215,7 +215,7 @@ R"HTML(
 <div id="areaPage" class="page" role="tabpanel" hidden>
 <section class="card"><h2>Areas</h2>
 <p class="mut" id="areaState">No safe area is set.</p>
-<p class="mut">Safe areas (green) are places you want to stay inside: while you fly you are told when you leave one, and when you are back in it. Restricted areas (red) are shown but give no warning yet. Add the corners of an area one at a time with the cross on the map.</p>
+<p class="mut">Safe areas (green) are places you want to stay inside: you are told when you leave one. Restricted areas (red) are places to keep out of: you are warned before you enter one, with the way to turn. Add the corners of an area one at a time with the cross on the map.</p>
 <div id="areaList"></div>
 </section>
 <section class="card"><h2 id="areaTitle">New area</h2>
@@ -224,7 +224,8 @@ R"HTML(
 <p class="mut" id="areaMapMsg">Open this tab to load the map. It needs internet on this phone (mobile data or another Wi-Fi).</p>
 <div class="row"><span>Name</span><input type="text" id="areaName" maxlength="23" autocomplete="off"></div>
 <div class="row"><span>Type</span><select id="areaKind"><option value="safe">Safe (green)</option><option value="restricted">Restricted (red)</option></select></div>
-<p class="mut" id="areaKindNote" hidden>A restricted area is shown here and on the map but gives no warning yet.</p>
+<div class="row"><span>Warn me <small id="areaWarnU"></small></span><input type="number" id="areaWarn" min="0" step="10" inputmode="numeric"></div>
+<p class="mut" id="areaWarnNote"></p>
 <p class="mut" id="areaHelp">Drag the map until the cross is on a corner, then tap <b>Add corner at cross</b>. Drag a numbered corner to move it.</p>
 <div id="areaPts"></div>
 <div class="btns">
@@ -360,7 +361,7 @@ const GROUP_HELP={'Units':{b:'basic-settings-units-and-audio',a:'adv-settings-un
   'Vario':{b:'basic-settings-vario'},'Height calls':{b:'basic-settings-height-calls'},
   'Takeoff & landing':{b:'basic-settings-takeoff-and-landing',a:'adv-settings-takeoff-and-landing'},
   'Glide':{a:'adv-settings-glide'},'Landing zone':{a:'adv-settings-landing-zone'},'Landing approach':{a:'adv-settings-landing-approach'},
-  'Safe area':{a:'adv-safe-area'},'Emergency':{a:'adv-settings-emergency'},'Wind':{a:'adv-settings-wind'},'GPS':{a:'adv-settings-gps',always:1},
+  'Areas':{a:'adv-safe-area'},'Emergency':{a:'adv-settings-emergency'},'Wind':{a:'adv-settings-wind'},'GPS':{a:'adv-settings-gps',always:1},
   'Bluetooth':{b:'basic-settings-bluetooth',a:'adv-settings-bluetooth'},'Wi-Fi':{b:'basic-settings-wi-fi'},'Firmware Update':{b:'basic-settings-firmware-update'},
   'Battery':{b:'basic-settings-battery'},'Logging':{a:'adv-settings-logging'}};
 let hwNow={gps:true,mic:true,spectrum:true};
@@ -1026,8 +1027,16 @@ let aAreas=[],aDraft=null,aIdx=-1,aMap=null,aLayer=null,aMe=null,aTried=false,aP
 const $a=id=>document.getElementById(id);
 function areaStatus(s){
   const g=s.gps;aPos=g&&g.fix?[g.lat,g.lon]:null;
-  const a=s.area;
-  txt('areaState',!a?(aAreas.length?'No GPS fix yet.':'No safe area is set.'):a.state==='inside'?'Inside the safe area, '+fD(a.edge)+' from the edge.':a.state==='outside'?'Outside the safe area, '+fD(a.edge)+' from it.':'');
+  const a=s.area;let t='';
+  if(!a)t=aAreas.some(x=>x.on)?'No GPS fix yet.':'No area is set.';
+  else{
+    if(a.state==='inside')t='Inside the safe area, '+fD(a.edge)+' from the edge.';
+    else if(a.state==='edge')t='Near the edge of the safe area: '+fD(a.edge)+'.';
+    else if(a.state==='outside')t='Outside the safe area, '+fD(a.edge)+' from it.';
+    if(a.rstate==='near')t+=' Restricted area ahead: '+fD(a.rdist)+'.';
+    else if(a.rstate==='inside')t+=' In a restricted area.';
+  }
+  txt('areaState',t.trim());
   if(aMe&&aMap&&aPos){aMe.setLatLng(aPos);if(!aMap.hasLayer(aMe))aMe.addTo(aMap)}
 }
 function areaLoad(){return fetch('/api/areas',{cache:'no-store'}).then(r=>r.json()).then(j=>{aAreas=j.a||[];areaList();areaDraw();if(!aDraft)areaFit()}).catch(()=>{})}
@@ -1037,7 +1046,16 @@ function areaPost(){
 }
 const AC={safe:'#2a9d5c',restricted:'#e03131'};
 const areaCol=a=>a.on?AC[a.k]||AC.safe:'#888';
-function areaKindShow(){const k=$a('areaKind').value;$a('areaKindNote').hidden=k!=='restricted';areaDraw()}
+let aWarnTouched=false;
+function areaWarnSet(m){const c=conv('dist');$a('areaWarn').value=Math.round(m*c.f);$a('areaWarnU').textContent='('+c.s+')'}
+function areaWarnM(){const c=conv('dist');return Math.max(0,Math.min(5000,Math.round((+$a('areaWarn').value||0)/c.f)))}
+function areaKindShow(user){
+  const k=$a('areaKind').value;
+  if(user===true&&!aWarnTouched)areaWarnSet(k==='restricted'?500:0);
+  $a('areaWarnNote').textContent=k==='restricted'?'How far ahead along your track you are warned before entering the area, with the way to turn. 0 = only when you are inside it.':'0 = you are told only when you leave the area. More = you are also told when you are that close to its edge.';
+  areaDraw();
+}
+function areaFormReset(){$a('areaName').value='';$a('areaKind').value='safe';aWarnTouched=false;areaWarnSet(0);$a('areaTitle').textContent='New area';areaKindShow()}
 function areaBtn(t,f){const b=document.createElement('button');b.type='button';b.textContent=t;b.onclick=f;b.style.padding='6px 10px';return b}
 function areaList(){
   const el=$a('areaList');el.textContent='';
@@ -1046,7 +1064,7 @@ function areaList(){
     const lab=document.createElement('label'),cb=document.createElement('input');cb.type='checkbox';cb.checked=!!a.on;
     cb.onchange=()=>{a.on=cb.checked;areaPost().then(areaDraw)};
     const chip=document.createElement('span');chip.style.cssText='display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 2px 0 6px;background:'+areaCol(a);
-    lab.append(cb,chip,' '+a.n+' ('+(a.k==='restricted'?'restricted, ':'')+a.p.length+' corners)');
+    lab.append(cb,chip,' '+a.n+' ('+(a.k==='restricted'?'restricted, ':'')+(a.w>0?'warn '+fD(a.w)+', ':'')+a.p.length+' corners)');
     const bs=document.createElement('span');
     bs.append(areaBtn('Edit',()=>areaEdit(i)),' ',areaBtn('Copy',()=>areaCopy(i)),' ',areaBtn('Delete',()=>{if(confirm('Delete '+a.n+'?')){aAreas.splice(i,1);if(aIdx===i)areaCancel();areaPost().then(areaLoad)}}));
     d.append(lab,bs);el.append(d);
@@ -1056,16 +1074,17 @@ function areaList(){
 function areaCopy(i){
   if(aAreas.length>=3){toast('At most 3 areas');return}
   const a=aAreas[i];
-  aAreas.push({n:(a.n+' copy').slice(0,23),on:a.on,k:a.k||'safe',p:a.p.map(p=>p.slice())});
+  aAreas.push({n:(a.n+' copy').slice(0,23),on:a.on,k:a.k||'safe',w:a.w||0,p:a.p.map(p=>p.slice())});
   areaPost().then(areaLoad);
 }
 function areaEdit(i){
   aIdx=i;aDraft=i>=0?aAreas[i].p.map(p=>p.slice()):[];aPtsN=aDraft.length;
   $a('areaName').value=i>=0?aAreas[i].n:'';$a('areaTitle').textContent=i>=0?'Edit '+aAreas[i].n:'New area';
-  $a('areaKind').value=i>=0&&aAreas[i].k==='restricted'?'restricted':'safe';$a('areaKindNote').hidden=$a('areaKind').value!=='restricted';
-  areaDraw();areaFit();$a('areaTitle').scrollIntoView({behavior:'smooth'});
+  $a('areaKind').value=i>=0&&aAreas[i].k==='restricted'?'restricted':'safe';
+  aWarnTouched=i>=0;areaWarnSet(i>=0?aAreas[i].w||0:0);areaKindShow();
+  areaFit();$a('areaTitle').scrollIntoView({behavior:'smooth'});
 }
-function areaCancel(){aDraft=null;aIdx=-1;$a('areaName').value='';$a('areaKind').value='safe';$a('areaKindNote').hidden=true;$a('areaTitle').textContent='New area';areaDraw()}
+function areaCancel(){aDraft=null;aIdx=-1;areaFormReset()}
 let aPtsN=0;
 function areaPoints(){
   const el=$a('areaPts'),top=el.scrollTop;el.textContent='';
@@ -1141,13 +1160,15 @@ $a('areaCursor').onclick=()=>{
 $a('areaGo').onclick=()=>{if(!aPos){toast('No GPS fix');return}if(!aMap){toast('The map has not loaded');return}aMap.setView(aPos,Math.max(aMap.getZoom(),17))};
 $a('areaUndo').onclick=()=>{if(aDraft&&aDraft.length){aDraft.pop();areaDraw()}};
 $a('areaCancel').onclick=areaCancel;
-$a('areaKind').onchange=areaKindShow;
+$a('areaKind').onchange=()=>areaKindShow(true);
+$a('areaWarn').oninput=()=>{aWarnTouched=true};
+areaFormReset();
 $a('areaSave').onclick=async()=>{
   if(!aDraft||aDraft.length<3){toast('An area needs at least 3 corners');return}
   const n=($a('areaName').value.trim()||'Area '+(aAreas.length+(aIdx<0?1:0))).slice(0,23);
-  const e={n:n,on:aIdx>=0?aAreas[aIdx].on:true,k:$a('areaKind').value,p:aDraft.map(p=>[+p[0].toFixed(6),+p[1].toFixed(6)])};
+  const e={n:n,on:aIdx>=0?aAreas[aIdx].on:true,k:$a('areaKind').value,w:areaWarnM(),p:aDraft.map(p=>[+p[0].toFixed(6),+p[1].toFixed(6)])};
   if(aIdx>=0)aAreas[aIdx]=e;else aAreas.push(e);
-  if(await areaPost()){aDraft=null;aIdx=-1;$a('areaName').value='';$a('areaKind').value='safe';$a('areaKindNote').hidden=true;$a('areaTitle').textContent='New area';areaLoad()}
+  if(await areaPost()){aDraft=null;aIdx=-1;areaFormReset();areaLoad()}
 };
 $a('areaUse').onclick=()=>{
   const t=$a('areaPaste').value,nums=(t.match(/-?\d+(?:\.\d+)?/g)||[]).map(Number);

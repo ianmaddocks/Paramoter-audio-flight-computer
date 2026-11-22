@@ -91,6 +91,22 @@ int main() {
     CHECK(rayHit(q, 4, 0, 0, hd.e, hd.n, 200.0f) < 0, "the escape heading %.1f leaves the area within 200 m", h);
   }
 
+  // Keeping out: a restricted square 100 m ahead (north), 1000 m wide. With a 500 m warning distance the smallest turn that does not run
+  // into it within 500 m is about 79 degrees (100 * tan(79) = 500), either way, not a U-turn.
+  {
+    const Pt r[4] = {{-500, 100}, {-500, 1100}, {500, 100 + 1000}, {500, 100}};
+    CHECK(!contains(r, 4, 0, 0), "setup: outside the restricted square");
+    const Pt d = unit(0);
+    CHECK(near(rayHit(r, 4, 0, 0, d.e, d.n, 500.0f), 100.0f, 0.5f), "restricted square is 100 m ahead");
+    const float h = escapeHeading(r, 4, 0.0f, 500.0f);
+    const float turn = fabsf(wrap180(h));
+    CHECK(turn >= 75 && turn <= 85, "avoid heading %.1f is a turn of %.1f, expected about 79", h, turn);
+    // A narrow square beside the track needs only a small turn: 100 m ahead, 100 m wide, 300 m clear -> about 20 degrees to pass west of it.
+    const Pt n[4] = {{-50, 100}, {-50, 200}, {50, 200}, {50, 100}};
+    const float h2 = escapeHeading(n, 4, 0.0f, 300.0f);
+    CHECK(fabsf(wrap180(h2)) >= 15 && fabsf(wrap180(h2)) <= 70, "narrow square: avoid heading %.1f", h2);
+  }
+
   // Area.
   CHECK(near(areaM2(sq, 4), 1000000.0f, 1.0f), "area %.1f", areaM2(sq, 4));
 

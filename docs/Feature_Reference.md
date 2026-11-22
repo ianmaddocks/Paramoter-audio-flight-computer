@@ -21,7 +21,7 @@ Heights in the examples use the default unit (feet). You can switch to metres in
   - [Logs and system tab](#basic-system) · [Help tab](#basic-help)
 - [Part 2 - Advanced](#part-2---advanced)
   - [Tiles](#adv-tiles) · [Banner](#adv-banner) · [Buttons and actions](#adv-buttons) · [Guidance](#adv-guidance) · [Sounds](#adv-sounds)
-  - [Settings: Units and Audio](#adv-settings-units-and-audio) · [Takeoff and landing](#adv-settings-takeoff-and-landing) · [Glide](#adv-settings-glide) · [Landing zone](#adv-settings-landing-zone) · [Landing approach](#adv-settings-landing-approach) · [Safe area](#adv-safe-area) · [Emergency](#adv-settings-emergency) · [Wind](#adv-settings-wind) · [GPS](#adv-settings-gps) · [Bluetooth](#adv-settings-bluetooth) · [Logging](#adv-settings-logging)
+  - [Settings: Units and Audio](#adv-settings-units-and-audio) · [Takeoff and landing](#adv-settings-takeoff-and-landing) · [Glide](#adv-settings-glide) · [Landing zone](#adv-settings-landing-zone) · [Landing approach](#adv-settings-landing-approach) · [Areas](#adv-safe-area) · [Emergency](#adv-settings-emergency) · [Wind](#adv-settings-wind) · [GPS](#adv-settings-gps) · [Bluetooth](#adv-settings-bluetooth) · [Logging](#adv-settings-logging)
 
 Settings are changed on the Settings tab of the web page. A change is saved a moment after you make it. A setting marked **restart** takes effect after the vario is restarted: once you have changed one, a **Restart** button appears at the bottom of the Settings tab (it goes away after the restart, and also if you reload the page meanwhile).
 
@@ -845,37 +845,50 @@ How often distance and direction are repeated on the way to the circuit start.
 For example, at 20 s you hear it every 20 s (sooner if you are well off course). Default: 20 s.
 
 <a id="adv-safe-area"></a>
-## Safe area
+## Areas
 
 *GPS Module*
 
-Safe areas are places you want to stay inside, such as your flying field. You draw each one on a map on the **Areas** tab. In flight the vario tells you when you leave it.
+Areas are places on the map that the vario knows about: **safe** areas, which you want to stay inside (your flying field), and **restricted** areas, which you want to keep out of. You draw each one on the **Areas** tab. In flight the vario warns you when you leave a safe area, and before you enter a restricted one.
 
-**Drawing an area.** Open the **Areas** tab and tap **New area**. Drag the map until the cross is on a corner and tap **Add corner at cross**; do that for each corner (at least 3, at most 24). **Show my position** centres the map on you. Without a map you can still tap **Add corner at my position** (walk round the edge and add each corner), or open **Paste corners** and paste a list of latitude, longitude pairs, or the coordinates from a site such as geojson.io. Give the area a name, choose its **Type** and tap **Save area**.
+**Drawing an area.** Open the **Areas** tab and tap **New area**. Drag the map until the cross is on a corner and tap **Add corner at cross**; do that for each corner (at least 3, at most 24). **Show my position** centres the map on you. Without a map you can still tap **Add corner at my position** (walk round the edge and add each corner), or open **Paste corners** and paste a list of latitude, longitude pairs, or the coordinates from a site such as geojson.io. Give the area a name, choose its **Type** and **Warn me** distance, and tap **Save area**.
 
 Every corner is listed under the map, in the order they join up. Tap a corner's position to centre the map on it, use the arrows to move it up or down the list (the first has no up arrow, the last no down arrow), or **Delete** it. You can also drag a numbered corner on the map.
 
 You can keep up to 3 areas. In the list of areas tick or untick one to switch it on or off, or tap **Edit**, **Copy** (a copy to change, for a neighbouring field) or **Delete**. When the tab opens, the map zooms to show all your areas. The layers button on the map switches between a street map and a satellite picture. The map comes from the internet, so the phone needs mobile data (or another Wi-Fi) when you set an area up. Flying needs no internet: the areas are stored on the vario.
 
-**Type.** Each area is *Safe* or *Restricted*. Safe areas are drawn green on the map and in the list, restricted areas red; a switched-off area is grey. Safe areas are the places you want to stay inside, and are what the warnings below are about. Restricted areas are places to keep out of; they are stored and shown, but the vario gives no warning for them yet.
+**Type.** Safe areas are drawn green on the map and in the list, restricted areas red; a switched-off area is grey. An area is flat: it applies at every height.
 
-An area is flat: it applies at every height. You are safe if you are inside any safe area that is switched on.
+**Warn me.** Each area has its own warning distance:
+- **Safe area, 0 (the default):** you are told only when you leave it. A larger distance also tells you when you are that close to an edge from inside, without saying which way to turn.
+- **Restricted area, 500 m (the default):** you are warned when your track would take you into it within that distance, and told which way to turn. With 0 you are warned only once you are inside.
+
+If you change the type while setting up a new area, the distance changes to that type's default (until you have typed your own).
 
 **What you hear** (while flying):
-- **"You have left the safe area."** You are outside every area. It is said once, then **"Outside the safe area"** is repeated while you stay outside. No directions are given.
+- **"You have left the safe area."** You are outside every safe area. It is said once, then **"Outside the safe area"** is repeated while you stay outside. No directions are given.
 - **"Back in the safe area."** You are inside again.
+- **"Safe area edge, 150 metres."** Only when you set a warning distance for a safe area, and you are closer to its edge than that.
+- **"Restricted area, 400 metres. Turn right to 2 o'clock."** Your track would take you into a restricted area within its warning distance. The turn is the smallest one that keeps you out; it is repeated while it applies.
+- **"You are in a restricted area. Turn left to 9 o'clock."** You are inside one. The turn is towards its nearest edge.
 
-A position is only believed to be on the other side of an edge after about a second, so GPS noise on the edge does not make it chatter. Landing approach and emergency glide calls take priority: the safe area stays quiet during them. The names you type are shown on the page only; they are not spoken. A vario whose voice clips have not been updated uses tones instead.
+A position is only believed to be on the other side of an edge after about a second, so GPS noise on the edge does not make it chatter. Landing approach and emergency glide calls take priority: the areas stay quiet during them. The names you type are shown on the page only; they are not spoken. A vario whose voice clips have not been updated uses tones, and "Turn right now" instead of "Turn right to".
 
-The status line on the tab shows whether you are inside or outside and how far from the nearest edge.
+The status line on the tab shows whether you are inside or outside a safe area and how far from its edge, and whether a restricted area is ahead.
 
-*Safe area settings*
+*Areas settings*
 
-### Warn when I leave the safe area
-Switches the spoken warnings on or off. The areas stay stored. Default: On.
+### Warn when I leave a safe area
+Switches the safe-area warnings on or off. The areas stay stored. Default: On.
 
-### Repeat the warning every
-How often "Outside the safe area" is repeated while you stay outside. Default: 20 s.
+### Repeat that warning every
+How often "Outside the safe area" (or the edge warning) is repeated while it applies. Default: 20 s.
+
+### Warn about restricted areas
+Switches the restricted-area warnings on or off. Default: On.
+
+### Repeat a restricted-area warning every
+How often a restricted-area warning that still applies is repeated. Default: 10 s.
 
 The areas are a file on the vario's storage. Reinstalling the voice clips (which erases the storage) or the storage image removes them; draw them again.
 

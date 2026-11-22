@@ -120,8 +120,10 @@ const Field kFields[] = {
     FL(offHeadingDeg, "Landing approach", "Off-heading warning", "°", 10.0f, 90.0f),
     I(guidanceUpdateS, "Landing approach", "Guidance update every", "s", 5, 120),
 
-    B(safeAreaOn, "Safe area", "Warn when I leave the safe area"),
-    I(safeAreaRepeatS, "Safe area", "Repeat the warning every", "s", 5, 120),
+    B(safeAreaOn, "Areas", "Warn when I leave a safe area"),
+    I(safeAreaRepeatS, "Areas", "Repeat that warning every", "s", 5, 120),
+    B(restrictedAreaOn, "Areas", "Warn about restricted areas"),
+    I(restrictedRepeatS, "Areas", "Repeat a restricted-area warning every", "s", 5, 60),
 
     I(emergencyUpdateS, "Emergency", "Distance update every", "s", 5, 300),
     FL(onCourseDeg, "Emergency", "On-course tolerance", "°", 5.0f, 45.0f),
@@ -187,7 +189,7 @@ bool listed(const char* const* list, size_t n, const char* name) {
 
 bool available(const Field& f) {
   if (strcmp(f.key, "gpsMode") == 0) return true;  // the one GPS setting to show even with no GPS
-  static const char* const kGpsGroups[] = {"Glide", "Landing zone", "Landing approach", "Safe area", "Emergency",
+  static const char* const kGpsGroups[] = {"Glide", "Landing zone", "Landing approach", "Areas", "Emergency",
                                            "Wind",  "GPS",          "Logging"};
   static const char* const kGpsKeys[] = {"distUnit",       "speedUnit", "takeoffSpeedMs", "takeoffTimeS",
                                          "takeoffGainM",   "landingSpeedMs", "bleGps",    "bleGpsRateHz"};

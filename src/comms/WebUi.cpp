@@ -393,10 +393,16 @@ void handleStatus() {
     lz["brg"] = geo::bearingDeg(n.lat, n.lon, n.lzLat, n.lzLon);
   }
 
-  if (app.safeArea.activeCount() > 0) {
+  if (app.safeArea.safeCount() + app.safeArea.restrictedCount() > 0) {
     JsonObject sa = doc["area"].to<JsonObject>();
-    sa["state"] = app.safeArea.stateName();
-    sa["edge"] = app.safeArea.edgeM();
+    if (app.safeArea.safeCount() > 0) {
+      sa["state"] = app.safeArea.stateName();
+      sa["edge"] = app.safeArea.edgeM();
+    }
+    if (app.safeArea.restrictedCount() > 0) {
+      sa["rstate"] = app.safeArea.restrictedStateName();
+      sa["rdist"] = app.safeArea.restrictedM();
+    }
   }
 
   doc["mode"] = app.emergency.active() ? "emergency" : app.approach.active() ? "approach" : "none";
