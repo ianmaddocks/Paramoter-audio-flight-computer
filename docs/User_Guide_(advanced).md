@@ -62,6 +62,8 @@ What the vario remembers when it is switched on again in flight:
 | "400 feet" | Every 60 s while flying (current height); skipped during approach or emergency guidance. |
 | "Flight time 1 hour 5 minutes" | Every 5 minutes; skipped during approach or emergency guidance. |
 | "Landed, flight time …" | Landing detected. |
+| "You have left the safe area" | You are outside every safe area you drew on the Areas tab. Repeats as "Outside the safe area"; "Back in the safe area" when you return. |
+| "Restricted area, 400 metres. Turn right to 2 o'clock." | Your track would take you into a restricted area within its warning distance. Inside one: "You are in a restricted area. Turn left to 9 o'clock." |
 | "No GPS" | GPS lost for 5 s in flight. |
 | "Barometer failed" / "Barometer back" | The barometer stops working in flight (after 3 s; repeated every minute) / reads again. The vario beeps are off meanwhile. Urgent. |
 | "Battery low. Approximately 25 minutes remaining. Landing zone 1.2 kilometres. Turn me off until you need help landing." | Battery below the warning voltage; repeats every 5 minutes. The minutes appear when the vario has learned them, the distance when there is a fix and a landing zone. |
@@ -111,6 +113,16 @@ You hear your glide range, the LZ as a clock position and its distance, and "Can
 
 Glide range uses the glide ratio and trim airspeed settings, adjusted for the estimated wind.
 
+## Areas (safe and restricted)
+
+Draw **safe** areas (green, such as your flying field) and **restricted** areas (red, places to keep out of) on the **Areas** tab of the web page. The map comes from the internet, so turn mobile data on while you draw. Tap the map to add each corner, or drag the map until the cross is on a corner and tap **Add corner at cross**; the corners are listed under the map, where you can move or delete them. Choose the **Type** and **Warn me** distance, then **Save area**. Up to 3 areas are kept, and an area can be copied.
+
+In flight:
+- A **safe** area (warning distance 0): you hear **"You have left the safe area"** when you go outside it, and **"Back in the safe area"** when you return. A larger distance also warns you when you are that close to its edge.
+- A **restricted** area (default warning distance 500 m): you hear **"Restricted area, 400 metres. Turn right to 2 o'clock."** when your track would take you into it within that distance, and the way out if you are inside.
+
+The landing approach and emergency glide calls come first: the areas stay quiet during them. Areas are flat (no heights) and an aid only: the vario is not an airspace warning system. Details are in [Feature_Reference.md](Feature_Reference.md#adv-safe-area).
+
 ## The web page
 
 1. On your phone, join the Wi-Fi network **ParaVario-XXXX** (by default it has no password: it is an open network until you set one under Settings → Wi-Fi), where XXXX is a code unique to your unit (the last four digits of its MAC address), so several varios nearby can be told apart. The same code is in its Bluetooth name.
@@ -124,6 +136,7 @@ The phone has no internet while it's on this network, so turn mobile data on if 
 | Tiles | Refreshed every second. Top group: height above the LZ (and above sea level), flight state and time, vario with a graph of the last 10 minutes of flying under it (nothing is recorded on the ground, the trace stays after landing and a new flight starts after a gap), ground speed and track, **glide ratio**, flight state and time, LZ distance with an arrow to it, wind as a windsock (the sock streams the way the wind blows), both relative to your direction of travel. Under the Actions: GPS signal quality (strong, good, ok, poor, none) with the satellite count, battery (minutes left when known, otherwise the percentage), engine RPM. The Ground speed tile has a **compass** for your track against absolute north (a ring marked N, E, S, W with an arrow inside). The **Background noise** tile and the RPM confidence are tuning data and are hidden unless you turn on *Show background noise and RPM confidence on the flight tab* (Engine RPM, Advanced). |
 | Glide ratio | Ground distance covered per unit of height lost, e.g. `6.7 : 1`. The big value is the average over the last second, the small one the average over the last 60 seconds (both windows are in the Glide settings). Shows `–` when level or climbing, and `>50` above 50. Needs a GPS. |
 | Actions | One card headed **Actions**, and which one you see depends on the phase. **In flight:** **Landing support**, **Emergency support**, **Status** and **Mute vario** (the same as the button). **On the ground:** **Status**. Each button shows the push-button presses that do the same, for example **[...]**. (Setting the landing zone is in Settings → Landing zone: **Use current position**.) Below them, **Full screen** (hides the browser's bars). |
+| Areas | The **Areas** tab: safe and restricted areas drawn on a map, each with its warning distance (see [Areas](#areas-safe-and-restricted)). |
 | Alerts | A strip under the banner for what a pilot must know in flight: **Battery low** or **critical** (with the minutes left and the distance to the LZ), **Barometer failed**, **No GPS fix**. It clears when the problem goes away. |
 | Settings | **Quick settings** first: volumes, units, circuit direction, glide ratio and trim airspeed (also in their groups; the two copies follow each other). Then collapsible groups (see below); Battery, Wi-Fi, GPS, Engine RPM, Wind, Logging and Glide are inside **Advanced settings** at the end. Change a value and it is saved a moment later. Settings marked *restart* apply after a restart. |
 | Reset flight state | On the Logs & system tab. The way out if the vario ever thinks it is flying when it is not: it forgets the flight and any guidance. |
@@ -149,6 +162,7 @@ Every setting, with its default, an example and what it does underneath, is in [
 | Takeoff & landing | [Basic](Feature_Reference.md#basic-settings-takeoff-and-landing) and [Advanced](Feature_Reference.md#adv-settings-takeoff-and-landing) |
 | Engine RPM | [Engine RPM](Feature_Reference.md#basic-settings-engine-rpm) |
 | Glide, Landing zone, Landing approach, Emergency, Wind | [Advanced](Feature_Reference.md#adv-settings-glide) |
+| Areas | [Advanced: Areas](Feature_Reference.md#adv-safe-area) |
 | GPS | [Advanced: GPS](Feature_Reference.md#adv-settings-gps) |
 | Bluetooth | [Basic](Feature_Reference.md#basic-settings-bluetooth) and [Advanced](Feature_Reference.md#adv-settings-bluetooth) |
 | Wi-Fi | [Basic: Wi-Fi](Feature_Reference.md#basic-settings-wi-fi) |

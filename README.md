@@ -29,8 +29,9 @@ stops. It runs on a Seeed XIAO ESP32C3 and is built with PlatformIO.
 **Advanced version only (a GPS module fitted)**
 
 - Ground speed, **glide ratio**, wind estimate, **landing zone**, a spoken **landing approach circuit**,
-  **emergency glide** guidance back to the landing zone, and **IGC flight logs** (with the 30 seconds
-  before takeoff included).
+  **emergency glide** guidance back to the landing zone, **safe and restricted areas** drawn on a map
+  (told when you leave a safe area, warned before a restricted one, with the way to turn), and **IGC
+  flight logs** (with the 30 seconds before takeoff included).
 
 ## Basic and Advanced: one program
 
