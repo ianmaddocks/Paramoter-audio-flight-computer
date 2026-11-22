@@ -26,6 +26,8 @@ constexpr uint32_t kPauseMs = 150;  // the "~pause" in an announcement (with the
 constexpr uint32_t kRampSamples = kSampleRate * 5 / 1000;  // tone fade in/out: 5 ms
 // Volume changes are spread over time sample by sample (0 to 100 % in 100 ms), so a change of
 // volume never produces a step in the waveform.
+// Speech is high-passed at this frequency (see LowCut): the 20 mm speaker cannot reproduce anything lower.
+constexpr int32_t kSpeechLowCutHz = 300;
 constexpr int32_t kGainFull = 1 << 16;
 constexpr int32_t kGainStep = kGainFull / (kSampleRate / 10);
 
@@ -105,6 +107,35 @@ uint32_t toneCyclePos = 0;
 int32_t toneEnv = 0;  // 0..kRampSamples
 int32_t speechGain = -1;  // gains in use now, 0..kGainFull; -1 until the first block
 int32_t toneGain = -1;
+
+// Second-order (Butterworth) high-pass for the speech: a small speaker moves a lot of air for the lowest part of a voice and
+// gives no sound for it, only rattle and distortion, which also limits how loud it can be played. The beeps are not filtered
+// (the sink alarm is deliberately low).
+struct LowCut {
+  float b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0;
+  float x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+
+  void tune(int32_t hz) {
+    const float w = 2.0f * PI * (float)hz / (float)kSampleRate;
+    const float al = sinf(w) * 0.70710678f;  // Q = 1/sqrt(2)
+    const float c = cosf(w), a0 = 1.0f + al;
+    b0 = (1.0f + c) / 2.0f / a0;
+    b1 = -(1.0f + c) / a0;
+    b2 = b0;
+    a1 = -2.0f * c / a0;
+    a2 = (1.0f - al) / a0;
+  }
+  void reset() { x1 = x2 = y1 = y2 = 0; }
+  int32_t run(int32_t in) {
+    const float x = (float)in;
+    const float y = b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+    x2 = x1;
+    x1 = x;
+    y2 = y1;
+    y1 = y;
+    return constrain((int32_t)y, -32768, 32767);
+  }
+} gLowCut;
 
 inline int32_t stepTowards(int32_t now, int32_t want) {
   if (now < want) return now + kGainStep < want ? now + kGainStep : want;
@@ -245,6 +276,7 @@ void render(int16_t* out, int frames) {
   }
   xSemaphoreGive(gLock);
   if (popped) {
+    gLowCut.reset();
     spClip = 0;
     if (startNextClip()) spState = SpState::Clip;
   }
@@ -271,7 +303,7 @@ void render(int16_t* out, int frames) {
     speechGain = stepTowards(speechGain, speechWant);
     toneGain = stepTowards(toneGain, toneWant);
     if (spState != SpState::Idle && toneEnv == 0) {
-      s = ((int32_t)nextSpeechSample() * (speechGain >> 4)) >> 12;
+      s = (gLowCut.run(nextSpeechSample()) * (speechGain >> 4)) >> 12;
     } else {
       // Speech takes over from the tone, but only once the tone has faded out (5 ms): cutting
       // it off mid-wave is heard as a click before every announcement.
@@ -314,6 +346,7 @@ void audioTask(void*) {
 
 void begin() {
   gLock = xSemaphoreCreateMutex();
+  gLowCut.tune(kSpeechLowCutHz);
   for (int i = 0; i < 256; ++i) gSine[i] = (int16_t)(32000.0f * sinf(2.0f * PI * i / 256.0f));
 
   i2s_config_t cfg = {};
