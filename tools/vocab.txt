@@ -106,9 +106,7 @@ factory_cancelled|Factory reset cancelled
 factory_reset|Restoring factory settings
 maint_connected|Connected to maintenance server Wi-Fi
 
-# Safe area warnings. A vario whose clips have not been updated falls back to tones and the "turn right now" clips.
-safe_edge|Safe area edge
+# Safe area warnings. A vario whose clips have not been updated falls back to tones.
+left_area|You have left the safe area
 outside_area|Outside the safe area
 back_inside|Back in the safe area
-turn_right|Turn right to
-turn_left|Turn left to

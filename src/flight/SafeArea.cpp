@@ -16,11 +16,9 @@ using safearea::Pt;
 namespace {
 constexpr const char* kFile = "/areas.json";
 constexpr uint32_t kEvalMs = 500;       // how often the position is judged
-constexpr float kCloseM = 25.0f;        // this close to an edge is a warning whichever way the track points
-constexpr float kMinSpeedMs = 3.0f;     // below this there is no direction of travel to turn from
 constexpr float kMaxExtentM = 100000.0f;
 constexpr float kMinAreaM2 = 100.0f;
-constexpr uint8_t kOutsideConfirm = 2;  // evaluations outside in a row before it is believed (GPS noise on the edge)
+constexpr uint8_t kConfirm = 2;  // evaluations (half a second each) on the same side in a row before a change is believed: GPS noise on an edge
 
 // A stored corner in the local frame around (lat0, lon0).
 inline Pt local(int32_t latE6, int32_t lonE6, double lat0, double lon0, double cosLat0) {
@@ -68,6 +66,7 @@ bool SafeArea::parse(const char* json, Area* out, const char** err) {
     for (char* c = ar.name; *c; ++c)
       if (*c == '"' || *c == '\\' || (uint8_t)*c < 32) *c = ' ';
     ar.on = a["on"] | true;
+    ar.kind = strcmp(a["k"] | "safe", "restricted") == 0 ? Restricted : Safe;
     JsonArray pts = a["p"].as<JsonArray>();
     if (pts.isNull() || pts.size() < 3 || pts.size() > (size_t)kMaxPoints) {
       *err = "an area needs 3 to 24 corners";
@@ -142,6 +141,7 @@ void SafeArea::toJson(String& out) const {
     out += a.name;
     out += "\",\"on\":";
     out += a.on ? "true" : "false";
+    out += a.kind == Restricted ? ",\"k\":\"restricted\"" : ",\"k\":\"safe\"";
     out += ",\"p\":[";
     for (int i = 0; i < a.n; ++i) {
       char b[40];
@@ -166,22 +166,20 @@ bool SafeArea::save() const {
 int SafeArea::activeCount() const {
   int c = 0;
   for (const Area& a : areas_)
-    if (a.n >= 3 && a.on) ++c;
+    if (a.n >= 3 && a.on && a.kind == Safe) ++c;  // restricted areas are stored but not used yet
   return c;
 }
 
 void SafeArea::reset() {
   state_ = State::None;
   edgeM_ = -1;
-  outsideCount_ = 0;
-  wasOutside_ = false;
+  outsideCount_ = insideCount_ = 0;
   lastSpokeMs_ = 0;
 }
 
 const char* SafeArea::stateName() const {
   switch (state_) {
     case State::Inside: return "inside";
-    case State::Edge: return "edge";
     case State::Outside: return "outside";
     default: return "none";
   }
@@ -197,38 +195,19 @@ void SafeArea::update(const NavState& nav, bool guidanceActive) {
   lastEvalMs_ = nav.ms;
 
   const double c0 = cos(nav.lat * geo::kDegToRad);
-  const bool moving = nav.speedOk && nav.speedMs >= kMinSpeedMs;
-  const float lead = fmaxf(g_cfg.safeAreaWarnM, nav.speedMs * (float)g_cfg.safeAreaWarnS);
-  const Pt dir = safearea::unit(nav.trackDeg);
-
-  // The area the pilot is best placed in (the one the track stays inside longest), or else the nearest one.
   bool inAny = false;
-  float bestRay = -2, bestNear = 0;   // bestRay: distance to the exit along the track, +1e9 when there is none
-  Pt bufIn[kMaxPoints];               // the polygon chosen for the way out
-  int nIn = 0;
-  float outDist = 1e30f;
-  Pt outAt = {0, 0};
+  float inDist = 0;            // inside: the distance to the nearest edge of the area it is furthest from
+  float outDist = 1e30f;       // outside: the distance to the nearest edge of any area
   for (const Area& a : areas_) {
-    if (a.n < 3 || !a.on) continue;
+    if (a.n < 3 || !a.on || a.kind != Safe) continue;
     Pt buf[kMaxPoints];
     for (int i = 0; i < a.n; ++i) buf[i] = local(a.lat[i], a.lon[i], nav.lat, nav.lon, c0);
-    const safearea::Near nr = safearea::nearest(buf, a.n, 0, 0);
+    const float d = safearea::nearest(buf, a.n, 0, 0).dist;
     if (safearea::contains(buf, a.n, 0, 0)) {
-      float ray = 1e9f;
-      if (moving) {
-        const float r = safearea::rayHit(buf, a.n, 0, 0, dir.e, dir.n, 1e7f);
-        if (r >= 0) ray = r;
-      }
-      if (!inAny || ray > bestRay || (ray == bestRay && nr.dist > bestNear)) {
-        inAny = true;
-        bestRay = ray;
-        bestNear = nr.dist;
-        nIn = a.n;
-        for (int i = 0; i < a.n; ++i) bufIn[i] = buf[i];
-      }
-    } else if (nr.dist < outDist) {
-      outDist = nr.dist;
-      outAt = nr.at;
+      if (!inAny || d > inDist) inDist = d;
+      inAny = true;
+    } else if (d < outDist) {
+      outDist = d;
     }
   }
 
@@ -237,52 +216,29 @@ void SafeArea::update(const NavState& nav, bool guidanceActive) {
 
   if (inAny) {
     outsideCount_ = 0;
-    edgeM_ = bestNear;
-    const bool leaving = bestRay <= lead;                    // the track leaves the area within the warning distance
-    const bool close = bestNear < kCloseM && nav.speedMs > 1.0f;  // right on an edge
-    if (leaving || close) {
-      const State before = state_;
-      state_ = State::Edge;
-      if (speak && (before != State::Edge || nav.ms - lastSpokeMs_ >= repeatMs)) {
-        lastSpokeMs_ = nav.ms | 1;
-        Utterance u(Priority::High);
-        u.add("safe_edge|~700");
-        speech::addDistance(u, leaving ? bestRay : bestNear);
-        if (moving) {
-          const float target = safearea::escapeHeading(bufIn, nIn, nav.trackDeg, lead);
-          const float rel = safearea::wrap180(target - nav.trackDeg);
-          u.add(rel > 0 ? "turn_right|turn_right_now" : "turn_left|turn_left_now");
-          speech::addClock(u, rel);
-        }
-        audio::say(u);
-        LOGI("SAF", "edge: %.0f m ahead, track %.0f", leaving ? bestRay : bestNear, nav.trackDeg);
-      }
-    } else {
-      state_ = State::Inside;
-      if (wasOutside_ && speak) speech::say(Priority::High, "back_inside|~900");
-      wasOutside_ = false;
-    }
+    if (insideCount_ < 255) ++insideCount_;
+    edgeM_ = inDist;
+    if (state_ == State::Outside && insideCount_ < kConfirm) return;  // not yet believed to be back
+    const State before = state_;
+    state_ = State::Inside;
+    if (before == State::Outside && speak) speech::say(Priority::High, "back_inside|~900");
     return;
   }
 
-  // Outside every area.
-  edgeM_ = outDist;
+  // Outside every safe area.
+  insideCount_ = 0;
   if (outsideCount_ < 255) ++outsideCount_;
-  if (outsideCount_ < kOutsideConfirm) return;
+  edgeM_ = outDist;
+  if (outsideCount_ < kConfirm) return;
   const State before = state_;
   state_ = State::Outside;
-  wasOutside_ = true;
-  if (speak && (before != State::Outside || nav.ms - lastSpokeMs_ >= repeatMs)) {
+  if (!speak) return;
+  if (before != State::Outside) {  // the moment of leaving
     lastSpokeMs_ = nav.ms | 1;
-    Utterance u(Priority::High);
-    u.add("outside_area|~400");
-    speech::addDistance(u, outDist);
-    if (moving) {
-      const float rel = safearea::wrap180(safearea::bearingOf(outAt.e, outAt.n) - nav.trackDeg);
-      u.add(rel > 0 ? "turn_right|turn_right_now" : "turn_left|turn_left_now");
-      speech::addClock(u, rel);
-    }
-    audio::say(u);
-    LOGI("SAF", "outside: %.0f m from the nearest area", outDist);
+    speech::say(Priority::High, "left_area|outside_area|~400");
+    LOGI("SAF", "left the safe area, %.0f m from the nearest edge", outDist);
+  } else if (nav.ms - lastSpokeMs_ >= repeatMs) {  // still outside: repeated
+    lastSpokeMs_ = nav.ms | 1;
+    speech::say(Priority::High, "outside_area|~400");
   }
 }

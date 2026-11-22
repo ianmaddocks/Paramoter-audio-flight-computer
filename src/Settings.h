@@ -88,10 +88,8 @@ struct Settings {
   float offHeadingDeg = 30.0f;
   int32_t guidanceUpdateS = 20;
 
-  bool safeAreaOn = true;         // warn at the edge of the safe areas drawn on the Safe area tab (nothing is said when none is set)
-  float safeAreaWarnM = 200.0f;   // warn when the track leaves the area within this distance...
-  int32_t safeAreaWarnS = 15;     // ...or within this many seconds, whichever is further
-  int32_t safeAreaRepeatS = 10;   // repeat the warning this often while it holds
+  bool safeAreaOn = true;         // say when the vario leaves the safe areas drawn on the Safe area tab (nothing is said when none is set)
+  int32_t safeAreaRepeatS = 20;   // repeat "outside the safe area" this often while it holds
 
   int32_t emergencyUpdateS = 30;
   float onCourseDeg = 30.0f;

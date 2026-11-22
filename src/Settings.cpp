@@ -120,10 +120,8 @@ const Field kFields[] = {
     FL(offHeadingDeg, "Landing approach", "Off-heading warning", "°", 10.0f, 90.0f),
     I(guidanceUpdateS, "Landing approach", "Guidance update every", "s", 5, 120),
 
-    B(safeAreaOn, "Safe area", "Warn at the edge of the safe area"),
-    FL(safeAreaWarnM, "Safe area", "Warn this far from the edge", "dist", 50.0f, 2000.0f),
-    I(safeAreaWarnS, "Safe area", "Or this many seconds before it", "s", 5, 60),
-    I(safeAreaRepeatS, "Safe area", "Repeat the warning every", "s", 5, 60),
+    B(safeAreaOn, "Safe area", "Warn when I leave the safe area"),
+    I(safeAreaRepeatS, "Safe area", "Repeat the warning every", "s", 5, 120),
 
     I(emergencyUpdateS, "Emergency", "Distance update every", "s", 5, 300),
     FL(onCourseDeg, "Emergency", "On-course tolerance", "°", 5.0f, 45.0f),

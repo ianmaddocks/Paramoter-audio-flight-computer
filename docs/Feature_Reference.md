@@ -849,36 +849,31 @@ For example, at 20 s you hear it every 20 s (sooner if you are well off course).
 
 *GPS Module*
 
-Safe areas are places you want to stay inside, such as your flying field. You draw each one on a map on the **Safe area** tab. In flight the vario warns you before you leave it, tells you if you are outside, and says which way to turn.
+Safe areas are places you want to stay inside, such as your flying field. You draw each one on a map on the **Safe area** tab. In flight the vario tells you when you leave it.
 
-**Drawing an area.** Open the **Safe area** tab and tap **New area**. Drag the map until the red cross is on a corner and tap **Add corner at cross**; do that for each corner (at least 3, at most 24). Drag a numbered corner to move it, and tap **Remove last corner** to undo. Give it a name and tap **Save area**. You can keep up to 3 areas. Tick or untick an area in the list to switch it on or off, or tap **Edit** or **Delete**. The layers button on the map switches between a street map and a satellite picture.
+**Drawing an area.** Open the **Safe area** tab and tap **New area**. Drag the map until the red cross is on a corner and tap **Add corner at cross**; do that for each corner (at least 3, at most 24). **Show my position** centres the map on you. Without a map you can still tap **Add corner at my position** (walk round the edge and add each corner), or open **Paste corners** and paste a list of latitude, longitude pairs, or the coordinates from a site such as geojson.io. Give the area a name and tap **Save area**.
 
-The map comes from the internet, so the phone needs mobile data (or another Wi-Fi) when you set an area up. Flying needs no internet: the areas are stored on the vario. **Show my position** centres the map on you. Without a map you can still tap **Add corner at my position** (walk round the edge and add each corner), or open **Paste corners** and paste a list of latitude, longitude pairs, or the coordinates from a site such as geojson.io.
+Every corner is listed under the map, in the order they join up. Tap a corner's position to centre the map on it, use the arrows to move it up or down the list (the first has no up arrow, the last no down arrow), or **Delete** it. You can also drag a numbered corner on the map.
 
-An area is flat: it applies at every height. You are safe if you are inside any area that is switched on.
+You can keep up to 3 areas. In the list of areas tick or untick one to switch it on or off, or tap **Edit**, **Copy** (a copy to change, for a neighbouring field) or **Delete**. The layers button on the map switches between a street map and a satellite picture. The map comes from the internet, so the phone needs mobile data (or another Wi-Fi) when you set an area up. Flying needs no internet: the areas are stored on the vario.
+
+An area is flat: it applies at every height. You are safe if you are inside any area that is switched on. (Each area also has a kind, *safe* or *restricted*. Only safe areas are used so far; restricted areas are for a later version.)
 
 **What you hear** (while flying):
-- **"Safe area edge, 300 metres. Turn right to 2 o'clock."** Your track leaves the area within the warning distance. The turn is the smallest one that keeps you inside.
-- **"Outside the safe area, 200 metres. Turn left to 10 o'clock."** You are outside every area. The clock position is the direction of the nearest edge.
+- **"You have left the safe area."** You are outside every area. It is said once, then **"Outside the safe area"** is repeated while you stay outside. No directions are given.
 - **"Back in the safe area."** You are inside again.
 
-Both warnings repeat while they apply. Landing approach and emergency glide calls take priority: the safe area stays quiet during them. The names you type are shown on the page only; they are not spoken. A vario whose voice clips have not been updated says the same with tones and "Turn right now" instead.
+A position is only believed to be on the other side of an edge after about a second, so GPS noise on the edge does not make it chatter. Landing approach and emergency glide calls take priority: the safe area stays quiet during them. The names you type are shown on the page only; they are not spoken. A vario whose voice clips have not been updated uses tones instead.
 
-The Safe area status line on the tab shows whether you are inside, near the edge or outside, and how far from the edge.
+The status line on the tab shows whether you are inside or outside and how far from the nearest edge.
 
 *Safe area settings*
 
-### Warn at the edge of the safe area
+### Warn when I leave the safe area
 Switches the spoken warnings on or off. The areas stay stored. Default: On.
 
-### Warn this far from the edge
-You are warned when your track would leave the area within this distance. Default: 200 m.
-
-### Or this many seconds before it
-You are also warned this many seconds before leaving, at your present speed; the larger of the two distances is used. Default: 15 s.
-
 ### Repeat the warning every
-How often a warning that still applies is repeated. Default: 10 s.
+How often "Outside the safe area" is repeated while you stay outside. Default: 20 s.
 
 The areas are a file on the vario's storage. Reinstalling the voice clips (which erases the storage) or the storage image removes them; draw them again.
 

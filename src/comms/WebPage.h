@@ -113,6 +113,11 @@ R"HTML(
 #areaBox{position:relative}
 #areaCross{position:absolute;left:50%;top:50%;width:36px;height:36px;margin:-18px 0 0 -18px;pointer-events:none;z-index:1001}
 #areaCross[hidden]{display:none}
+.apt{display:flex;align-items:center;gap:6px;padding:6px 0;border-top:1px solid var(--bd)}
+.apt .n{flex:none;width:22px;height:22px;border-radius:50%;background:#f08c00;color:#fff;font:600 12px/22px system-ui,sans-serif;text-align:center}
+.apt .c{flex:1;min-width:0;font:13px ui-monospace,Menlo,Consolas,monospace;cursor:pointer;overflow:hidden;text-overflow:ellipsis}
+.apt button{padding:4px 9px;min-width:36px}
+.apt button:disabled{opacity:.3}
 .acn{width:22px;height:22px;border-radius:50%;background:#f08c00;border:2px solid #fff;color:#fff;font:600 12px/18px system-ui,sans-serif;text-align:center}
 #areaPaste{width:100%;height:90px;font:12px ui-monospace,Menlo,Consolas,monospace;background:var(--bg);color:var(--fg);border:1px solid var(--bd);border-radius:8px;padding:6px}
 body.nogps .needgps,body.nomic .needmic,body.nospec .needspec{display:none}
@@ -207,7 +212,7 @@ R"HTML(
 <div id="areaPage" class="page" role="tabpanel" hidden>
 <section class="card"><h2>Safe areas</h2>
 <p class="mut" id="areaState">No safe area is set.</p>
-<p class="mut">While you fly you are told, with the way to turn, when your track will leave a safe area, and when you are outside every area. Add the corners of an area one at a time with the cross on the map.</p>
+<p class="mut">While you fly you are told when you leave the safe area, and when you are back in it. Add the corners of an area one at a time with the cross on the map.</p>
 <div id="areaList"></div>
 </section>
 <section class="card"><h2 id="areaTitle">New area</h2>
@@ -216,6 +221,7 @@ R"HTML(
 <p class="mut" id="areaMapMsg">Open this tab to load the map. It needs internet on this phone (mobile data or another Wi-Fi).</p>
 <div class="row"><span>Name</span><input type="text" id="areaName" maxlength="23" autocomplete="off"></div>
 <p class="mut" id="areaHelp">Drag the map until the red cross is on a corner, then tap <b>Add corner at cross</b>. Drag a numbered corner to move it.</p>
+<div id="areaPts"></div>
 <div class="btns">
 <button type="button" id="areaCursor" class="pri wide">Add corner at cross</button>
 <button type="button" id="areaHere">Add corner at my position</button>
@@ -1016,7 +1022,7 @@ const $a=id=>document.getElementById(id);
 function areaStatus(s){
   const g=s.gps;aPos=g&&g.fix?[g.lat,g.lon]:null;
   const a=s.area;
-  txt('areaState',!a?(aAreas.length?'No GPS fix yet.':'No safe area is set.'):a.state==='inside'?'Inside the safe area, '+fD(a.edge)+' from the edge.':a.state==='edge'?'Near the edge of the safe area: '+fD(a.edge)+'.':a.state==='outside'?'Outside the safe area, '+fD(a.edge)+' from it.':'');
+  txt('areaState',!a?(aAreas.length?'No GPS fix yet.':'No safe area is set.'):a.state==='inside'?'Inside the safe area, '+fD(a.edge)+' from the edge.':a.state==='outside'?'Outside the safe area, '+fD(a.edge)+' from it.':'');
   if(aMe&&aMap&&aPos){aMe.setLatLng(aPos);if(!aMap.hasLayer(aMe))aMe.addTo(aMap)}
 }
 function areaLoad(){return fetch('/api/areas',{cache:'no-store'}).then(r=>r.json()).then(j=>{aAreas=j.a||[];areaList();areaDraw()}).catch(()=>{})}
@@ -1033,10 +1039,16 @@ function areaList(){
     cb.onchange=()=>{a.on=cb.checked;areaPost().then(areaDraw)};
     lab.append(cb,' '+a.n+' ('+a.p.length+' corners)');
     const bs=document.createElement('span');
-    bs.append(areaBtn('Edit',()=>areaEdit(i)),' ',areaBtn('Delete',()=>{if(confirm('Delete '+a.n+'?')){aAreas.splice(i,1);if(aIdx===i)areaCancel();areaPost().then(areaLoad)}}));
+    bs.append(areaBtn('Edit',()=>areaEdit(i)),' ',areaBtn('Copy',()=>areaCopy(i)),' ',areaBtn('Delete',()=>{if(confirm('Delete '+a.n+'?')){aAreas.splice(i,1);if(aIdx===i)areaCancel();areaPost().then(areaLoad)}}));
     d.append(lab,bs);el.append(d);
   });
   if(aAreas.length<3){const p=document.createElement('p');p.append(areaBtn('New area',()=>areaEdit(-1)));el.append(p)}
+}
+function areaCopy(i){
+  if(aAreas.length>=3){toast('At most 3 areas');return}
+  const a=aAreas[i];
+  aAreas.push({n:(a.n+' copy').slice(0,23),on:a.on,k:a.k||'safe',p:a.p.map(p=>p.slice())});
+  areaPost().then(areaLoad);
 }
 function areaEdit(i){
   aIdx=i;aDraft=i>=0?aAreas[i].p.map(p=>p.slice()):[];
@@ -1044,7 +1056,23 @@ function areaEdit(i){
   areaDraw();areaFit();$a('areaTitle').scrollIntoView({behavior:'smooth'});
 }
 function areaCancel(){aDraft=null;aIdx=-1;$a('areaName').value='';$a('areaTitle').textContent='New area';areaDraw()}
+function areaPoints(){
+  const el=$a('areaPts');el.textContent='';
+  if(!aDraft)return;
+  const mv=(i,j)=>{const t=aDraft[i];aDraft[i]=aDraft[j];aDraft[j]=t;areaDraw()};
+  aDraft.forEach((p,i)=>{
+    const r=document.createElement('div');r.className='apt';
+    const n=document.createElement('span');n.className='n';n.textContent=i+1;
+    const c=document.createElement('span');c.className='c';c.textContent=p[0].toFixed(5)+', '+p[1].toFixed(5);
+    c.onclick=()=>{if(aMap)aMap.panTo(p)};
+    const up=areaBtn('\u2191',()=>mv(i,i-1)),dn=areaBtn('\u2193',()=>mv(i,i+1)),rm=areaBtn('Delete',()=>{aDraft.splice(i,1);areaDraw()});
+    up.disabled=i===0;dn.disabled=i===aDraft.length-1;
+    up.setAttribute('aria-label','Move corner '+(i+1)+' up');dn.setAttribute('aria-label','Move corner '+(i+1)+' down');
+    r.append(n,c,up,dn,rm);el.append(r);
+  });
+}
 function areaDraw(){
+  areaPoints();
   if(aDraft)$a('areaTitle').textContent=(aIdx>=0?'Edit '+aAreas[aIdx].n:'New area')+' – '+aDraft.length+' corner'+(aDraft.length===1?'':'s');
   if(!aMap)return;
   aLayer.clearLayers();
@@ -1103,7 +1131,7 @@ $a('areaCancel').onclick=areaCancel;
 $a('areaSave').onclick=async()=>{
   if(!aDraft||aDraft.length<3){toast('An area needs at least 3 corners');return}
   const n=($a('areaName').value.trim()||'Area '+(aAreas.length+(aIdx<0?1:0))).slice(0,23);
-  const e={n:n,on:aIdx>=0?aAreas[aIdx].on:true,p:aDraft.map(p=>[+p[0].toFixed(6),+p[1].toFixed(6)])};
+  const e={n:n,on:aIdx>=0?aAreas[aIdx].on:true,k:aIdx>=0?(aAreas[aIdx].k||'safe'):'safe',p:aDraft.map(p=>[+p[0].toFixed(6),+p[1].toFixed(6)])};
   if(aIdx>=0)aAreas[aIdx]=e;else aAreas.push(e);
   if(await areaPost()){aDraft=null;aIdx=-1;$a('areaName').value='';$a('areaTitle').textContent='New area';areaLoad()}
 };
