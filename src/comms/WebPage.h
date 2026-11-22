@@ -222,12 +222,12 @@ R"HTML(
 <div id="areaBox"><div id="areaMap" hidden></div>
 <svg id="areaCross" viewBox="0 0 36 36" hidden><circle cx="18" cy="18" r="10" fill="none" stroke="#fff" stroke-width="4"/><circle cx="18" cy="18" r="10" fill="none" stroke="#111" stroke-width="2"/><path d="M18 1v10M18 25v10M1 18h10M25 18h10" stroke="#fff" stroke-width="4"/><path d="M18 1v10M18 25v10M1 18h10M25 18h10" stroke="#111" stroke-width="2"/></svg></div>
 <p class="mut" id="areaMapMsg">Open this tab to load the map. It needs internet on this phone (mobile data or another Wi-Fi).</p>
+<p class="mut" id="areaHelp"><b>Tap the map</b> to add a corner where you tap, or drag the map until the cross is on a corner and tap <b>Add corner at cross</b>. Drag a numbered corner to move it.</p>
 <div id="areaPts"></div>
 <div class="row"><span>Name</span><input type="text" id="areaName" maxlength="23" autocomplete="off"></div>
 <div class="row"><span>Type</span><select id="areaKind"><option value="safe">Safe (green)</option><option value="restricted">Restricted (red)</option></select></div>
 <div class="row"><span>Warn me <small id="areaWarnU"></small></span><input type="number" id="areaWarn" min="0" step="10" inputmode="numeric"></div>
 <p class="mut" id="areaWarnNote"></p>
-<p class="mut" id="areaHelp">Drag the map until the cross is on a corner, then tap <b>Add corner at cross</b>. Drag a numbered corner to move it.</p>
 <div class="btns">
 <button type="button" id="areaCursor" class="pri wide">Add corner at cross</button>
 <button type="button" id="areaHere">Add corner at my position</button>
