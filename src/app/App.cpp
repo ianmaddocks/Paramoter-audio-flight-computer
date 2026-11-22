@@ -243,6 +243,7 @@ void flightTick(uint32_t now) {
     app.wind.update(app.nav);
     app.approach.update(app.nav, app.wind);
     app.emergency.update(app.nav, app.wind);
+    app.safeArea.update(app.nav, app.approach.active() || app.emergency.active());
     app.logger.update(app.nav, app.gpsData);
     updateResume(now);
   }
@@ -326,6 +327,7 @@ void testResetFlight() {
   app.announcer = Announcer();
   app.approach = Approach();
   app.emergency = Emergency();
+  app.safeArea.reset();
   app.glide = Glide();
   app.heightHistory = HeightHistory();
   app.flights = 0;
@@ -353,6 +355,7 @@ void appSetup() {
   else {
     voicepack::begin();
     voicepack::migrate();  // clips from the old one-file-each layout are packed into one file, once
+    app.safeArea.begin();
   }
 
   audio::begin();

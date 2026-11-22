@@ -5,6 +5,7 @@
 #include "flight/Emergency.h"
 #include "flight/Flight.h"
 #include "flight/Glide.h"
+#include "flight/SafeArea.h"
 #include "flight/HeightHistory.h"
 #include "nav/Moving.h"
 #include "flight/Wind.h"
@@ -38,6 +39,7 @@ struct App {
   Announcer announcer;
   Approach approach;
   Emergency emergency;
+  SafeArea safeArea;  // the safe flying areas drawn on the web page
 
   // Outputs
   BleFeed ble;

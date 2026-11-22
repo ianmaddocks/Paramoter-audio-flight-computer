@@ -157,6 +157,10 @@ effect only), real microphone acoustics (the synthetic engine replaces the ADC s
 depth (only task stacks and heap are watched). Suspected defects found while writing the tests are in
 docs/TEST_FINDINGS.md.
 
+## Safe area geometry (PC test)
+
+The polygon geometry for the safe areas (`src/flight/SafeAreaGeo.h`: inside test, distance to the edge, where a track leaves the area, the turn that keeps you inside) is plain C++ and has a PC test, `test/host/safearea_geo_test.cpp`. Build and run it with any C++17 compiler, for example `g++ -std=c++17 -I src/flight test/host/safearea_geo_test.cpp -o safearea_geo_test`. The speech and the web page are not covered by it.
+
 ## Adding a test
 
 A test is a function `t_name(v, a)` in `tools/hil_test.py`, listed in `TESTS`. `v` is the

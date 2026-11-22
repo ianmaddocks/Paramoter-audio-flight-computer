@@ -21,7 +21,7 @@ Heights in the examples use the default unit (feet). You can switch to metres in
   - [Logs and system tab](#basic-system) · [Help tab](#basic-help)
 - [Part 2 - Advanced](#part-2---advanced)
   - [Tiles](#adv-tiles) · [Banner](#adv-banner) · [Buttons and actions](#adv-buttons) · [Guidance](#adv-guidance) · [Sounds](#adv-sounds)
-  - [Settings: Units and Audio](#adv-settings-units-and-audio) · [Takeoff and landing](#adv-settings-takeoff-and-landing) · [Glide](#adv-settings-glide) · [Landing zone](#adv-settings-landing-zone) · [Landing approach](#adv-settings-landing-approach) · [Emergency](#adv-settings-emergency) · [Wind](#adv-settings-wind) · [GPS](#adv-settings-gps) · [Bluetooth](#adv-settings-bluetooth) · [Logging](#adv-settings-logging)
+  - [Settings: Units and Audio](#adv-settings-units-and-audio) · [Takeoff and landing](#adv-settings-takeoff-and-landing) · [Glide](#adv-settings-glide) · [Landing zone](#adv-settings-landing-zone) · [Landing approach](#adv-settings-landing-approach) · [Safe area](#adv-safe-area) · [Emergency](#adv-settings-emergency) · [Wind](#adv-settings-wind) · [GPS](#adv-settings-gps) · [Bluetooth](#adv-settings-bluetooth) · [Logging](#adv-settings-logging)
 
 Settings are changed on the Settings tab of the web page. A change is saved a moment after you make it. A setting marked **restart** takes effect after the vario is restarted: once you have changed one, a **Restart** button appears at the bottom of the Settings tab (it goes away after the restart, and also if you reload the page meanwhile).
 
@@ -843,6 +843,44 @@ For example, at 30°, "Steer left" or "Steer right" is said if you are off by mo
 How often distance and direction are repeated on the way to the circuit start.
 
 For example, at 20 s you hear it every 20 s (sooner if you are well off course). Default: 20 s.
+
+<a id="adv-safe-area"></a>
+## Safe area
+
+*GPS Module*
+
+Safe areas are places you want to stay inside, such as your flying field. You draw each one on a map on the **Safe area** tab. In flight the vario warns you before you leave it, tells you if you are outside, and says which way to turn.
+
+**Drawing an area.** Open the **Safe area** tab and tap **New area**. Tap the map to place the corners (at least 3, at most 24), drag a numbered corner to move it, and tap **Remove last corner** to undo. Give it a name and tap **Save area**. You can keep up to 3 areas. Tick or untick an area in the list to switch it on or off, or tap **Edit** or **Delete**. The layers button on the map switches between a street map and a satellite picture.
+
+The map comes from the internet, so the phone needs mobile data (or another Wi-Fi) when you set an area up. Flying needs no internet: the areas are stored on the vario. Without a map you can still tap **Add corner here** to add your present position (walk round the edge and add each corner), or open **Paste corners** and paste a list of latitude, longitude pairs, or the coordinates from a site such as geojson.io.
+
+An area is flat: it applies at every height. You are safe if you are inside any area that is switched on.
+
+**What you hear** (while flying):
+- **"Safe area edge, 300 metres. Turn right to 2 o'clock."** Your track leaves the area within the warning distance. The turn is the smallest one that keeps you inside.
+- **"Outside the safe area, 200 metres. Turn left to 10 o'clock."** You are outside every area. The clock position is the direction of the nearest edge.
+- **"Back in the safe area."** You are inside again.
+
+Both warnings repeat while they apply. Landing approach and emergency glide calls take priority: the safe area stays quiet during them. The names you type are shown on the page only; they are not spoken. A vario whose voice clips have not been updated says the same with tones and "Turn right now" instead.
+
+The Safe area status line on the tab shows whether you are inside, near the edge or outside, and how far from the edge.
+
+*Safe area settings*
+
+### Warn at the edge of the safe area
+Switches the spoken warnings on or off. The areas stay stored. Default: On.
+
+### Warn this far from the edge
+You are warned when your track would leave the area within this distance. Default: 200 m.
+
+### Or this many seconds before it
+You are also warned this many seconds before leaving, at your present speed; the larger of the two distances is used. Default: 15 s.
+
+### Repeat the warning every
+How often a warning that still applies is repeated. Default: 10 s.
+
+The areas are a file on the vario's storage. Reinstalling the voice clips (which erases the storage) or the storage image removes them; draw them again.
 
 <a id="adv-settings-emergency"></a>
 ## Settings: Emergency

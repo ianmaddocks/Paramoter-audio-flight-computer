@@ -108,6 +108,10 @@ R"HTML(#specCv{width:100%;height:280px;display:block}
 )HTML"
 #endif
 R"HTML(
+#areaMap{height:340px;border-radius:10px;border:1px solid var(--bd);background:var(--bg)}
+#areaMap[hidden]{display:none}
+.acn{width:22px;height:22px;border-radius:50%;background:#f08c00;border:2px solid #fff;color:#fff;font:600 12px/18px system-ui,sans-serif;text-align:center}
+#areaPaste{width:100%;height:90px;font:12px ui-monospace,Menlo,Consolas,monospace;background:var(--bg);color:var(--fg);border:1px solid var(--bd);border-radius:8px;padding:6px}
 body.nogps .needgps,body.nomic .needmic,body.nospec .needspec{display:none}
 /* Until the vario has said which parts are fitted (and whether the Spectrum tab is on), hide what may not be there, so it does not flash up and go. */
 body.loading .needgps,body.loading .needmic,body.loading .needspec{display:none}
@@ -149,6 +153,7 @@ body.replay .volb{display:none}
 <button type="button" role="tab" aria-selected="true" data-tab="flight">Flight</button>
 <button type="button" role="tab" aria-selected="false" data-tab="system">Logs &amp; system</button>
 <button type="button" role="tab" aria-selected="false" data-tab="settings">Settings</button>
+<button type="button" role="tab" aria-selected="false" data-tab="area" class="needgps">Safe area</button>
 )HTML"
 #if PV_HAS_SPECTRUM
 R"HTML(<button type="button" role="tab" aria-selected="false" data-tab="spectrum" class="needmic needspec">Spectrum</button>
@@ -195,6 +200,27 @@ R"HTML(
 <section id="settings"></section>
 <p id="saveState" class="mut" role="status" aria-live="polite"></p>
 <section class="card" id="restartBar" hidden><p>A restart is needed for some of the changes to take effect.</p><div class="btns"><button data-a="restart" class="pri">Restart</button></div></section>
+</div>
+<div id="areaPage" class="page" role="tabpanel" hidden>
+<section class="card"><h2>Safe areas</h2>
+<p class="mut" id="areaState">No safe area is set.</p>
+<p class="mut">While you fly you are told, with the way to turn, when your track will leave a safe area, and when you are outside every area. Tap the map to place the corners of an area.</p>
+<div id="areaList"></div>
+</section>
+<section class="card"><h2 id="areaTitle">New area</h2>
+<div id="areaMap" hidden></div><p class="mut" id="areaMapMsg">Open this tab to load the map. It needs internet on this phone (mobile data or another Wi-Fi).</p>
+<div class="row"><span>Name</span><input type="text" id="areaName" maxlength="23" autocomplete="off"></div>
+<div class="btns">
+<button type="button" id="areaHere">Add corner here</button>
+<button type="button" id="areaUndo">Remove last corner</button>
+<button type="button" id="areaSave" class="pri">Save area</button>
+<button type="button" id="areaCancel">Cancel</button>
+</div>
+<details class="sub"><summary>Paste corners</summary>
+<p class="mut">One corner per line as latitude, longitude, or the coordinates from geojson.io.</p>
+<textarea id="areaPaste" spellcheck="false"></textarea>
+<div class="btns" style="margin-top:8px"><button type="button" id="areaUse">Use these corners</button></div></details>
+</section>
 </div>
 )HTML"
 #if PV_HAS_SPECTRUM
@@ -315,7 +341,7 @@ const GROUP_HELP={'Units':{b:'basic-settings-units-and-audio',a:'adv-settings-un
   'Vario':{b:'basic-settings-vario'},'Height calls':{b:'basic-settings-height-calls'},
   'Takeoff & landing':{b:'basic-settings-takeoff-and-landing',a:'adv-settings-takeoff-and-landing'},
   'Glide':{a:'adv-settings-glide'},'Landing zone':{a:'adv-settings-landing-zone'},'Landing approach':{a:'adv-settings-landing-approach'},
-  'Emergency':{a:'adv-settings-emergency'},'Wind':{a:'adv-settings-wind'},'GPS':{a:'adv-settings-gps',always:1},
+  'Safe area':{a:'adv-safe-area'},'Emergency':{a:'adv-settings-emergency'},'Wind':{a:'adv-settings-wind'},'GPS':{a:'adv-settings-gps',always:1},
   'Bluetooth':{b:'basic-settings-bluetooth',a:'adv-settings-bluetooth'},'Wi-Fi':{b:'basic-settings-wi-fi'},'Firmware Update':{b:'basic-settings-firmware-update'},
   'Battery':{b:'basic-settings-battery'},'Logging':{a:'adv-settings-logging'}};
 let hwNow={gps:true,mic:true,spectrum:true};
@@ -507,6 +533,7 @@ function renderStatus(s,replay){
     const k=hw.gps+'/'+hw.mic;if(k!==layKey){layKey=k;layout();buildHelp();addGroupHelp()}
     if(schemaKey&&k!==schemaKey&&!saveInFlight&&!settingsBusy){settingsBusy=true;loadSettings().catch(()=>{}).finally(()=>{settingsBusy=false})}
     document.body.classList.toggle('flying',!!s.flying);
+    areaStatus(s);
     {const e=!!cfg.showEngTiles;if(e!==engShown){engShown=e;$('#tile-noise').hidden=!e;layout()}}
     txt('t-agl',fH(s.agl));txt('t-msl',fH(s.altMsl)+' MSL');
     txt('t-vario',(s.vario>=0?'+':'')+s.vario.toFixed(1)+' m/s');txt('t-mute',s.muted?'muted':'');
@@ -704,6 +731,7 @@ function selectTab(name){
   document.querySelectorAll('button[data-tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===name));
   document.querySelectorAll('.page').forEach(p=>p.hidden=p.id!==name+'Page');
   if(name==='system')loadLogs();
+  if(name==='area'){areaLoad();areaMapInit();if(aMap)setTimeout(()=>aMap.invalidateSize(),50)}
 )HTML"
 #if PV_HAS_SPECTRUM
 R"HTML(  const was=specOn;specOn=name==='spectrum';if(specOn&&!was)specLoop();
@@ -973,6 +1001,106 @@ $('#fwgo').onclick=()=>{
     setFw(1,'Installed. Restarting – rejoin the ParaVario Wi-Fi if your phone drops it.');setTimeout(()=>location.reload(),10000)};
   x.onerror=()=>done('Update failed: connection lost');
   fwBusy=true;$('#fwgo').disabled=true;setFw(0,'Uploading 0%');x.send(fd);
+};
+// ---- Safe area tab: the areas are drawn on a map (Leaflet, loaded from the internet when this tab is first opened) ----
+let aAreas=[],aDraft=null,aIdx=-1,aMap=null,aLayer=null,aMe=null,aTried=false,aPos=null;
+const $a=id=>document.getElementById(id);
+function areaStatus(s){
+  const g=s.gps;aPos=g&&g.fix?[g.lat,g.lon]:null;
+  const a=s.area;
+  txt('areaState',!a?(aAreas.length?'No GPS fix yet.':'No safe area is set.'):a.state==='inside'?'Inside the safe area, '+fD(a.edge)+' from the edge.':a.state==='edge'?'Near the edge of the safe area: '+fD(a.edge)+'.':a.state==='outside'?'Outside the safe area, '+fD(a.edge)+' from it.':'');
+  if(aMe&&aMap&&aPos){aMe.setLatLng(aPos);if(!aMap.hasLayer(aMe))aMe.addTo(aMap)}
+}
+function areaLoad(){return fetch('/api/areas',{cache:'no-store'}).then(r=>r.json()).then(j=>{aAreas=j.a||[];areaList();areaDraw()}).catch(()=>{})}
+function areaPost(){
+  return fetch('/api/areas',{method:'POST',body:JSON.stringify({a:aAreas})}).then(async r=>{const j=await r.json();if(!r.ok)throw j.error;toast('Saved');return true})
+    .catch(e=>{toast('Not saved: '+e);areaLoad();return false});
+}
+function areaBtn(t,f){const b=document.createElement('button');b.type='button';b.textContent=t;b.onclick=f;b.style.padding='6px 10px';return b}
+function areaList(){
+  const el=$a('areaList');el.textContent='';
+  aAreas.forEach((a,i)=>{
+    const d=document.createElement('div');d.className='log';
+    const lab=document.createElement('label'),cb=document.createElement('input');cb.type='checkbox';cb.checked=!!a.on;
+    cb.onchange=()=>{a.on=cb.checked;areaPost().then(areaDraw)};
+    lab.append(cb,' '+a.n+' ('+a.p.length+' corners)');
+    const bs=document.createElement('span');
+    bs.append(areaBtn('Edit',()=>areaEdit(i)),' ',areaBtn('Delete',()=>{if(confirm('Delete '+a.n+'?')){aAreas.splice(i,1);if(aIdx===i)areaCancel();areaPost().then(areaLoad)}}));
+    d.append(lab,bs);el.append(d);
+  });
+  if(aAreas.length<3){const p=document.createElement('p');p.append(areaBtn('New area',()=>areaEdit(-1)));el.append(p)}
+}
+function areaEdit(i){
+  aIdx=i;aDraft=i>=0?aAreas[i].p.map(p=>p.slice()):[];
+  $a('areaName').value=i>=0?aAreas[i].n:'';$a('areaTitle').textContent=i>=0?'Edit '+aAreas[i].n:'New area';
+  areaDraw();areaFit();$a('areaTitle').scrollIntoView({behavior:'smooth'});
+}
+function areaCancel(){aDraft=null;aIdx=-1;$a('areaName').value='';$a('areaTitle').textContent='New area';areaDraw()}
+function areaDraw(){
+  if(!aMap)return;
+  aLayer.clearLayers();
+  aAreas.forEach((a,i)=>{if(i===aIdx&&aDraft)return;L.polygon(a.p,{color:a.on?'#2a9d5c':'#888',weight:2,fillOpacity:.12}).bindTooltip(a.n).addTo(aLayer)});
+  if(!aDraft)return;
+  if(aDraft.length>=3)L.polygon(aDraft,{color:'#f08c00',weight:2,fillOpacity:.15}).addTo(aLayer);
+  else if(aDraft.length===2)L.polyline(aDraft,{color:'#f08c00',weight:2}).addTo(aLayer);
+  aDraft.forEach((p,i)=>{
+    const m=L.marker(p,{draggable:true,icon:L.divIcon({className:'',html:'<div class="acn">'+(i+1)+'</div>',iconSize:[22,22],iconAnchor:[11,11]})});
+    m.on('dragend',()=>{const l=m.getLatLng();aDraft[i]=[l.lat,l.lng];areaDraw()});
+    m.addTo(aLayer);
+  });
+}
+function areaFit(){
+  if(!aMap)return;
+  const pts=aDraft&&aDraft.length?aDraft:aAreas.reduce((a,x)=>a.concat(x.p),[]);
+  if(pts.length)aMap.fitBounds(L.latLngBounds(pts),{padding:[30,30],maxZoom:17});
+  else if(aPos)aMap.setView(aPos,15);else aMap.setView([20,0],2);
+}
+function areaMapInit(){
+  if(aMap||aTried)return;
+  aTried=true;
+  const m=$a('areaMapMsg');m.textContent='Loading the map…';
+  const l=document.createElement('link');l.rel='stylesheet';l.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';document.head.append(l);
+  const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+  s.onload=areaMapStart;
+  s.onerror=()=>{aTried=false;m.textContent='The map could not be loaded: this phone needs internet (mobile data, or another Wi-Fi). You can still add corners at your position or paste them below.'};
+  document.head.append(s);
+}
+function areaMapStart(){
+  $a('areaMapMsg').hidden=true;$a('areaMap').hidden=false;
+  aMap=L.map('areaMap');
+  const street=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'});
+  const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Imagery © Esri'});
+  street.addTo(aMap);L.control.layers({Map:street,Satellite:sat}).addTo(aMap);
+  aLayer=L.layerGroup().addTo(aMap);
+  aMe=L.circleMarker(aPos||[0,0],{radius:7,color:'#fff',weight:2,fillColor:'#2a7fff',fillOpacity:1});if(aPos)aMe.addTo(aMap);
+  aMap.on('click',e=>{if(!aDraft)areaEdit(-1);aDraft.push([e.latlng.lat,e.latlng.lng]);areaDraw()});
+  areaDraw();areaFit();
+}
+$a('areaHere').onclick=()=>{
+  if(!aPos){toast('No GPS fix');return}
+  if(!aDraft)areaEdit(-1);
+  if(aDraft.length>=24){toast('At most 24 corners');return}
+  aDraft.push(aPos.slice());areaDraw();if(aMap)aMap.panTo(aPos);
+};
+$a('areaUndo').onclick=()=>{if(aDraft&&aDraft.length){aDraft.pop();areaDraw()}};
+$a('areaCancel').onclick=areaCancel;
+$a('areaSave').onclick=async()=>{
+  if(!aDraft||aDraft.length<3){toast('An area needs at least 3 corners');return}
+  const n=($a('areaName').value.trim()||'Area '+(aAreas.length+(aIdx<0?1:0))).slice(0,23);
+  const e={n:n,on:aIdx>=0?aAreas[aIdx].on:true,p:aDraft.map(p=>[+p[0].toFixed(6),+p[1].toFixed(6)])};
+  if(aIdx>=0)aAreas[aIdx]=e;else aAreas.push(e);
+  if(await areaPost()){aDraft=null;aIdx=-1;$a('areaName').value='';$a('areaTitle').textContent='New area';areaLoad()}
+};
+$a('areaUse').onclick=()=>{
+  const t=$a('areaPaste').value,nums=(t.match(/-?\d+(?:\.\d+)?/g)||[]).map(Number);
+  if(nums.length<6||nums.length%2){toast('Need at least 3 pairs of numbers');return}
+  const geo=t.includes('[');  // geojson order is longitude, latitude
+  let p=[];for(let i=0;i<nums.length;i+=2)p.push(geo?[nums[i+1],nums[i]]:[nums[i],nums[i+1]]);
+  if(p.length>1&&p[0][0]===p[p.length-1][0]&&p[0][1]===p[p.length-1][1])p.pop();
+  if(p.length>24){toast('At most 24 corners');return}
+  if(p.some(q=>Math.abs(q[0])>90||Math.abs(q[1])>180)){toast('These are not latitudes and longitudes');return}
+  if(!aDraft)areaEdit(-1);
+  aDraft=p;areaDraw();areaFit();toast(p.length+' corners');
 };
 async function boot(){
   await loadSettings().catch(()=>{});

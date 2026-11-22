@@ -393,6 +393,12 @@ void handleStatus() {
     lz["brg"] = geo::bearingDeg(n.lat, n.lon, n.lzLat, n.lzLon);
   }
 
+  if (app.safeArea.activeCount() > 0) {
+    JsonObject sa = doc["area"].to<JsonObject>();
+    sa["state"] = app.safeArea.stateName();
+    sa["edge"] = app.safeArea.edgeM();
+  }
+
   doc["mode"] = app.emergency.active() ? "emergency" : app.approach.active() ? "approach" : "none";
   doc["approach"] = app.approach.phaseName();
   if (app.emergency.active()) doc["range"] = app.emergency.lastRangeM();
@@ -592,6 +598,25 @@ void handlePostSettings() {
   addPiece(s);
   addPiece("}", 1);
   endPieces();
+}
+
+// The safe areas: GET gives them, POST replaces them all ({"a":[{"n":name,"on":true,"p":[[lat,lon],...]}]}).
+void handleGetAreas() {
+  String s;
+  app.safeArea.toJson(s);
+  server.sendHeader("Cache-Control", "no-store");
+  server.send(200, "application/json", s);
+}
+
+void handlePostAreas() {
+  const char* err = nullptr;
+  if (!app.safeArea.setFromJson(server.arg("plain").c_str(), &err)) {
+    sendError(400, err ? err : "not usable");
+    return;
+  }
+  JsonDocument doc;
+  doc["ok"] = true;
+  sendJson(doc);
 }
 
 void handleAction() {
@@ -1000,6 +1025,8 @@ void begin() {
   route("/api/settings", HTTP_POST, handlePostSettings);
   route("/api/schema", HTTP_GET, handleSchema);
   route("/api/action", HTTP_POST, handleAction);
+  route("/api/areas", HTTP_GET, handleGetAreas);
+  route("/api/areas", HTTP_POST, handlePostAreas);
   route("/api/logs", HTTP_GET, handleLogs);
   route("/api/debuglog", HTTP_GET, handleDebugLog);
 #if PV_HAS_SPECTRUM
