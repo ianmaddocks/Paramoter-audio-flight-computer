@@ -689,16 +689,6 @@ function render(){
         d.appendChild(m);
       }});
     parent.appendChild(d);return d};
-  // Quick settings: the few a pilot changes most, first. They are the same settings as in their groups below (the
-  // two copies follow each other).
-  const QUICK=['varioVolume','speechVolume','heightUnit','distUnit','speedUnit','circuitSide','glideRatio','trimAirspeedMs'];
-  const qf=QUICK.map(k=>schema.find(f=>f.k===k)).filter(Boolean);
-  if(qf.length&&!ADV){
-    const q=document.createElement('details');q.className='card';q.id='quickSettings';q.open=!openGroups.has('~quick closed');
-    q.ontoggle=()=>q.open?openGroups.delete('~quick closed'):openGroups.add('~quick closed');
-    const s=document.createElement('summary');s.textContent='Quick settings';q.appendChild(s);
-    qf.forEach(f=>q.appendChild(field(f)));root.appendChild(q);
-  }
   const adv=ADV_GROUPS.filter(g=>groups[g]);
   if(ADV){
     const h=document.createElement('section');h.className='card';h.id='advHead';

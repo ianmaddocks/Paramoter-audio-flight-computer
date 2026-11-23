@@ -3970,7 +3970,7 @@ def t_ui_help(v, a):
     p.wait("document.querySelectorAll('#settings summary .help a').length>0", 8, "group help links")
     groups = p.js("[...document.querySelectorAll('#settings summary')].map(s=>({g:s.firstChild.textContent,"
                   "l:[...s.querySelectorAll('.help a')].map(a=>({t:a.textContent,h:a.href}))}))")
-    bare = [g["g"] for g in groups if not g["l"] and g["g"] not in ("Advanced settings", "Quick settings")]
+    bare = [g["g"] for g in groups if not g["l"] and g["g"] != "Advanced settings"]
     if bare:
         raise Fail(f"web page: settings groups with no help link: {bare}")
     for g in groups:
@@ -4307,8 +4307,7 @@ def t_ui_pilot(v, a):
     LZ = takeoff) is shown and in flight it is gone, leaving Landing approach, Emergency glide, Tell me and Mute; the
     alert strip shows a low or critical battery (with minutes and landing zone distance), a failed barometer and a lost
     GPS in flight and clears when they recover; the GPS tile says good / weak / none, the Battery tile minutes left; the
-    Background noise tile is hidden unless asked for; Quick settings come first on the Settings tab and follow their
-    groups; Tell me and Reset flight state buttons work."""
+    Background noise tile is hidden unless asked for; Tell me and Reset flight state buttons work."""
     notes = []
     try:
         m = reset(v, baro="on", alt=GROUND_M, vz=0, baroOffset=150, gps="fix", sats=10, hdop=0.9, speed=0, track=90,
@@ -4406,22 +4405,17 @@ def t_ui_pilot(v, a):
         p.wait("document.getElementById('tile-noise').offsetParent===null", 12, "noise tile hidden again")
         notes.append("noise tile only on request")
 
-        # quick settings first, and in step with the group copy
+        # no Quick settings card: the settings are in their groups only; a change there is saved
         p.tab("settings")
-        p.wait("document.querySelector('#settings > details') && document.querySelector('#settings > details').id==='quickSettings'", 10,
-               "Quick settings is the first card")
-        keys = p.js("[...document.querySelectorAll('#quickSettings [data-key]')].map(i=>i.dataset.key)")
-        want = {"varioVolume", "speechVolume", "heightUnit", "distUnit", "speedUnit", "circuitSide", "glideRatio", "trimAirspeedMs"}
-        if set(keys) != want:
-            raise Fail(f"web page: Quick settings holds {sorted(keys)}, expected {sorted(want)}")
-        p.js("(()=>{const i=document.querySelector('#quickSettings [data-key=glideRatio]');i.value='7.5';i.dispatchEvent(new Event('change'));return 1})()")
-        p.wait("[...document.querySelectorAll('[data-key=glideRatio]')].every(i=>i.value==='7.5')", 6, "both copies of glide ratio show 7.5")
+        if p.js("!!document.getElementById('quickSettings')"):
+            raise Fail("web page: a Quick settings card is still on the Settings tab")
+        p.js("tSet('glideRatio','7.5')")
         end = time.time() + 6
         while abs(v.settings()["glideRatio"] - 7.5) > 0.01:
             if time.time() > end:
-                raise Fail("web page: the glide ratio set in Quick settings was not saved")
+                raise Fail("web page: the glide ratio set in its group was not saved")
             time.sleep(0.5)
-        notes.append("Quick settings first, same settings as their groups, saved")
+        notes.append("no Quick settings card, a setting changed in its group is saved")
 
         # reset the flight state from the Logs & system tab
         p.tab("system")
@@ -4625,7 +4619,7 @@ def t_ui_settings(v, a):
         adv_groups = [g for g in adv_order if g in groups]
         hidden_groups = [g for g in hidden_order if g in groups]
         shown = p.js("[...document.querySelectorAll('#settings>details>summary')].map(s=>s.firstChild.textContent)")
-        want = ["Quick settings"] + main_groups + (["Advanced settings"] if adv_groups else [])  # Quick settings: the pilot's card, first
+        want = main_groups + (["Advanced settings"] if adv_groups else [])
         if shown != want:
             raise Fail(f"web page: top-level setting groups {shown}, expected {want}")
         shown_adv = p.js("[...document.querySelectorAll('#advSettings>details>summary')].map(s=>s.firstChild.textContent)")
@@ -4633,7 +4627,7 @@ def t_ui_settings(v, a):
             raise Fail(f"web page: Advanced settings holds {shown_adv}, expected {adv_groups}")
         if p.js("document.getElementById('advSettings').open"):
             raise Fail("web page: Advanced settings should start closed")
-        rows = p.js("document.querySelectorAll('#settings details:not(#quickSettings) label.row').length")  # (Quick settings repeats 8 of them)
+        rows = p.js("document.querySelectorAll('#settings details label.row').length")
         near(rows, len([f for f in schema if f["g"] not in hidden_order]), 0, "number of settings shown")
         missing = p.js("schema.filter(f=>!tInput(f.k)).map(f=>f.k)")
         if set(missing) != {f["k"] for f in schema if f["g"] in hidden_order}:
