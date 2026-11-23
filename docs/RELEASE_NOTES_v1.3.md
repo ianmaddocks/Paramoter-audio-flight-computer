@@ -18,7 +18,7 @@ Changes since `v1.2`. Simulator, bench and browser results are not verification 
 - Several memory fixes found by the memory tests: the circuit suite's wind estimator on the heap, smaller test-time peaks.
 
 ## Version display
-- The version is now the git description, for example `v1.3`, or `v1.3-4-gabc1234` between releases (with `-dirty` after it for uncommitted changes). The build time (yyyymmdd-hhmmss) is in the start-up log ("Built ...") and in the status as `stamp`.
+- The version now shows as the release name, for example `v1.3`. The build time is in the start-up log.
 
 ## Documents
 - New **API guide** (`docs/API_Guide.md`) for software that talks to the vario. The test results folders (`results/ui`, logs) are no longer in git.
