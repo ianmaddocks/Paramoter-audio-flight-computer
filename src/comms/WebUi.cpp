@@ -477,12 +477,7 @@ void handleSim() {
 }
 #endif
 
-void handleGetSettings() {
-  String s;
-  settings::toJsonString(s);
-  server.sendHeader("Cache-Control", "no-store");
-  server.send(200, "application/json", s);
-}
+void handleGetSettings();  // (after the pieces code below)
 
 // Big replies (settings table, debug log) are sent in pieces through one fixed buffer, each
 // piece in a single network write of about one packet.
@@ -549,6 +544,25 @@ void endPieces() {
   if (gPieceDead) return;
   server.sendContent("");  // closing zero-length chunk; also ends the server's chunked mode
 }
+// Print into the pieces, for text written as it is made.
+struct PieceOut : Print {
+  size_t write(uint8_t c) override {
+    addPiece((const char*)&c, 1);
+    return 1;
+  }
+  size_t write(const uint8_t* b, size_t n) override {
+    addPiece((const char*)b, n);
+    return n;
+  }
+};
+
+void handleGetSettings() {
+  beginPieces("application/json");
+  PieceOut po;
+  settings::writeJson(po);
+  endPieces();
+}
+
 
 // A reply of known length sent in parts of about one packet (a log, the crash record): the same care as above.
 void beginRaw(const char* type, size_t length) {
@@ -597,11 +611,10 @@ void handlePostSettings() {
     sendError(500, "save failed");
     return;
   }
-  String s;
-  settings::toJsonString(s);
   beginPieces("application/json");
   addPiece(restart ? "{\"ok\":true,\"restart\":true,\"settings\":" : "{\"ok\":true,\"restart\":false,\"settings\":");
-  addPiece(s);
+  PieceOut po;
+  settings::writeJson(po);  // straight into the packets: no copy of the whole text
   addPiece("}", 1);
   endPieces();
 }

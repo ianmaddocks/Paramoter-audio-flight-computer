@@ -156,6 +156,7 @@ void resetDefaults();
 void toJson(JsonObject obj);
 // All settings as JSON text in out (the working copy is freed before this returns).
 void toJsonString(String& out);
+void writeJson(Print& out);  // the same JSON, written field by field: no whole document or copy in memory
 // Applies known keys, clamped to their limits. Returns true if a changed key needs a restart.
 bool fromJson(JsonObjectConst obj);
 // Names this unit advertises: the stored settings, exactly (the default value, made when there is none, has the unit code).

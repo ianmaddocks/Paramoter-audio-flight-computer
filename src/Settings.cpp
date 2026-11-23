@@ -395,12 +395,55 @@ static void loadStored() {
   fromJson(doc.as<JsonObjectConst>());
 }
 
+// The settings as a JSON object, one field at a time (each value through ArduinoJson, so the text is the same as from toJson). The
+// whole table as a document needs several kB of memory at once, and the text of it as much again.
+void writeJson(Print& out) {
+  out.write('{');
+  bool first = true;
+  for (const Field& f : kFields) {
+    if (!first) out.write(',');
+    first = false;
+    out.write('"');
+    out.print(f.key);
+    out.print("\":");
+    JsonDocument d;
+    switch (f.type) {
+      case FT::Bool: d.set(*static_cast<bool*>(f.ptr)); break;
+      case FT::Int:
+      case FT::Enum: d.set(*static_cast<int32_t*>(f.ptr)); break;
+      case FT::Float: d.set(*static_cast<float*>(f.ptr)); break;
+      case FT::Double: d.set(*static_cast<double*>(f.ptr)); break;
+      case FT::Str:
+      case FT::List: d.set(static_cast<const char*>(f.ptr)); break;
+    }
+    String t;  // (through a String: the build has that serializer already, a second one for Print costs about 5 kB of flash)
+    serializeJson(d, t);
+    out.print(t);
+  }
+  out.write('}');
+}
+
+namespace {
+struct CountOut : Print {
+  size_t n = 0;
+  size_t write(uint8_t) override { return ++n, 1; }
+  size_t write(const uint8_t*, size_t len) override { return n += len, len; }
+};
+struct StringOut : Print {
+  String& s;
+  explicit StringOut(String& str) : s(str) {}
+  size_t write(uint8_t c) override { return s.concat((char)c) ? 1 : 0; }
+  size_t write(const uint8_t* b, size_t len) override { return s.concat((const char*)b, len) ? len : 0; }
+};
+}  // namespace
+
 void toJsonString(String& out) {
-  JsonDocument doc;
-  toJson(doc.to<JsonObject>());
+  CountOut c;
+  writeJson(c);
   out = "";
-  out.reserve(measureJson(doc) + 1);  // one allocation of the right size
-  serializeJson(doc, out);
+  out.reserve(c.n + 1);  // one allocation of the right size
+  StringOut so(out);
+  writeJson(so);
 }
 
 bool save() {
