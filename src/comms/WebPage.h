@@ -823,13 +823,13 @@ async function loadLogs(){
     for(const f of j.files){
       const row=document.createElement('div');row.className='log';
       const a=document.createElement('a');a.href='/api/log?name='+encodeURIComponent(f.n);a.download=f.n;a.textContent=f.n;
-      const sz=document.createElement('span');sz.className='mut';sz.textContent=Math.round(f.s/1024)+' kB';
+      const sz=document.createElement('span');sz.className='mut';sz.textContent=Math.max(1,Math.round(f.s/53/60))+' min';  // a log takes about 53 bytes a second
       const del=document.createElement('button');del.textContent='Delete';del.className='dng';
       del.onclick=async()=>{if(!confirm('Delete '+f.n+'?'))return;await fetch('/api/log?name='+encodeURIComponent(f.n),{method:'DELETE'});loadLogs()};
       const rb=document.createElement('button');rb.textContent='Replay';rb.onclick=()=>replayStart(f.n);
       row.append(a,sz,rb,del);el.appendChild(row);
     }
-    const p=document.createElement('p');p.className='mut';p.textContent=Math.round(j.free/1024)+' kB free: room for about '+Math.max(0,Math.round((j.free-61440)/50/60))+' more minutes of flight before the oldest logs are deleted';el.appendChild(p);
+    const p=document.createElement('p');p.className='mut';const left=Math.max(0,Math.round((j.free-61440)/53/60));p.textContent=left?'Room for about '+left+' more minutes of flight before the oldest logs are deleted':'Little room left: the oldest logs will be deleted to make room for the next flight';el.appendChild(p);
   }catch(e){$('#logs').textContent='Could not load logs'}
 }
 

@@ -4589,10 +4589,11 @@ def t_ui_guidance(v, a):
     href = p.js(f"{row}.querySelector('a').getAttribute('href')")
     if href != "/api/log?name=" + name:
         raise Fail(f"web page: log download link is {href}")
-    if not re.search(r"^\d+ kB$", p.js(f"{row}.querySelector('span').textContent")):
-        raise Fail("web page: log size not shown")
-    if not re.search(r"^\d+ kB free: room for about \d+ more minutes of flight before the oldest logs are deleted$", p.js("document.querySelector('#logs p').textContent")):
-        raise Fail("web page: free space line wrong")
+    if not re.search(r"^\d+ min$", p.js(f"{row}.querySelector('span').textContent")):
+        raise Fail("web page: log length (minutes) not shown")
+    line = p.js("document.querySelector('#logs p').textContent")
+    if not re.search(r"^(Room for about \d+ more minutes of flight before the oldest logs are deleted|Little room left: .*)$", line) or re.search(r"(kB|bytes?)", line):
+        raise Fail(f"web page: free space line wrong: {line!r}")
     p.js(f"{row}.querySelector('button.dng').click()")  # Delete (the confirm box is auto-accepted)
     p.wait(f"!{row}", 6, "log removed from the list after Delete")
     if any(f["n"] == name for f in v.get_json("/api/logs")["files"]):
