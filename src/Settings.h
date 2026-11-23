@@ -16,11 +16,11 @@ struct Settings {
   int32_t distUnit = DU_METRES;
   int32_t speedUnit = SU_KMH;
 
-  int32_t speechVolume = 25;
-  int32_t varioVolume = 25;
-  int32_t volumeRampPctS = 40;  // fastest change of the applied volume, % per second
+  int32_t speechVolume = 15;
+  int32_t varioVolume = 10;
+  int32_t volumeRampPctS = 500;  // fastest change of the applied volume, % per second
   bool autoVolume = true;
-  float noiseQuietDb = -52.0f;  // dBFS at the mic: at or below this the set volumes are used
+  float noiseQuietDb = -50.0f;  // dBFS at the mic: at or below this the set volumes are used
   float noiseLoudDb = -30.0f;   // at or above this both volumes go to 100 %
   int32_t noiseReleaseS = 1;
 
@@ -32,7 +32,7 @@ struct Settings {
   bool spectrumEnabled = false;  // show the Spectrum tab (needs a build with the spectrum feature)
 
   bool varioEnabled = true;
-  bool muteUntilFlight = true;  // no vario beeps or sink alarm until the takeoff has been detected (and again after landing)
+  bool muteUntilFlight = false;  // no vario beeps or sink alarm until the takeoff has been detected (and again after landing)
   bool varioClimbBeeps = true;
   bool varioSinkAlarm = true;
   float climbThreshold = 0.3f;
@@ -57,9 +57,9 @@ struct Settings {
   float takeoffSpeedMs = 5.0f / 3.6f;
   int32_t takeoffTimeS = 3;
   float takeoffGainM = 3.048f;  // 10 ft
-  float baroTakeoffGainM = 6.096f;   // height gain that counts as takeoff with no usable GPS
+  float baroTakeoffGainM = 15.24f;   // height gain that counts as takeoff with no usable GPS
   float groundHoldVarioMs = 0.5f;   // ground level stops following the baro above this rate
-  float landingSpeedMs = 2.0f / 3.6f;
+  float landingSpeedMs = 1.4f;
   int32_t landingTimeS = 5;
   int32_t resumeMaxMin = 180;  // a flight is resumed after a restart in the air only within this long (0 = never)
   float landingNoSpeedAglM = 3.048f;  // 10 ft  // "near the ground": below this height above the landing zone (for the landing decision)
@@ -88,13 +88,13 @@ struct Settings {
   float offHeadingDeg = 30.0f;
   int32_t guidanceUpdateS = 20;
 
-  bool safeAreaOn = true;         // say when the vario leaves the safe areas drawn on the Safe area tab (nothing is said when none is set)
+  bool safeAreaOn = false;         // say when the vario leaves the safe areas drawn on the Safe area tab (nothing is said when none is set)
   int32_t safeAreaRepeatS = 20;   // repeat "outside the safe area" this often while it holds
-  bool restrictedAreaOn = true;   // warn about the restricted areas (each has its own warning distance)
+  bool restrictedAreaOn = false;   // warn about the restricted areas (each has its own warning distance)
   int32_t restrictedRepeatS = 10; // repeat a restricted-area warning this often while it holds
 
   int32_t emergencyUpdateS = 30;
-  float onCourseDeg = 30.0f;
+  float onCourseDeg = 15.0f;
 
   bool windManual = false;
   float windFromDeg = 0.0f;
@@ -143,7 +143,7 @@ struct Settings {
   int32_t memGuardKb = 12;   // last-resort restart when free memory stays below this (half of it in flight); 0 = never
   int32_t memGuardS = 30;    // ... for this long
   bool igcEnabled = true;
-  int32_t igcPreS = 30;
+  int32_t igcPreS = 20;
   bool igcQnhAlt = true;
   char pilotName[32] = "";
   char gliderType[32] = "Paramotor";

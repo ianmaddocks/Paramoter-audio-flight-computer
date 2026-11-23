@@ -2814,7 +2814,7 @@ def t_factory_reset(v, a):
     notes = []
     try:
         on_ground_with_fix(v)
-        defaults = {"speechVolume": 25, "pilotName": ""}  # the owner's settings are the defaults (Settings.h)
+        defaults = {"speechVolume": 15, "pilotName": ""}  # the owner's settings are the defaults (Settings.h)
         v.set(speechVolume=55, pilotName="Test Pilot")
 
         # in flight the five clicks are nothing, and give no instruction

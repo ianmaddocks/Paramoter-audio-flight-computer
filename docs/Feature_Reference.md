@@ -190,17 +190,17 @@ Choose what you are used to. Everything shown on the page and every height spoke
 ### Speech volume
 How loud the spoken calls are.
 
-The scale runs from 0 (silent) to 100 (as loud as it goes). Use *Status* while adjusting. Default: 25 %.
+The scale runs from 0 (silent) to 100 (as loud as it goes). Use *Status* while adjusting. Default: 15 %.
 
 ### Vario volume
 How loud the beeps are.
 
-Set it so the beeps are clear over your engine noise or wind but not painful. The start-up beep is at this volume, so it is a quick way to check. Default: 25 %.
+Set it so the beeps are clear over your engine noise or wind but not painful. The start-up beep is at this volume, so it is a quick way to check. Default: 10 %.
 
 ### Fastest volume change
 Stops the volume from changing suddenly.
 
-If you change the volume (or the noise around you changes), the sound moves to the new volume smoothly instead of jumping. A lower number is gentler. Default: 40 % per second.
+If you change the volume (or the noise around you changes), the sound moves to the new volume smoothly instead of jumping. A lower number is gentler. Default: 500 % per second.
 
 At 40 %/s, going from 10 % to 100 % takes about 2 to 3 seconds. The step is also spread over a tenth of a second inside the audio output, so there is never a click.
 
@@ -214,7 +214,7 @@ Between the two noise levels you set (below), the volume rises in proportion. Th
 ### Noise for set volume (see Background noise tile)
 The noise level at or below which the normal volume is used.
 
-Read the Background noise tile when it is quiet (for example -52 dBFS) and enter that. Default: -52 dBFS.
+Read the Background noise tile when it is quiet (for example -50 dBFS) and enter that. Default: -50 dBFS.
 
 ### Noise for full volume
 The noise level at which the volume reaches 100 %.
@@ -237,7 +237,7 @@ The master switch for the beeps.
 Turn off to have no beeps and no sink alarm at all. Spoken calls are not affected. Default: On.
 
 ### Mute until flight
-No beeps and no sink alarm until takeoff has been detected, and none again after landing. Spoken calls are not affected. Default: On.
+No beeps and no sink alarm until takeoff has been detected, and none again after landing. Spoken calls are not affected. Default: Off.
 
 ### Climb beeps
 Switch the climb beeps on or off.
@@ -333,7 +333,7 @@ For example, at 5 min you hear "Flight time 15 minutes". 0 turns it off. Default
 ### Takeoff height gain without GPS
 How far you must climb for the vario to decide you have taken off.
 
-For example, at 49 ft (15 m), once you have climbed 49 ft from where you stood, you hear "Take off" and the flight starts. Lower it to detect takeoff sooner, but not so low that carrying the vario upstairs counts. Default: 20 ft (6 m).
+For example, at 49 ft (15 m), once you have climbed 49 ft from where you stood, you hear "Take off" and the flight starts. Lower it to detect takeoff sooner, but not so low that carrying the vario upstairs counts. Default: 50 ft (15 m).
 
 An Advanced vario with a good GPS fix uses speed instead (see Part 2); this setting is also its fall-back when the GPS has no usable fix.
 
@@ -635,7 +635,7 @@ For example, at 10 ft (3 m), "Take off" is announced once you have held takeoff 
 ### Landed by ground speed
 The ground speed below which you count as stopped, so you have landed.
 
-For example, at 5 km/h, walking pace or slower. Default: 2 km/h.
+For example, at 5 km/h, walking pace or slower. Default: 5 km/h.
 
 With a good GPS fix, landing is declared when your ground speed stays below this for *Landed after* seconds (shown in Part 1; it is half the time needed without a GPS speed). A weak fix (few satellites or poor accuracy) is not used for the speed: the vario falls back on the barometer and your height, as with no GPS (see *Counts as near the ground below*), so a weak fix in flight no longer ends the flight.
 
@@ -770,13 +770,13 @@ The status line on the tab shows whether you are inside or outside a safe area a
 *Areas settings*
 
 ### Warn when I leave a safe area
-Switches the safe-area warnings on or off. The areas stay stored. Default: On.
+Switches the safe-area warnings on or off. The areas stay stored. Default: Off.
 
 ### Repeat that warning every
 How often "Outside the safe area" (or the edge warning) is repeated while it applies. Default: 20 s.
 
 ### Warn about restricted areas
-Switches the restricted-area warnings on or off. Default: On.
+Switches the restricted-area warnings on or off. Default: Off.
 
 ### Repeat a restricted-area warning every
 How often a restricted-area warning that still applies is repeated. Default: 10 s.
@@ -796,7 +796,7 @@ The default is every 30 s. Shorter gives more frequent calls but more talking. D
 ### On-course tolerance
 How close to straight at the LZ counts as "On course".
 
-For example, at 15°, when you point within 15° of the LZ you hear "On course". Default: 30°.
+For example, at 15°, when you point within 15° of the LZ you hear "On course". Default: 15°.
 
 <a id="adv-settings-wind"></a>
 ## Settings: Wind
@@ -838,7 +838,7 @@ It should never act in normal use. It only counts memory that stays low for the 
 ### Keep this much track before takeoff
 Includes the last few seconds before takeoff in the log.
 
-For example, at 30 s the file starts 30 seconds before takeoff, so the start of your run is not missing. It is kept in memory (not written to storage) until takeoff. 0 turns it off. Default: 30 s.
+For example, at 30 s the file starts 30 seconds before takeoff, so the start of your run is not missing. It is kept in memory (not written to storage) until takeoff. 0 turns it off. Default: 20 s.
 
 ### Pilot name / Wing / motor
 Text written into the header of each log.
