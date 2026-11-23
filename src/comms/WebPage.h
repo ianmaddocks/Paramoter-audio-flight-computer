@@ -655,9 +655,8 @@ function field(f){
   i.dataset.key=f.k;
   row.append(sp,i);return row;
 }
-// Settings that most pilots never need to change are on their own page, /advanced (the same page, the same tabs: a tab
-// takes you back), in this order. The Settings tab ends with a link to it.
-const ADV=/^\/advanced\/?$/.test(location.pathname);
+// Settings that most pilots never need to change sit in one collapsed "Advanced settings" section at the
+// end of the list, in this order.
 const ADV_GROUPS=['Battery','Wi-Fi','Firmware Update','GPS','Engine RPM','Wind','Logging','Glide'];
 function render(){
   $('#fwholder').appendChild($('#fwcard'));  // out of the list before it is cleared
@@ -691,26 +690,20 @@ function render(){
   // two copies follow each other).
   const QUICK=['varioVolume','speechVolume','heightUnit','distUnit','speedUnit','circuitSide','glideRatio','trimAirspeedMs'];
   const qf=QUICK.map(k=>schema.find(f=>f.k===k)).filter(Boolean);
-  if(qf.length&&!ADV){
+  if(qf.length){
     const q=document.createElement('details');q.className='card';q.id='quickSettings';q.open=!openGroups.has('~quick closed');
     q.ontoggle=()=>q.open?openGroups.delete('~quick closed'):openGroups.add('~quick closed');
     const s=document.createElement('summary');s.textContent='Quick settings';q.appendChild(s);
     qf.forEach(f=>q.appendChild(field(f)));root.appendChild(q);
   }
+  for(const g in groups)if(!ADV_GROUPS.includes(g))group(g,root,'card');
   const adv=ADV_GROUPS.filter(g=>groups[g]);
-  if(ADV){
-    const h=document.createElement('section');h.className='card';h.id='advHead';
-    h.innerHTML='<h2>Advanced settings</h2><p class="mut advnote">Settings most pilots never need to change. The tabs above take you back.</p>';
-    root.appendChild(h);
-    adv.forEach(g=>group(g,root,'card'));
-  }else{
-    for(const g in groups)if(!ADV_GROUPS.includes(g))group(g,root,'card');
-    if(adv.length){
-      const o=document.createElement('section');o.className='card';o.id='advLink';
-      o.innerHTML='<a href="/advanced" style="display:block;font-weight:600;font-size:1.05em">Advanced settings &rsaquo;</a><p class="mut advnote"></p>';
-      o.querySelector('p').textContent='Settings most pilots never need to change: '+adv.join(', ')+'.';
-      root.appendChild(o);
-    }
+  if(adv.length){
+    const o=document.createElement('details');o.className='card';o.id='advSettings';o.open=openGroups.has('Advanced settings');
+    o.ontoggle=()=>o.open?openGroups.add('Advanced settings'):openGroups.delete('Advanced settings');
+    const s=document.createElement('summary');s.textContent='Advanced settings';o.appendChild(s);
+    const n=document.createElement('p');n.className='mut advnote';n.textContent='Settings most pilots never need to change: '+adv.join(', ')+'.';o.appendChild(n);
+    adv.forEach(g=>group(g,o,'card sub'));root.appendChild(o);
   }
   showWifi();addGroupHelp();
 }
@@ -809,7 +802,7 @@ $('#specfloor').onchange=drawSpec;
 )HTML"
 #endif
 R"HTML(
-document.querySelectorAll('button[data-tab]').forEach(b=>b.onclick=()=>{if(ADV)location.href='/#'+b.dataset.tab;else selectTab(b.dataset.tab)});
+document.querySelectorAll('button[data-tab]').forEach(b=>b.onclick=()=>selectTab(b.dataset.tab));
 
 async function act(a){
   if(a==='defaults'&&!confirm('Reset all settings to defaults?'))return;
@@ -1195,12 +1188,10 @@ $a('areaUse').onclick=()=>{
   aDraft=p;areaDraw();areaFit();toast(p.length+' corners');
 };
 async function boot(){
-  const want=ADV?'settings':location.hash.slice(1);  // /advanced is the Settings tab's page; /#map and the like open that tab
-  if(want&&document.querySelector('button[data-tab="'+want+'"]'))selectTab(want);
   await loadSettings().catch(()=>{});
   poll();setInterval(poll,1000);setInterval(pollDbg,1000);
   try{const s=await fetch('/api/status').then(r=>r.json());
-    if(s.debug&&!want){selectTab('system');$('#dbg').open=true;pollDbg()}}catch(e){}
+    if(s.debug){selectTab('system');$('#dbg').open=true;pollDbg()}}catch(e){}
 }
 boot();
 layout();buildHelp();pollHeight();

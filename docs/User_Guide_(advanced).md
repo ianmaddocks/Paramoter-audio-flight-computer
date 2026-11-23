@@ -32,7 +32,7 @@ You hear a short **click** on every press, and a rising tone 0.8 s into a hold t
 
 A vario with no GPS module (see [User_Guide_(basic).md](User_Guide_(basic).md)) simply leaves out what depends on it: no speed, wind, landing zone, approach or emergency guidance and no flight log, and a single press of the button only tells the height and the battery, while a double press, triple press or hold mutes or unmutes the vario.
 
-How the vario knows: at power-on it listens for the GPS module. If it hears nothing for a few seconds it treats the GPS as not fitted. Once a GPS has been seen it is remembered, so a GPS that later goes quiet shows `GPS not responding` rather than disappearing.
+How the vario knows: at power-on it listens for the GPS module. If it hears nothing for a few seconds it treats the GPS as not fitted. Once a GPS has been seen it is remembered, so a GPS that later goes quiet shows `GPS not responding` rather than disappearing. You can also set it by hand: **GPS module** in Settings, Advanced settings, GPS (Auto-detect, Always present or Not fitted).
 
 A GPS that stops working in flight leaves you with the vario, heights and height calls; "No GPS" is spoken after 5 seconds.
 
@@ -125,7 +125,7 @@ The landing approach and emergency glide calls come first: the areas stay quiet 
 
 ## The web page
 
-1. On your phone, join the Wi-Fi network **ParaVario-XXXX** (by default it has no password: it is an open network), where XXXX is a code unique to your unit (the last four digits of its MAC address), so several varios nearby can be told apart. The same code is in its Bluetooth name.
+1. On your phone, join the Wi-Fi network **ParaVario-XXXX** (by default it has no password: it is an open network until you set one under Settings → Wi-Fi), where XXXX is a code unique to your unit (the last four digits of its MAC address), so several varios nearby can be told apart. The same code is in its Bluetooth name.
 2. The page usually opens by itself. If it doesn't, open **http://192.168.4.1** in a browser.
 
 The phone has no internet while it's on this network, so turn mobile data on if you need both.
@@ -138,7 +138,7 @@ The phone has no internet while it's on this network, so turn mobile data on if 
 | Actions | One card headed **Actions**, and which one you see depends on the phase. **In flight:** **Landing support**, **Emergency support**, **Status** and **Mute vario** (the same as the button). **On the ground:** **Status**. Each button shows the push-button presses that do the same, for example **[...]**. (Setting the landing zone is in Settings → Landing zone: **Use current position**.) Below them, **Full screen** (hides the browser's bars). |
 | Areas | The **Map** tab: safe and restricted areas drawn on a map, each with its warning distance (see [Areas](#areas-safe-and-restricted)). |
 | Alerts | A strip under the banner for what a pilot must know in flight: **Battery low** or **critical** (with the minutes left and the distance to the LZ), **Barometer failed**, **No GPS fix**. It clears when the problem goes away. |
-| Settings | **Quick settings** first: volumes, units, circuit direction, glide ratio and trim airspeed (also in their groups; the two copies follow each other). Then collapsible groups (see below). Change a value and it is saved a moment later. Settings marked *restart* apply after a restart. |
+| Settings | **Quick settings** first: volumes, units, circuit direction, glide ratio and trim airspeed (also in their groups; the two copies follow each other). Then collapsible groups (see below); Battery, Wi-Fi, GPS, Engine RPM, Wind, Logging and Glide are inside **Advanced settings** at the end. Change a value and it is saved a moment later. Settings marked *restart* apply after a restart. |
 | Reset flight state | On the Logs & system tab. The way out if the vario ever thinks it is flying when it is not: it forgets the flight and any guidance. |
 | Flight logs | IGC files for each flight. Tap a name to download or Delete to remove. The oldest logs are deleted automatically when space runs low. |
 | Logging | Live messages from the vario, with Pause, Clear and Save as file, for finding problems. Opens automatically on the debug firmware. The same lines appear on the USB serial port. (Flight recording is set in the Logging group of the settings.) |
@@ -160,14 +160,20 @@ Every setting, with its default, an example and what it does underneath, is in [
 | Vario | [Basic: Vario](Feature_Reference.md#basic-settings-vario) |
 | Height calls | [Basic: Height calls](Feature_Reference.md#basic-settings-height-calls) |
 | Takeoff & landing | [Basic](Feature_Reference.md#basic-settings-takeoff-and-landing) and [Advanced](Feature_Reference.md#adv-settings-takeoff-and-landing) |
-| Landing zone, Landing approach, Emergency | [Advanced](Feature_Reference.md#adv-settings-glide) |
+| Engine RPM | [Engine RPM](Feature_Reference.md#basic-settings-engine-rpm) |
+| Glide, Landing zone, Landing approach, Emergency, Wind | [Advanced](Feature_Reference.md#adv-settings-glide) |
 | Areas | [Advanced: Areas](Feature_Reference.md#adv-safe-area) |
+| GPS | [Advanced: GPS](Feature_Reference.md#adv-settings-gps) |
 | Bluetooth | [Basic](Feature_Reference.md#basic-settings-bluetooth) and [Advanced](Feature_Reference.md#adv-settings-bluetooth) |
+| Wi-Fi | [Basic: Wi-Fi](Feature_Reference.md#basic-settings-wi-fi) |
+| Battery | [Basic: Battery](Feature_Reference.md#basic-settings-battery) |
+| Logging | [Advanced: Logging](Feature_Reference.md#adv-settings-logging) |
 
 ## Maintenance
 
 - **Firmware (USB):** `pio run -e release_usb -t upload`. Use `-e debug_usb` for detailed logging.
 - **Firmware (Wi-Fi from VS Code):** connect the PC to the vario's Wi-Fi (or, if you have switched on the *maintenance server connection*, just power the vario on near the PC), then `pio run -e release -t upload` (or `-e debug`). The vario restarts when it is done.
+- **Firmware (phone):** build on the PC (`pio run -e release`) and copy `.pio/build/release/firmware.bin` to the phone. On the phone, join the vario's Wi-Fi, open **http://192.168.4.1** in the normal browser (the pop-up captive-portal window often can't pick files), then go to **Settings → Advanced settings → Firmware Update**, choose the file, enter the update password and tap **Install update**. Keep the phone close and the page open until it says *Installed*. A failed or interrupted upload leaves the old firmware running.
 - **One program for every vario.** The same `firmware.bin` goes on a vario with and without a GPS module.
 - **Voice clips:** edit `tools/vocab.txt` or add your own recordings to `tools/voice_custom/`, run `python tools/make_voice.py` (it writes the one file `data/voice.pak` holding every clip), then `pio run -e release -t uploadfs`. You can also run `pio run -e release -t buildfs` and install `.pio/build/release/littlefs.bin` from the phone page. **This erases the flight logs stored on the vario, so download them first.** Settings are kept.
 - Firmware and voice-clip updates are refused while the vario is flying.
