@@ -147,7 +147,7 @@ A failure prints the vario's state, the simulator state and the last log lines.
 | `variant_no_gps` | vario with no GPS: ready, takeoff, height, landing, no GPS calls or log, page and settings trimmed |
 | `variant_no_mic` | vario without a microphone: set volume used, battery still read, page and settings trimmed |
 | `ui_flight` | banner and every tile on the flight tab |
-| `ui_settings` (firmware box) | the firmware update box is in Advanced settings / Firmware Update (not on Logs & system), shows the installed version, refuses without a file, password masked |
+| `ui_settings` (firmware box) | the firmware update box is in Firmware Update on the /advanced page (not on Logs & system), shows the installed version, refuses without a file, password masked |
 | `ui_actions` | on the ground: only Status [.] (no Mute button) and the Landing zone settings button (Use current position: refused without a fix, accepted with one); the page has no Set LZ manually / LZ = takeoff buttons |
 | `ui_guidance` | flying display, emergency/approach banners, log list and delete |
 | `ui_settings` | every setting shown; editing, units, greyed-out boxes, restart marks, the Restart button at the bottom of Settings (only while a restart is needed) |
