@@ -1036,6 +1036,7 @@ void begin() {
   if (MDNS.begin("paravario")) MDNS.addService("http", "tcp", 80);
 
   route("/", HTTP_GET, handleRoot);
+  route("/advanced", HTTP_GET, handleRoot);  // the same page: it shows the advanced settings when opened here
   route("/apple-touch-icon.png", HTTP_GET, handleIcon);
   route("/apple-touch-icon-precomposed.png", HTTP_GET, handleIcon);
   route("/favicon.ico", HTTP_GET, handleIcon);

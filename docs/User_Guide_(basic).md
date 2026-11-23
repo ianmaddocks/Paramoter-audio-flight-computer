@@ -10,7 +10,7 @@ This guide is for the Basic ParaVario: a vario with no GPS module. It has a baro
 
 It does **not** have a GPS module, so there is no speed, wind, landing zone, landing-approach or emergency guidance and no flight log. (A vario with a GPS module, the Advanced vario, adds all of those; see [User_Guide_(advanced).md](User_Guide_(advanced).md).)
 
-There is only one program for both. The vario finds out at power-on whether a GPS module is fitted, and shows the Basic or the Advanced features to match: the page and its Help follow automatically. (If a vario that has a GPS is not being recognised, or you have taken one off, the setting **GPS module** in Settings, Advanced settings, GPS, can be set by hand.)
+There is only one program for both. The vario finds out at power-on whether a GPS module is fitted, and shows the Basic or the Advanced features to match: the page and its Help follow automatically.
 
 Every tile, button and setting is explained in [Feature_Reference.md](Feature_Reference.md), Part 1. This guide tells you how to use the vario; the reference tells you what each control does. Links below point to the entries you are most likely to want.
 
@@ -73,7 +73,7 @@ With no GPS the vario uses the barometer alone.
 
 ## The web page
 
-1. On your phone, join the Wi-Fi network **ParaVario-XXXX** (by default it has no password: it is an open network until you set one under Settings → Wi-Fi). XXXX is a code unique to your vario, so you can tell several varios apart; the same code is in its Bluetooth name.
+1. On your phone, join the Wi-Fi network **ParaVario-XXXX** (by default it has no password: it is an open network). XXXX is a code unique to your vario, so you can tell several varios apart; the same code is in its Bluetooth name.
 2. The page opens by itself. If it does not, open **http://192.168.4.1** in a browser.
 
 The phone has no internet while joined to the vario, so turn mobile data on if you need both.
@@ -83,8 +83,8 @@ There are four tabs:
 | Tab | What is there |
 |---|---|
 | **Flight** | The ready banner; tiles for **Height**, **Vario** with a **height graph** of the last 10 minutes of flying under it (nothing is recorded on the ground; the trace stays after landing), **Flight time**, **Battery**, **Engine RPM** and **Background noise**; an **alert strip** for a low or critical battery (with the minutes left) and a failed barometer; and one card headed **Actions**: **Status** and **Mute vario** in flight, **Status** alone on the ground; below it **Full screen** (hides the browser's bars). The battery tile shows the minutes left when known. **Background noise** and the RPM confidence are tuning data, hidden unless switched on in Engine RPM (Advanced). Refreshed every second. |
-| **Logs & system** | The **Logging** section (live messages from the vario, for finding problems), **Restart** and **Factory defaults**. (The firmware update is in Settings → Advanced settings → Firmware Update.) (The flight-log list is empty on this version, because logs need a GPS.) |
-| **Settings** | **Quick settings** first (volumes, units and the like), then every setting, in groups. Change a value and it is saved a moment later. A setting marked *restart* takes effect after a restart: a **Restart** button appears at the bottom of Settings once you have changed one. The rarely needed groups (Battery, Wi-Fi, Engine RPM and the GPS module choice on this version) are inside **Advanced settings** at the end. |
+| **Logs & system** | The **Logging** section (live messages from the vario, for finding problems), **Restart** and **Factory defaults**. (The flight-log list is empty on this version, because logs need a GPS.) |
+| **Settings** | **Quick settings** first (volumes, units and the like), then every setting, in groups. Change a value and it is saved a moment later. A setting marked *restart* takes effect after a restart: a **Restart** button appears at the bottom of Settings once you have changed one. |
 | **Help** | Opens this guide and the feature reference on GitHub (the latest version; the phone needs internet, so turn mobile data on). Each group on the Settings tab also has a **Help** link to its entry in the reference. |
 
 Heights follow your chosen unit (feet or metres), and the heights you type in settings are in that unit too.
@@ -108,7 +108,6 @@ Details of each tile and button: [reference, Tiles](Feature_Reference.md#basic-t
 | Landing not noticed on high ground | Counts as near the ground below (increase) | [Takeoff and landing](Feature_Reference.md#basic-settings-takeoff-and-landing) |
 | Stop a false "Landed" close to the ground | Landed after (increase) | [Takeoff and landing](Feature_Reference.md#basic-settings-takeoff-and-landing) |
 | Name my vario in the app | Device name | [Bluetooth](Feature_Reference.md#basic-settings-bluetooth) |
-| Reach the vario from my home computer (maker/tester only) | Enable maintenance server connection, WiFi SSID and WiFi password (Settings → Advanced → Firmware Update) | [Wi-Fi](Feature_Reference.md#basic-settings-wi-fi) |
 
 ## Bluetooth (FlyGaggle)
 
@@ -116,13 +115,12 @@ The vario shows up as **ParaVario-XXXX**. In FlyGaggle, add a Bluetooth vario an
 
 ## Battery
 
-The Battery tile shows the percentage, the voltage, and an estimate of the time left (for example `~3 h 20 min`). The estimate is rough at first. After you have once run the vario until the battery is flat and then charged it, the vario learns your battery and the estimate becomes accurate. Details: [Battery settings](Feature_Reference.md#basic-settings-battery).
+The Battery tile shows the percentage, the voltage, and an estimate of the time left (for example `~3 h 20 min`). The estimate is rough at first. After you have once run the vario until the battery is flat and then charged it, the vario learns your battery and the estimate becomes accurate.
 
 ## Maintenance
 
 - **First install (USB cable):** from the project folder, `pio run -e release_usb -t upload`.
 - **Updates over Wi-Fi from the computer:** join the vario's Wi-Fi (or, if you have switched on the *maintenance server connection*, just power the vario on near your computer), then `pio run -e release -t upload`. The vario restarts when it is done.
-- **Updates from the phone:** build with `pio run -e release`, copy `.pio/build/release/firmware.bin` to the phone, join the vario's Wi-Fi, open **http://192.168.4.1** in the normal browser, go to **Settings → Advanced settings → Firmware Update**, choose the file, enter the update password and tap **Install update**. Keep the phone close and the page open until it says *Installed*. A failed or interrupted upload leaves the old program running. Updates are refused while the vario is flying.
 - **One program for every vario.** The same `firmware.bin` goes on a vario with and without a GPS module.
 - **Voice clips:** edit `tools/vocab.txt`, run `python tools/make_voice.py` (it writes the one file `data/voice.pak` holding every clip), then `pio run -e release -t uploadfs`. This erases stored flight logs. Settings are kept.
 - **Factory defaults:** web page, Logs & system tab, *Factory defaults*.
