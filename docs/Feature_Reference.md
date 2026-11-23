@@ -807,7 +807,7 @@ For example, at 500 ft, if you arrive far above it you hear "Descend to 500 feet
 ### Upwind leg / Crosswind leg / Downwind leg (target)
 How long each leg of the circuit is.
 
-Defaults are 120 m each. The crosswind figure is also the length of the base leg; the downwind leg is made longer automatically if you are high. In a strong wind the upwind and the crosswind / base legs are shortened automatically, down to about a third.
+Defaults are 120 m (394 ft) each. All the lengths in this group are shown in the *Height* unit, with the circuit height, so the group never mixes feet and metres. The crosswind figure is also the length of the base leg; the downwind leg is made longer automatically if you are high. In a strong wind the upwind and the crosswind / base legs are shortened automatically, down to about a third.
 
 ### Start final at
 The height you want to have when you turn onto final.
@@ -817,12 +817,12 @@ For example, at 50 ft (15 m) you should be that high as you start the last strai
 ### Minimum final length
 The shortest final approach the vario will plan.
 
-A minimum of 100 m keeps a little straight run before touchdown. It is shortened automatically in a strong headwind, down to about a third. Default: 100 m.
+A minimum of 100 m (328 ft) keeps a little straight run before touchdown. It is shortened automatically in a strong headwind, down to about a third. Default: 100 m.
 
 ### Circuit start capture radius
 How close to the start point counts as "arrived".
 
-For example, at 80 m, once you are within 80 m of the circuit start the vario moves on to the upwind leg. Default: 80 m.
+For example, at 80 m (262 ft), once you are within that distance of the circuit start the vario moves on to the upwind leg. Default: 80 m.
 
 ### Call turns early by
 Warns you of a turn a moment before the corner.
