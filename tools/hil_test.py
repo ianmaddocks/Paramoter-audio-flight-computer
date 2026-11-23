@@ -4846,7 +4846,7 @@ def t_ui_system(v, a):
         code, body = v._open(path)
         if code != 200 or body[:8] != b"\x89PNG\r\n\x1a\n" or struct.unpack(">II", body[16:24]) != (180, 180):
             raise Fail(f"{path}: expected a 180 x 180 PNG, got HTTP {code}, {len(body)} bytes")
-    p.wait_text("sys", r"^Uptime \d+:\d\d(:\d\d)? · heap \d+ kB · BLE clients \d+ · baro [\d.]+ hPa$", 5)
+    p.wait_text("sys", r"^Uptime \d+:\d\d(:\d\d)? · heap \d+ kB · Bluetooth clients \d+ · baro [\d.]+ hPa$", 5)
     p.wait("document.querySelector('#logs').textContent.length>0 && "
            "document.querySelector('#logs').textContent!=='Loading…'", 5, "flight log list loaded")
     p.js("document.getElementById('dbg').open=true")
