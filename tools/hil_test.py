@@ -3978,18 +3978,10 @@ def t_ui_help(v, a):
     shared = {g["g"]: [l["t"] for l in g["l"]] for g in groups}
     if shared["Units"] != ["Help", "More help"] or shared["Audio"] != ["Help"] or shared["Vario"] != ["Help"]:
         raise Fail(f"web page: help link names: Audio {shared['Audio']}, Vario {shared['Vario']}")
-    # the groups on the advanced page have theirs too
+    # the hidden /advanced page is not documented: its groups have no help links
     pa = v.page("/advanced")
-    pa.wait("document.querySelectorAll('#settings summary .help a').length>0", 8, "group help links on the advanced page")
-    groups_a = pa.js("[...document.querySelectorAll('#settings summary')].map(s=>({g:s.firstChild.textContent,"
-                     "l:[...s.querySelectorAll('.help a')].map(a=>({t:a.textContent,h:a.href}))}))")
-    bare = [g["g"] for g in groups_a if not g["l"]]
-    if bare:
-        raise Fail(f"web page: advanced settings groups with no help link: {bare}")
-    for g in groups_a:
-        check_anchors([{"t": g["g"] + " / " + l["t"], "h": l["h"]} for l in g["l"]])
-    if {g["g"]: [l["t"] for l in g["l"]] for g in groups_a}["Engine RPM"] != ["Help"]:
-        raise Fail("web page: help link names of Engine RPM")
+    if pa.js("document.querySelectorAll('#settings summary .help a').length"):
+        raise Fail("web page: the hidden /advanced settings have help links into the reference")
     p = v.page()  # the one browser is on the advanced page now: back to the main page
     p.tab("settings")
     p.wait("document.querySelectorAll('#settings summary .help a').length>0", 8, "group help links")
@@ -4095,13 +4087,9 @@ def t_ui_help(v, a):
                          ".flatMap(s=>[...s.querySelectorAll('.help a')]).filter(a=>a.href.includes('#adv-')).length")
         if adv_links:
             raise Fail(f"web page: {adv_links} GPS help links on the settings page without a GPS")
-        p = v.page("/advanced")
-        if p.js("[...document.querySelectorAll('#settings summary')].filter(s=>s.firstChild.textContent!=='GPS')"
-                ".flatMap(s=>[...s.querySelectorAll('.help a')]).filter(a=>a.href.includes('#adv-')).length"):
-            raise Fail("web page: GPS help links on the advanced page without a GPS")
-        if p.js("[...document.querySelectorAll('#settings summary')].find(s=>s.firstChild.textContent==='Engine RPM')"
-                ".querySelectorAll('.help a').length") != 1:
-            raise Fail("web page: no help link on the Engine RPM group (the microphone is still fitted)")
+        p = v.page("/advanced")  # not documented: no help links there
+        if p.js("document.querySelectorAll('#settings summary .help a').length"):
+            raise Fail("web page: help links on the hidden /advanced page")
         p = v.page()
         stub_docs(p)
         p.tab("help")

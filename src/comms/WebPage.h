@@ -352,13 +352,13 @@ const docUrl=(f,base)=>base+encodeURI(f).replace(/\(/g,'%28').replace(/\)/g,'%29
 const webLink=(f,a)=>docUrl(f,HELPWEB)+(a?'#'+a:'');
 // Settings group -> its entry in the Feature Reference (b = the part every vario has, a = the part for GPS / microphone)
 const GROUP_HELP={'Units':{b:'basic-settings-units-and-audio',a:'adv-settings-units-and-audio'},
-  'Audio':{b:'basic-settings-units-and-audio'},'Engine RPM':{b:'basic-settings-engine-rpm'},
+  'Audio':{b:'basic-settings-units-and-audio'},
   'Vario':{b:'basic-settings-vario'},'Height calls':{b:'basic-settings-height-calls'},
   'Takeoff & landing':{b:'basic-settings-takeoff-and-landing',a:'adv-settings-takeoff-and-landing'},
   'Glide':{a:'adv-settings-glide'},'Landing zone':{a:'adv-settings-landing-zone'},'Landing approach':{a:'adv-settings-landing-approach'},
-  'Areas':{a:'adv-safe-area'},'Emergency':{a:'adv-settings-emergency'},'Wind':{a:'adv-settings-wind'},'GPS':{a:'adv-settings-gps',always:1},
-  'Bluetooth':{b:'basic-settings-bluetooth',a:'adv-settings-bluetooth'},'Wi-Fi':{b:'basic-settings-wi-fi'},'Firmware Update':{b:'basic-settings-firmware-update'},
-  'Battery':{b:'basic-settings-battery'},'Logging':{a:'adv-settings-logging'}};
+  'Areas':{a:'adv-safe-area'},'Emergency':{a:'adv-settings-emergency'},'Wind':{a:'adv-settings-wind'},
+  'Bluetooth':{b:'basic-settings-bluetooth',a:'adv-settings-bluetooth'},'Wi-Fi':{b:'basic-settings-wi-fi'},
+  'Logging':{a:'adv-settings-logging'}};
 let hwNow={gps:true,mic:true,spectrum:true};
 // A link to a guide section. The address is the GitHub one (for long-press or copy); a tap opens the reader.
 function mkLink(t,file,anchor,cls){const a=document.createElement('a');a.href=webLink(file,anchor);a.textContent=t;if(cls)a.className=cls;

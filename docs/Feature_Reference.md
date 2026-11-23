@@ -17,11 +17,11 @@ Heights in the examples use the default unit (feet). You can switch to metres in
 
 - [Part 1 - Basic](#part-1---basic)
   - [Tiles](#basic-tiles) · [Banner](#basic-banner) · [Buttons and actions](#basic-buttons) · [Sounds](#basic-sounds) · [Spectrum tab](#basic-spectrum)
-  - [Settings: Units and Audio](#basic-settings-units-and-audio) · [Engine RPM](#basic-settings-engine-rpm) · [Vario](#basic-settings-vario) · [Height calls](#basic-settings-height-calls) · [Takeoff and landing](#basic-settings-takeoff-and-landing) · [Bluetooth](#basic-settings-bluetooth) · [Wi-Fi](#basic-settings-wi-fi) · [Firmware Update](#basic-settings-firmware-update) · [Battery](#basic-settings-battery)
+  - [Settings: Units and Audio](#basic-settings-units-and-audio) · [Vario](#basic-settings-vario) · [Height calls](#basic-settings-height-calls) · [Takeoff and landing](#basic-settings-takeoff-and-landing) · [Bluetooth](#basic-settings-bluetooth) · [Wi-Fi](#basic-settings-wi-fi)
   - [Logs and system tab](#basic-system) · [Help tab](#basic-help)
 - [Part 2 - Advanced](#part-2---advanced)
   - [Tiles](#adv-tiles) · [Banner](#adv-banner) · [Buttons and actions](#adv-buttons) · [Guidance](#adv-guidance) · [Sounds](#adv-sounds)
-  - [Settings: Units and Audio](#adv-settings-units-and-audio) · [Takeoff and landing](#adv-settings-takeoff-and-landing) · [Glide](#adv-settings-glide) · [Landing zone](#adv-settings-landing-zone) · [Landing approach](#adv-settings-landing-approach) · [Areas](#adv-safe-area) · [Emergency](#adv-settings-emergency) · [Wind](#adv-settings-wind) · [GPS](#adv-settings-gps) · [Bluetooth](#adv-settings-bluetooth) · [Logging](#adv-settings-logging)
+  - [Settings: Units and Audio](#adv-settings-units-and-audio) · [Takeoff and landing](#adv-settings-takeoff-and-landing) · [Glide](#adv-settings-glide) · [Landing zone](#adv-settings-landing-zone) · [Landing approach](#adv-settings-landing-approach) · [Areas](#adv-safe-area) · [Emergency](#adv-settings-emergency) · [Wind](#adv-settings-wind) · [Bluetooth](#adv-settings-bluetooth) · [Logging](#adv-settings-logging)
 
 Settings are changed on the Settings tab of the web page. A change is saved a moment after you make it. A setting marked **restart** takes effect after the vario is restarted: once you have changed one, a **Restart** button appears at the bottom of the Settings tab (it goes away after the restart, and also if you reload the page meanwhile).
 
@@ -74,10 +74,10 @@ The engine speed, worked out from the sound the microphone hears.
 
 For example, `5400 rpm`. It says `off` when no engine sound is recognised. A reading is only taken when two analysis windows in a row agree (a lone bad window never shows) and it is held while the vario speaks, so it does not drop out during announcements. With *Show background noise and RPM confidence on the flight tab* on, `est 5400 · conf 6.2` appears under it: the raw estimate and how sure the vario is of it.
 
-The microphone hears the engine's firing frequency and its harmonics, and the vario finds the pattern. If the *conf* number is low the reading is not shown. Tune it in the Engine RPM settings. The same group has *Show the Spectrum tab* (default: off).
+The microphone hears the engine's firing frequency and its harmonics, and the vario finds the pattern. If the *conf* number is low the reading is not shown.
 
 ### Background noise
-How loud it is around the vario, as heard by the microphone. This tile is tuning data and is **hidden** unless *Show background noise and RPM confidence on the flight tab* is on (an Engine RPM setting).
+How loud it is around the vario, as heard by the microphone. This tile is tuning data and is **hidden** unless it is switched on in the settings.
 
 For example, `-38 dBFS` with `vario vol 72%` under it: that is the noise level and the volume the vario beeps are currently played at. Use these numbers to set *Noise for set volume* and *Noise for full volume*.
 
@@ -170,7 +170,7 @@ You hear "Battery low" when the voltage falls below *Low battery warning*, and i
 <a id="basic-spectrum"></a>
 ## Spectrum tab
 
-The Spectrum tab is off by default. Switch it on with *Show the Spectrum tab* in the **Engine RPM** settings; switched off, the tab is removed from the tab list.
+The Spectrum tab is off by default and is not shown in the tab list until it is switched on.
 
 ### Microphone spectrum
 A graph of the sounds the microphone hears, by pitch.
@@ -227,26 +227,6 @@ How slowly the volume comes back down after a loud moment.
 A short burst of noise (a gust, a shout) should not make the volume go up and down. With 5 s it takes about 5 s to follow the noise down; at the default of 1 s it follows quickly. Default: 1 s.
 
 The volume rises with the noise within about a second, but only falls at this slower pace.
-
-<a id="basic-settings-engine-rpm"></a>
-## Settings: Engine RPM
-
-These settings tune the engine speed reading that is made from the microphone.
-
-### Sound pulses per revolution
-How many engine firings the microphone hears for each turn of the engine.
-
-A two-stroke engine fires once per turn: leave it at 1. A four-stroke fires every other turn: 0.5. Default: 1.
-
-### Lowest RPM / Highest RPM
-The range of speeds the vario looks for.
-
-If your engine idles at 2000 rpm and revs to 8000, set about 1500 and 9000. A narrow range avoids mistaking other sounds for the engine. Defaults: 1200 and 10000.
-
-### Minimum confidence
-How sure the vario must be before it shows an RPM.
-
-Watch the *conf* number under the Engine RPM tile with the engine running. Set this a little below it. Higher avoids false readings but may drop real ones. Default: 3.
 
 <a id="basic-settings-vario"></a>
 ## Settings: Vario
@@ -413,80 +393,6 @@ It must be at least 8 characters. Leave it blank for an open network (not recomm
 
 ### Status
 The first line of the Wi-Fi group: the vario's address on its own network (192.168.4.1) and how many devices are connected to it. The name is the *Network name* setting under it.
-
-<a id="basic-settings-firmware-update"></a>
-## Settings: Firmware Update
-*For the maker and testers; pilots do not need it.*
-
-### Install update (firmware box)
-At the top of the section: the installed version, a file chooser, the update password and **Install update**. Choose `firmware.bin` (the program) or `littlefs.bin` (the voice clips; this erases flight logs), enter the password and tap Install. Keep the page open until it says *Installed*; a failed upload leaves the old firmware running. Refused while flying. (It was on the Logs & system tab in earlier versions.)
-
-### Enable maintenance server connection
-For the maker and testers; pilots do not need it. Off by default. Restart to apply.
-
-Switching it on shows the maintenance settings below it (they are hidden while it is off). The vario then also joins a workshop or home Wi-Fi, so a computer there can reach it at `http://paravario.local` and update the firmware without changing the computer's Wi-Fi. The vario's own network stays on. A vario that already had a server network set before this switch existed has it switched on.
-
-### Status and Assigned IP address
-When the vario joins the maintenance Wi-Fi at power-up you hear "Connected to maintenance server Wi-Fi" (once per power-up, and not in flight).
-
-Under the switch, shown while it is on: **Status** (Off, Connecting, Connected with the signal quality, or why it is not connected) and the **Assigned IP address** the router gave the vario (a computer can use it, or `paravario.local`).
-
-### WiFi SSID / WiFi password
-The name and password of the router the vario joins when the maintenance connection is on. Only 2.4 GHz networks work. Restart to apply.
-
-While the vario is searching for that network, its own network can be less reliable (it has one radio), which is why it gives up after a while (next setting).
-
-### Stop looking after (0=never)
-How long the vario looks for the maintenance network before giving up.
-
-Away from home the vario would otherwise keep searching, which makes its own network unreliable. After this time (30 s) it stops. If the router was joined earlier in this power-up (so it is known to be there), the vario looks for it again every 5 minutes, but only on the ground, because searching disturbs its own network; a network that was never found (away from home) is not searched for again until a restart. 0 keeps trying. Default: 30 s.
-
-<a id="basic-settings-battery"></a>
-## Settings: Battery
-
-### Divider ratio
-A fixed number that matches the vario's battery-measuring circuit.
-
-Leave it at 2.0 unless you have changed the resistors on the battery divider.
-
-### Calibration factor
-A fine adjustment so the voltage shown matches a voltmeter.
-
-If the vario shows 4.00 V but a meter on the battery says 4.10 V, set it to 1.025 (4.10 divided by 4.00). Default: 0.999.
-
-### Low battery warning
-The voltage at which "Battery low" is spoken.
-
-For example, at 3.5 V you get the warning with some capacity still in reserve. Raise it for more notice. Default: 3.5 V.
-
-### Show background noise and RPM confidence on the flight tab
-Shows the tuning data on the flight tab.
-
-Off by default: the *Background noise* tile and the RPM confidence under the Engine RPM tile are for setting up the microphone and are in the way in flight. Turn it on while you set *Noise for set volume*, *Noise for full volume* and the RPM confidence. Needs a microphone.
-
-### Critical battery warning
-The voltage at which the battery warning becomes urgent and repeats every minute.
-
-Below this "Battery critical" is spoken as an urgent call after 5 seconds and repeated every minute, instead of the ordinary call every 5 minutes. Default: 3.3 V. If it is set above *Low battery warning*, the low warning voltage is used.
-
-A reading under 2.5 V is not a battery measurement: with nothing seen before it just means USB power or no battery, and nothing is said. But if the vario has seen a real reading since it was switched on and the reading then vanishes **in flight**, you hear "Battery reading lost" urgently every minute: the vario cannot say how much battery is left.
-
-### Voltage shown as 100%
-The voltage you treat as "full".
-
-A freshly charged battery reads about 4.1 V and drops quickly to about 4.0 V, so 4.09 V is called 100 %. Never shows more than 100 %. Default: 4.09 V.
-
-### Learn discharge to estimate minutes left and refine %
-Lets the vario learn how long your battery really lasts.
-
-Leave it on. Once, run the vario from full until the battery is flat, then charge it; from then on the minutes left and the percentage are based on your battery, not a typical one.
-
-The vario notes the time taken to fall through each 50 mV step from 4.10 V to 3.30 V. When a discharge ends with the battery running down and is followed by a recharge, those timings are blended into a stored table (the newest discharge counts 30 %). It never learns from a battery that was charged before it ran down, and it stays quiet while charging.
-
-### Runtime on a full battery, used until learned
-Your estimate of how long a full battery lasts, until the vario has measured it.
-
-If you usually get about 6 hours, leave it at 360 minutes. Change it to your own experience so the first estimates are sensible. Default: 360 min.
 
 <a id="basic-system"></a>
 ## Logs and system tab
@@ -921,53 +827,6 @@ Turn on if the windsock shows something different from the estimate. Default: Of
 The wind you enter when manual wind is on.
 
 "Wind from" is the direction the wind comes from: a westerly is 270°. Wind speed is in your speed unit. Used only while *Use manual wind* is on.
-
-<a id="adv-settings-gps"></a>
-## Settings: GPS
-
-*GPS Module*
-
-### Resume the flight if switched back on within (0 = never)
-*GPS Module*
-
-How long the vario may be switched off in flight and still carry the flight on when it is switched on again. Default: 3 hours.
-
-At power-up the vario does not take a saved flight on trust. At the first good GPS fix it checks that the saved flight is recent enough (this setting), that you are where the flight could have got to in that time, and that you are **moving at flying speed right now**. Only then it resumes ("Flight resumed"): the landing zone, the heights, the wind and the flight time (counting the time it was off). Otherwise the record is dropped, including when no GPS position and time arrive within 3 minutes, so the vario cannot come up believing it is flying when it is not. 0 switches resuming off. If the vario ever thinks it is flying when it is not, use **Reset flight state** on the Logs & system tab.
-
-### GPS module
-Whether the vario has a GPS module: found automatically, or set by hand.
-
-The vario listens to the GPS connection at power-on. If a GPS module is there it sends data at once, and the vario switches on everything that needs it: the GPS tiles, guidance, the flight log and these settings. If nothing is heard within a few seconds the vario treats the GPS as not fitted and hides all of that. It keeps listening, so a GPS that starts late is still found, and once a GPS has been seen the vario remembers it: if it later goes quiet the banner says `GPS not responding` instead of the GPS disappearing.
-
-You can overrule the automatic choice: **Always present** (for example to make a faulty GPS show as not responding) or **Not fitted** (to ignore a module you have disconnected). This is the only setting in this group that a vario without a GPS shows. Default: Auto-detect.
-
-### Update rate
-How many times a second the GPS reports its position.
-
-A rate of 5 times a second is smooth enough for guidance. Faster uses more power. Restart to apply. Default: 5 Hz.
-
-### GPS module LED
-The light on the GPS module.
-
-On most modules it blinks once a second while there is a fix, which is handy on the bench and distracting in flight. Restart to apply. Default: Off.
-
-### Ready to fly: minimum satellites
-How many satellites the banner needs before it turns green.
-
-For example, at 6, you wait for at least 6. A higher number waits longer but is more accurate. Default: 6.
-
-### Ready to fly: maximum HDOP
-How good the GPS accuracy must be before the banner turns green.
-
-HDOP is lower for better accuracy. At 2.0 the banner waits for a good geometry. Default: 2.0.
-
-### Show the direction arrows above / Hide the direction arrows below / Arrows: speed must hold for
-*GPS Module*
-
-The compass arrow (Ground speed tile), the landing zone arrow and the windsock only mean something when you are moving, because they point relative to your direction of travel. A GPS standing still reports a ground speed of 1 to 2 m/s of noise, so a single limit made them appear and disappear. There are two limits instead. The arrows appear once your ground speed has been **above** the first for the hold time, and go once it has been **below** the second for the hold time. Between the two, nothing changes. Losing the GPS fix hides them at once. Defaults: show above 2.0 m/s (7 km/h), hide below 1.0 m/s (3.6 km/h), hold 3 s. The speeds are shown in your speed unit.
-
-### Announce "GPS fix" after the fix has held for
-How long the GPS must keep meeting the two limits above, without a break, before you hear "GPS fix". Default: 10 s. If the number of satellites flickers around the limit, every dip starts the count again, so the call comes only once the fix has settled. 0 announces at once.
 
 <a id="adv-settings-bluetooth"></a>
 ## Settings: Bluetooth
