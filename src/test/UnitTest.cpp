@@ -25,7 +25,7 @@ bool runUnitSuite(const String& name, String* json) {
   } else if (name == "battery") {
     batteryUnitSuite(r);
 #endif
-#if PV_UNIT_HAS(3)
+#if PV_UNIT_HAS(2)
   } else if (name == "button") {
     buttonUnitSuite(r);
 #endif

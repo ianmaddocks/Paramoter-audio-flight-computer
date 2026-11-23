@@ -148,6 +148,7 @@ A failure prints the vario's state, the simulator state and the last log lines.
 | `variant_no_mic` | vario without a microphone: set volume used, battery still read, page and settings trimmed |
 | `ui_flight` | banner and every tile on the flight tab |
 | `ui_settings` (firmware box) | the firmware update box is in Firmware Update on the hidden /advanced page (not on Logs & system); that page holds Bluetooth, Battery, Firmware Update, GPS and Engine RPM and nothing links to it, shows the installed version, refuses without a file, password masked |
+| `ui_settings` (export and import) | on the hidden /advanced page: Export gives readable settings JSON with the areas and without the unit names; Import applies settings (out-of-range and wrongly typed values handled), a file with areas replaces the vario's areas (none of the old remain), without areas leaves them, an unusable or over-sized list and a bad file change nothing, an empty list removes them, an edited export comes back as written |
 | `ui_actions` | on the ground: only Status [.] (no Mute button) and the Landing zone settings button (Use current position: refused without a fix, accepted with one); the page has no Set LZ manually / LZ = takeoff buttons |
 | `ui_guidance` | flying display, emergency/approach banners, log list and delete |
 | `ui_settings` | every setting shown; editing, units, greyed-out boxes, restart marks, the Restart button at the bottom of Settings (only while a restart is needed) |

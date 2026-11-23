@@ -4728,16 +4728,62 @@ def t_ui_settings(v, a):
         if v.settings()["bleName"] == "Other":
             raise Fail("web page: import changed the Bluetooth name")
         v.set(climbThreshold=before)
-        # the areas travel in the file too: importing the same areas changes nothing, an unusable list changes nothing
+        # The areas travel in the file: the areas in an imported file REPLACE the ones on the vario (a file without areas leaves
+        # them alone, an unusable list changes nothing). The vario's own areas are put back at the end.
         areas_now = v.get_json("/api/areas")["a"]
-        pa.js("settingsImport(new File([JSON.stringify({areas:" + json.dumps(areas_now) + "})],'a.json'));1")
-        time.sleep(2)
-        if v.get_json("/api/areas")["a"] != areas_now:
-            raise Fail("web page: importing the vario's own areas changed them")
-        pa.js("settingsImport(new File([JSON.stringify({areas:[{n:'x',on:true,k:'safe',p:[[1,1]]}]})],'b.json'));1")
-        time.sleep(2)
-        if v.get_json("/api/areas")["a"] != areas_now:
-            raise Fail("web page: an unusable area list in an imported file changed the areas")
+
+        def import_file(obj, name):
+            pa.js("settingsImport(new File([JSON.stringify(" + json.dumps(obj) + ")]," + json.dumps(name) + "));1")
+            time.sleep(2.5)
+            return v.get_json("/api/areas")["a"]
+
+        def shape(areas):  # names and corner counts: what must survive the trip
+            return [(a["n"], len(a["p"]), a["k"]) for a in areas]
+
+        try:
+            # 1. the same areas: unchanged
+            if import_file({"areas": areas_now}, "same.json") != areas_now:
+                raise Fail("web page: importing the vario's own areas changed them")
+            # 2. different areas replace the existing ones: none of the old remain
+            new_areas = [
+                {"n": "Import A", "on": True, "k": "safe", "p": [[51.50, 0.50], [51.51, 0.50], [51.51, 0.52], [51.50, 0.52]]},
+                {"n": "Import B", "on": True, "k": "restricted", "w": 300, "p": [[51.60, 0.60], [51.61, 0.60], [51.60, 0.62]]},
+            ]
+            got = import_file({"paravario": "settings", "settings": {}, "areas": new_areas}, "replace.json")
+            if shape(got) != [("Import A", 4, "safe"), ("Import B", 3, "restricted")]:
+                raise Fail(f"web page: an imported file did not replace the areas: now {shape(got)}")
+            if any(a["n"] in {x["n"] for x in areas_now} for a in got):
+                raise Fail("web page: an old area survived an import that replaced the areas")
+            # 3. a file with no areas leaves the areas alone, but still applies its settings
+            if import_file({"settings": {"climbThreshold": 0.45}}, "settings_only.json") != got:
+                raise Fail("web page: a file without areas changed the areas")
+            near(v.settings()["climbThreshold"], 0.45, 0.001, "settings of a file without areas applied")
+            v.set(climbThreshold=before)
+            # 4. an unusable list is refused and the areas stay as they were
+            bad = [{"n": "x", "on": True, "k": "safe", "p": [[1, 1]]}]
+            if import_file({"areas": bad}, "bad.json") != got:
+                raise Fail("web page: an unusable area list in an imported file changed the areas")
+            # 5. too many corners for the vario (over 5 kB): refused on the page, areas stay
+            big = [{"n": "Big %d" % i, "on": True, "k": "safe", "p": [[51.0 + i * 0.01 + j * 0.0001, 0.5 + j * 0.0002] for j in range(24)]}
+                   for i in range(12)]
+            if import_file({"areas": big}, "big.json") != got:
+                raise Fail("web page: an over-sized area list in an imported file changed the areas")
+            # 6. an empty list removes every area
+            if import_file({"areas": []}, "none.json") != []:
+                raise Fail("web page: an imported file with an empty area list did not remove the areas")
+            # 7. a file made by Export, edited, comes back as written: settings and areas together
+            pa.js("window.__text=null;settingsExport();1")
+            pa.wait("window.__text!==null", 5, "second export")
+            doc = json.loads(pa.js("window.__text"))
+            doc["settings"]["climbThreshold"] = 0.42
+            doc["areas"] = new_areas[:1]
+            got = import_file(doc, "edited.json")
+            if shape(got) != [("Import A", 4, "safe")]:
+                raise Fail(f"web page: an edited export did not come back as written: {shape(got)}")
+            near(v.settings()["climbThreshold"], 0.42, 0.001, "setting of the edited export")
+        finally:
+            v.set(climbThreshold=before)
+            post_areas(v, areas_now)
         # the restart mark on a GPS setting, and the Restart button
         if "· restart" not in pa.js("tRow('gpsLed').textContent"):
             raise Fail("web page: restart mark missing on the GPS LED setting")
@@ -5345,18 +5391,18 @@ PARTS = {
     1: ["boot", "settings", "vario_climb", "vario_sink", "vario_thresholds", "vario_logic", "mute", "auto_volume", "rpm_logic", "rpm",
         "rpm_speech", "rpm_glitch", "geo_logic", "circuit_logic", "height_logic", "moving_logic", "status_logic", "wind", "circuit_events",
         "circuit_right", "fault_baro", "factory_reset", "glide", "soak", "ui_flight", "ui_pilot", "ui_actions", "areas_restricted_flight"],
-    2: ["wind_logic", "battery_logic", "alerts_logic", "resume_logic", "memguard_logic", "ble_info", "voice_pack", "igc_two_flights", "vario_only_flying",
+    2: ["wind_logic", "battery_logic", "alerts_logic", "resume_logic", "memguard_logic", "button_logic", "ble_info", "voice_pack", "igc_two_flights", "vario_only_flying",
         "maint_retry", "log_list_memory", "net_trail", "stalled_client", "igc_segments", "igc_room", "ui_replay", "height_trace", "maint_voice",
         "names_default", "landing_gps_quality", "wind_faults", "circuit_slow_pilot", "landing_hover", "wind_change", "battery_flight",
         "fault_gps", "ui_layout", "ui_guidance", "areas_api", "areas_safe_flight", "areas_fast_wind", "ui_map_follow"],
-    3: ["flight_logic", "button_logic", "audio_logic", "rpmtrack_logic", "baro_logic", "areas_logic", "resume_flight", "memory_events",
+    3: ["flight_logic", "audio_logic", "rpmtrack_logic", "baro_logic", "areas_logic", "resume_flight", "memory_events",
         "circuit_left_wind", "baro_only", "flight", "alerts_flight", "variant_no_gps", "fault_battery", "guidance", "gps_states", "battery",
         "battery_learner", "speech", "volume_ramp", "variant_no_mic", "gps_detect", "button_actions", "ui_settings", "ui_spectrum",
         "spectrum_setting", "ui_system", "ui_help", "ota_guard", "memory"],
 }
 # The unit suites in each part (the same split as PV_UNIT_PART in src/test/UnitTest.cpp); None = a build with all of them.
-PART_SUITES = {1: ("geo", "circuit", "status", "rpm", "moving", "height"), 2: ("wind", "battery", "alerts", "resume", "memguard"),
-               3: ("flight", "baro", "button", "rpmtrack", "audio", "areas"), None: ("geo", "wind", "battery")}
+PART_SUITES = {1: ("geo", "circuit", "status", "rpm", "moving", "height"), 2: ("wind", "battery", "alerts", "resume", "memguard", "button"),
+               3: ("flight", "baro", "rpmtrack", "audio", "areas"), None: ("geo", "wind", "battery")}
 _all = [n for n, _ in TESTS]
 _in_parts = [n for p in PARTS.values() for n in p]
 assert sorted(_all) == sorted(_in_parts), ("tests not in exactly one part", set(_all) ^ set(_in_parts),

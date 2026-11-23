@@ -1219,7 +1219,7 @@ struct ButtonScript {
 
 }  // namespace
 
-#if PV_UNIT_HAS(3)
+#if PV_UNIT_HAS(2)
 void buttonUnitSuite(UnitReport& r) {
   char s[24];
   const uint32_t kGap = ButtonDecoder::kGapMs;
