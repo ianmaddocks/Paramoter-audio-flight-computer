@@ -3970,7 +3970,7 @@ def t_ui_help(v, a):
     p.wait("document.querySelectorAll('#settings summary .help a').length>0", 8, "group help links")
     groups = p.js("[...document.querySelectorAll('#settings summary')].map(s=>({g:s.firstChild.textContent,"
                   "l:[...s.querySelectorAll('.help a')].map(a=>({t:a.textContent,h:a.href}))}))")
-    bare = [g["g"] for g in groups if not g["l"] and g["g"] not in ("Advanced settings", "Quick settings")]
+    bare = [g["g"] for g in groups if not g["l"] and g["g"] != "Quick settings"]
     if bare:
         raise Fail(f"web page: settings groups with no help link: {bare}")
     for g in groups:
@@ -4629,34 +4629,24 @@ def t_ui_settings(v, a):
         for f in schema:
             if f["g"] not in groups:
                 groups.append(f["g"])
-        # Battery, Wi-Fi, GPS, Engine RPM, Wind, Logging and Glide sit in a collapsed "Advanced settings"
-        # section at the end; the other groups keep the firmware's order.
-        adv_order = ["Wi-Fi", "Wind", "Logging", "Glide"]
-        hidden_order = ["Battery", "Firmware Update", "GPS", "Engine RPM"]  # on /advanced, which nothing links to
-        main_groups = [g for g in groups if g not in adv_order and g not in hidden_order]
+        # Battery, Wi-Fi, GPS, Engine RPM, Wind, Logging and Glide are on their own page, /advanced; the Settings tab
+        # ends with a link to it, and the other groups keep the firmware's order.
+        adv_order = ["Battery", "Wi-Fi", "Firmware Update", "GPS", "Engine RPM", "Wind", "Logging", "Glide"]
+        main_groups = [g for g in groups if g not in adv_order]
         adv_groups = [g for g in adv_order if g in groups]
-        hidden_groups = [g for g in hidden_order if g in groups]
         shown = p.js("[...document.querySelectorAll('#settings>details>summary')].map(s=>s.firstChild.textContent)")
-        want = ["Quick settings"] + main_groups + (["Advanced settings"] if adv_groups else [])  # Quick settings: the pilot's card, first
+        want = ["Quick settings"] + main_groups  # Quick settings: the pilot's card, first
         if shown != want:
             raise Fail(f"web page: top-level setting groups {shown}, expected {want}")
-        shown_adv = p.js("[...document.querySelectorAll('#advSettings>details>summary')].map(s=>s.firstChild.textContent)")
-        if shown_adv != adv_groups:
-            raise Fail(f"web page: Advanced settings holds {shown_adv}, expected {adv_groups}")
-        if p.js("document.getElementById('advSettings').open"):
-            raise Fail("web page: Advanced settings should start closed")
+        if adv_groups:
+            if p.js("(a=>a?a.getAttribute('href'):null)(document.querySelector('#advLink a'))") != "/advanced":
+                raise Fail("web page: the Settings tab has no link to /advanced")
+            if p.js("!!document.querySelector('#settings details[class~=sub]') || !!document.getElementById('advSettings')"):
+                raise Fail("web page: advanced settings are still on the Settings tab")
         rows = p.js("document.querySelectorAll('#settings details:not(#quickSettings) label.row').length")  # (Quick settings repeats 8 of them)
-        near(rows, len([f for f in schema if f["g"] not in hidden_order]), 0, "number of settings shown")
-        missing = p.js("schema.filter(f=>!tInput(f.k)).map(f=>f.k)")
-        if set(missing) != {f["k"] for f in schema if f["g"] in hidden_order}:
-            raise Fail(f"web page: no input found for {missing}")
-        if p.js("!!document.querySelector('a[href=\"/advanced\"]')"):
-            raise Fail("web page: something links to the hidden /advanced page")
-        p.wait_text("w-ap", r"^192\.168\.4\.1 · \d+ connected$", 4)  # the status line has no name: the name is the setting under it
-        # The vario's own names are plain settings: the boxes show the stored values, which are what the phone sees
-        for k in ("bleName", "wifiSsid"):
-            want = v.settings()[k]
-            p.wait(f"tInput('{k}').value===" + json.dumps(want), 6, f"{k} box shows the stored value")
+        near(rows, len([f for f in schema if f["g"] not in adv_order]), 0, "number of settings shown")
+        # The vario's own name is a plain setting: the box shows the stored value, which is what the phone sees
+        p.wait("tInput('bleName').value===" + json.dumps(v.settings()["bleName"]), 6, "bleName box shows the stored value")
 
         # Number, saved as typed.
         p.js("tSet('climbThreshold','0.45')")
@@ -4698,75 +4688,76 @@ def t_ui_settings(v, a):
         p.wait_text("t-agl", r"^-?\d+ m$", 5, "height tile in metres")
         p.tab("settings")
         p.js("tSet('heightUnit','0')")
+        p.wait_text("saveState", r"^Saved", 5)
+        # The advanced page: the same page and tabs, the advanced groups only
+        p = v.page("/advanced")
+        shown_adv = p.js("[...document.querySelectorAll('#settings>details>summary')].map(s=>s.firstChild.textContent)")
+        if shown_adv != adv_groups:
+            raise Fail(f"web page: /advanced shows {shown_adv}, expected {adv_groups}")
+        if p.js("document.querySelector('button[data-tab=settings]').getAttribute('aria-selected')") != "true" or \
+                p.js("document.querySelectorAll('button[data-tab]').length") < 4:
+            raise Fail("web page: /advanced lacks the tabs, or the Settings tab is not marked")
+        rows = p.js("document.querySelectorAll('#settings details label.row').length")
+        near(rows, len([f for f in schema if f["g"] in adv_order]), 0, "number of advanced settings shown")
+        p.wait_text("w-ap", r"^192\.168\.4\.1 · \d+ connected$", 4)  # the status line has no name: the name is the setting under it
+        p.wait("tInput('wifiSsid').value===" + json.dumps(v.settings()["wifiSsid"]), 6, "wifiSsid box shows the stored value")
+        # The firmware update box is in Firmware Update on this page (not on the Logs & system tab), version shown, guarded
+        where = p.js("(e=>e?[...e.closest('details').querySelector('summary').childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join(''):null)(document.getElementById('fwcard'))")
+        if where != "Firmware Update":
+            raise Fail(f"web page: the firmware update box is in {where!r}, expected Firmware Update on the advanced page")
+        st0 = v.status()
+        p.wait_text("fwver", rf"^Installed: {re.escape(st0['version'])} · git {re.escape(st0['git'])} \(debug build\)$", 5)
+        p.click("#fwgo")
+        p.wait_text("toast", r"^Choose a \.bin file first$", 3, "Install refused without a file")
+        if p.js("document.getElementById('fwpass').type") != "password":
+            raise Fail("web page: update password box is not masked")
+        p.wait_text("w-server", r"\S")
         # Text.
         p.js("tSet('pilotName','Test Pilot')")
         p.wait_text("saveState", r"^Saved", 5)
         if v.settings()["pilotName"] != "Test Pilot":
             raise Fail("web page: pilot name not saved")
-        # The hidden page, /advanced: the same tabs; Battery, Firmware Update, GPS and Engine RPM, and nothing else
-        pa = v.page("/advanced")
-        shown_h = pa.js("[...document.querySelectorAll('#settings>details>summary')].map(s=>s.firstChild.textContent)")
-        if shown_h != hidden_groups:
-            raise Fail(f"web page: /advanced shows {shown_h}, expected {hidden_groups}")
-        if pa.js("document.querySelector('button[data-tab=settings]').getAttribute('aria-selected')") != "true" or                 pa.js("document.querySelectorAll('button[data-tab]').length") < 4:
-            raise Fail("web page: /advanced lacks the tabs, or the Settings tab is not marked")
-        near(pa.js("document.querySelectorAll('#settings details label.row').length"), len([f for f in schema if f["g"] in hidden_order]), 0,
-             "number of settings on /advanced")
-        # The firmware update box is in Firmware Update there (not on the Logs & system tab), version shown, guarded
-        where = pa.js("(e=>e?[...e.closest('details').querySelector('summary').childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join(''):null)(document.getElementById('fwcard'))")
-        if where != "Firmware Update":
-            raise Fail(f"web page: the firmware update box is in {where!r}, expected Firmware Update on /advanced")
-        st0 = v.status()
-        pa.wait_text("fwver", rf"^Installed: {re.escape(st0['version'])} · git {re.escape(st0['git'])} \(debug build\)$", 5)
-        pa.click("#fwgo")
-        pa.wait_text("toast", r"^Choose a \.bin file first$", 3, "Install refused without a file")
-        if pa.js("document.getElementById('fwpass').type") != "password":
-            raise Fail("web page: update password box is not masked")
-        pa.wait_text("w-server", r"\S")
-        # the restart mark on a GPS setting, and the Restart button
-        if "· restart" not in pa.js("tRow('gpsLed').textContent"):
+        # Restart mark, password boxes masked.
+        if "· restart" not in p.js("tRow('gpsLed').textContent"):
             raise Fail("web page: restart mark missing on the GPS LED setting")
-        if pa.js("document.getElementById('restartBar').offsetParent!==null"):
+        # A Restart button appears at the bottom of Settings only while a change that needs a restart is waiting
+        if p.js("document.getElementById('restartBar').offsetParent!==null"):
             raise Fail("web page: the Restart button is shown with no restart needed")
-        was = pa.js("tInput('gpsLed').checked")
-        pa.js("tSet('gpsLed', " + ("false" if was else "true") + ")")
-        pa.wait_text("saveState", r"^Saved", 5)
-        pa.wait("document.getElementById('restartBar').offsetParent!==null", 6, "Restart button shown after a setting that needs a restart")
-        pa.js("tSet('gpsLed', " + ("true" if was else "false") + ")")
-        pa.wait_text("saveState", r"^Saved", 5)
-        pa.click('#restartBar button')
+        was = p.js("tInput('gpsLed').checked")
+        p.js("tSet('gpsLed', " + ("false" if was else "true") + ")")
+        p.wait_text("saveState", r"^Saved", 5)
+        p.wait("document.getElementById('restartBar').offsetParent!==null", 6, "Restart button shown after a setting that needs a restart")
+        p.js("tSet('gpsLed', " + ("true" if was else "false") + ")")
+        p.wait_text("saveState", r"^Saved", 5)
+        p.click('#restartBar button')
         time.sleep(4)
-        pa.wait("document.getElementById('restartBar').offsetParent===null && document.getElementById('flightPage')!==null", 90,
-                "Restart button gone after the restart")
-        if pa.js("tInput('serverPass').type") != "password":
-            raise Fail("web page: the server Wi-Fi password is not masked")
+        p.wait("document.getElementById('restartBar').offsetParent===null && document.getElementById('t-agl')!==null", 90,
+               "Restart button gone after the restart")
+        if p.js("tInput('wifiPass').type") != "password" or p.js("tInput('serverPass').type") != "password":
+            raise Fail("web page: Wi-Fi passwords are not masked")
         # The maintenance connection settings (for the maker, not pilots) are in a sub-section that shows only while its switch is on.
         was = bool(v.settings()["maintWifi"])
-        hid = lambda: pa.js("document.querySelector('.maintbox').hidden")
-        vis_now = lambda: pa.js("(()=>{const b=document.querySelector('.maintbox');return b.offsetParent!==null&&b.querySelector('[data-key=serverSsid]').offsetParent!==null})()")
+        hid = lambda: p.js("document.querySelector('.maintbox').hidden")
+        vis_now = lambda: p.js("(()=>{const b=document.querySelector('.maintbox');return b.offsetParent!==null&&b.querySelector('[data-key=serverSsid]').offsetParent!==null})()")
         for want in (not was, was):
-            pa.js("tInput('maintWifi').click()")
-            pa.wait("(()=>{const b=document.querySelector('.maintbox');return (b.offsetParent!==null)===" + ("true" if want else "false") + "})()", 4,
+            p.js("tInput('maintWifi').click()")
+            p.wait("(()=>{const b=document.querySelector('.maintbox');return (b.offsetParent!==null)===" + ("true" if want else "false") + "})()", 4,
                    "maintenance settings " + ("shown" if want else "hidden") + " by their switch")
-            pa.wait_text("saveState", r"^Saved", 5)
+            p.wait_text("saveState", r"^Saved", 5)
         if v.settings()["maintWifi"] != was:
             raise Fail("web page: the maintenance switch did not go back")
-        txt = pa.js("document.getElementById('settings').textContent")
+        txt = p.js("document.getElementById('settings').textContent")
         for s in ("Enable maintenance server connection", "WiFi SSID", "WiFi password", "Stop looking after", "Assigned IP address"):
             if s not in txt:
                 raise Fail(f"web page: Wi-Fi settings lack the label '{s}'")
         if re.search(r"Server (network|IP)", txt, re.I):
             raise Fail("web page: an old 'Server network' / 'Server IP' label is still on the settings tab")
-        pa.check_fits("the /advanced page")
-        pa.js("document.querySelector('button[data-tab=flight]').click();1")  # a tab leads back to the main page
-        time.sleep(3)
-        pa.wait("location.pathname==='/' && !document.getElementById('flightPage').hidden", 10, "a tab on /advanced leads back to the main page")
-        p = v.page()
-        p.tab("settings")
-        if p.js("tInput('wifiPass').type") != "password":
-            raise Fail("web page: the Wi-Fi password is not masked")
         p.js("document.querySelectorAll('#settings details').forEach(d=>d.open=true)")
-        p.check_fits("settings tab with every group open")
+        p.check_fits("advanced page with every group open")
+        # a tab takes you back to the main page, on that tab
+        p.js("document.querySelector('button[data-tab=flight]').click();1")
+        time.sleep(3)
+        p.wait("location.pathname==='/' && !document.getElementById('flightPage').hidden", 10, "a tab on /advanced leads back to the main page")
     finally:
         v.set(climbThreshold=0.3, takeoffGainM=5.0, heightUnit=0, boundaryClimbing=True,
               boundariesUp="15.24,30.48", pilotName="")

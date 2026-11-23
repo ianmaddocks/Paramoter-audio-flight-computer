@@ -125,7 +125,7 @@ The landing approach and emergency glide calls come first: the areas stay quiet 
 
 ## The web page
 
-1. On your phone, join the Wi-Fi network **ParaVario-XXXX** (by default it has no password: it is an open network until you set one under Settings → Wi-Fi), where XXXX is a code unique to your unit (the last four digits of its MAC address), so several varios nearby can be told apart. The same code is in its Bluetooth name.
+1. On your phone, join the Wi-Fi network **ParaVario-XXXX** (by default it has no password: it is an open network), where XXXX is a code unique to your unit (the last four digits of its MAC address), so several varios nearby can be told apart. The same code is in its Bluetooth name.
 2. The page usually opens by itself. If it doesn't, open **http://192.168.4.1** in a browser.
 
 The phone has no internet while it's on this network, so turn mobile data on if you need both.
@@ -138,7 +138,7 @@ The phone has no internet while it's on this network, so turn mobile data on if 
 | Actions | One card headed **Actions**, and which one you see depends on the phase. **In flight:** **Landing support**, **Emergency support**, **Status** and **Mute vario** (the same as the button). **On the ground:** **Status**. Each button shows the push-button presses that do the same, for example **[...]**. (Setting the landing zone is in Settings → Landing zone: **Use current position**.) Below them, **Full screen** (hides the browser's bars). |
 | Areas | The **Map** tab: safe and restricted areas drawn on a map, each with its warning distance (see [Areas](#areas-safe-and-restricted)). |
 | Alerts | A strip under the banner for what a pilot must know in flight: **Battery low** or **critical** (with the minutes left and the distance to the LZ), **Barometer failed**, **No GPS fix**. It clears when the problem goes away. |
-| Settings | **Quick settings** first: volumes, units, circuit direction, glide ratio and trim airspeed (also in their groups; the two copies follow each other). Then collapsible groups (see below); Wi-Fi, Wind, Logging and Glide are inside **Advanced settings** at the end. Change a value and it is saved a moment later. Settings marked *restart* apply after a restart. |
+| Settings | **Quick settings** first: volumes, units, circuit direction, glide ratio and trim airspeed (also in their groups; the two copies follow each other). Then collapsible groups (see below). Change a value and it is saved a moment later. Settings marked *restart* apply after a restart. |
 | Reset flight state | On the Logs & system tab. The way out if the vario ever thinks it is flying when it is not: it forgets the flight and any guidance. |
 | Flight logs | IGC files for each flight. Tap a name to download or Delete to remove. The oldest logs are deleted automatically when space runs low. |
 | Logging | Live messages from the vario, with Pause, Clear and Save as file, for finding problems. Opens automatically on the debug firmware. The same lines appear on the USB serial port. (Flight recording is set in the Logging group of the settings.) |
@@ -160,11 +160,9 @@ Every setting, with its default, an example and what it does underneath, is in [
 | Vario | [Basic: Vario](Feature_Reference.md#basic-settings-vario) |
 | Height calls | [Basic: Height calls](Feature_Reference.md#basic-settings-height-calls) |
 | Takeoff & landing | [Basic](Feature_Reference.md#basic-settings-takeoff-and-landing) and [Advanced](Feature_Reference.md#adv-settings-takeoff-and-landing) |
-| Glide, Landing zone, Landing approach, Emergency, Wind | [Advanced](Feature_Reference.md#adv-settings-glide) |
+| Landing zone, Landing approach, Emergency | [Advanced](Feature_Reference.md#adv-settings-glide) |
 | Areas | [Advanced: Areas](Feature_Reference.md#adv-safe-area) |
 | Bluetooth | [Basic](Feature_Reference.md#basic-settings-bluetooth) and [Advanced](Feature_Reference.md#adv-settings-bluetooth) |
-| Wi-Fi | [Basic: Wi-Fi](Feature_Reference.md#basic-settings-wi-fi) |
-| Logging | [Advanced: Logging](Feature_Reference.md#adv-settings-logging) |
 
 ## Maintenance
 

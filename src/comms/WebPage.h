@@ -655,12 +655,10 @@ function field(f){
   i.dataset.key=f.k;
   row.append(sp,i);return row;
 }
-// Settings that most pilots never need to change sit in one collapsed "Advanced settings" section at the
-// end of the list, in this order. A few more (HIDDEN_GROUPS: the maker's and installer's) are on a page of their own,
-// /advanced, which nothing links to (the same page, the same tabs: a tab takes you back).
+// Settings that most pilots never need to change are on their own page, /advanced (the same page, the same tabs: a tab
+// takes you back), in this order. The Settings tab ends with a link to it.
 const ADV=/^\/advanced\/?$/.test(location.pathname);
-const HIDDEN_GROUPS=['Battery','Firmware Update','GPS','Engine RPM'];
-const ADV_GROUPS=['Wi-Fi','Wind','Logging','Glide'];
+const ADV_GROUPS=['Battery','Wi-Fi','Firmware Update','GPS','Engine RPM','Wind','Logging','Glide'];
 function render(){
   $('#fwholder').appendChild($('#fwcard'));  // out of the list before it is cleared
   const root=$('#settings');root.innerHTML='';const groups={};
@@ -702,26 +700,24 @@ function render(){
   const adv=ADV_GROUPS.filter(g=>groups[g]);
   if(ADV){
     const h=document.createElement('section');h.className='card';h.id='advHead';
-    h.innerHTML='<h2>More settings</h2><p class="mut advnote">The tabs above take you back.</p>';
+    h.innerHTML='<h2>Advanced settings</h2><p class="mut advnote">Settings most pilots never need to change. The tabs above take you back.</p>';
     root.appendChild(h);
-    HIDDEN_GROUPS.filter(g=>groups[g]).forEach(g=>group(g,root,'card'));
+    adv.forEach(g=>group(g,root,'card'));
   }else{
-    for(const g in groups)if(!ADV_GROUPS.includes(g)&&!HIDDEN_GROUPS.includes(g))group(g,root,'card');
+    for(const g in groups)if(!ADV_GROUPS.includes(g))group(g,root,'card');
     if(adv.length){
-      const o=document.createElement('details');o.className='card';o.id='advSettings';o.open=openGroups.has('Advanced settings');
-      o.ontoggle=()=>o.open?openGroups.add('Advanced settings'):openGroups.delete('Advanced settings');
-      const s=document.createElement('summary');s.textContent='Advanced settings';o.appendChild(s);
-      const n=document.createElement('p');n.className='mut advnote';n.textContent='Settings most pilots never need to change: '+adv.join(', ')+'.';o.appendChild(n);
-      adv.forEach(g=>group(g,o,'card sub'));root.appendChild(o);
+      const o=document.createElement('section');o.className='card';o.id='advLink';
+      o.innerHTML='<a href="/advanced" style="display:block;font-weight:600;font-size:1.05em">Advanced settings &rsaquo;</a><p class="mut advnote"></p>';
+      o.querySelector('p').textContent='Settings most pilots never need to change: '+adv.join(', ')+'.';
+      root.appendChild(o);
     }
   }
   showWifi();addGroupHelp();
 }
 let wifiInfo=null;
 function showWifi(){
-  const w=wifiInfo;if(!w)return;
-  if(document.getElementById('w-ap'))txt('w-ap',w.apIp+' · '+w.apClients+' connected');
-  if(!document.getElementById('w-server'))return;  // (the maintenance connection is in the Firmware Update group)
+  const w=wifiInfo;if(!w||!document.getElementById('w-server'))return;
+  txt('w-ap',w.apIp+' · '+w.apClients+' connected');
   const q=w.rssi>-60?'good':w.rssi>-70?'fair':'weak';
   let status=!cfg.maintWifi&&!w.maint?'Off':!w.serverSsid?'Off (not set)':w.server=='connected'?'Connected to '+w.serverSsid+' · signal '+q+' ('+w.rssi+' dBm)':
     w.server=='connecting'?'Connecting to '+w.serverSsid+'…':w.serverSsid+' – '+w.server;

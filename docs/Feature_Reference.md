@@ -25,7 +25,7 @@ Heights in the examples use the default unit (feet). You can switch to metres in
 
 Settings are changed on the Settings tab of the web page. A change is saved a moment after you make it. A setting marked **restart** takes effect after the vario is restarted: once you have changed one, a **Restart** button appears at the bottom of the Settings tab (it goes away after the restart, and also if you reload the page meanwhile).
 
-The settings most pilots never need to change are collected in an **Advanced settings** section at the end of the list. It starts closed; tap it to open it. It holds the groups Wi-Fi, Wind, Logging (including *Keep this much track before takeoff*) and Glide. A vario with no GPS module shows only those that apply to it: Wi-Fi.
+The settings most pilots never need to change are on their own page, **Advanced settings**: tap the link at the end of the Settings tab, or open `http://<the vario's address>/advanced` (for example http://192.168.4.1/advanced). It has the same tabs as the other pages, so tap one to go back. It holds the groups Battery, Wi-Fi, GPS, Engine RPM, Wind, Logging (including *Keep this much track before takeoff*) and Glide. A vario with no GPS module shows only those that apply to it: Battery, Wi-Fi, Engine RPM, and the one GPS setting, *GPS module*.
 
 ---
 
@@ -77,7 +77,7 @@ For example, `5400 rpm`. It says `off` when no engine sound is recognised. A rea
 The microphone hears the engine's firing frequency and its harmonics, and the vario finds the pattern. If the *conf* number is low the reading is not shown. Tune it in the Engine RPM settings. The same group has *Show the Spectrum tab* (default: off).
 
 ### Background noise
-How loud it is around the vario, as heard by the microphone. This tile is tuning data and is **hidden** unless *Show background noise and RPM confidence on the flight tab* is on (an Engine RPM setting).
+How loud it is around the vario, as heard by the microphone. This tile is tuning data and is **hidden** unless *Show background noise and RPM confidence on the flight tab* is on (Engine RPM, on the advanced settings page).
 
 For example, `-38 dBFS` with `vario vol 72%` under it: that is the noise level and the volume the vario beeps are currently played at. Use these numbers to set *Noise for set volume* and *Noise for full volume*.
 
@@ -170,7 +170,7 @@ You hear "Battery low" when the voltage falls below *Low battery warning*, and i
 <a id="basic-spectrum"></a>
 ## Spectrum tab
 
-The Spectrum tab is off by default. Switch it on with *Show the Spectrum tab* in the **Engine RPM** settings; switched off, the tab is removed from the tab list.
+The Spectrum tab is off by default. Switch it on with *Show the Spectrum tab* in **Advanced settings → Engine RPM** (the /advanced page); switched off, the tab is removed from the tab list.
 
 ### Microphone spectrum
 A graph of the sounds the microphone hears, by pitch.
@@ -416,7 +416,7 @@ The first line of the Wi-Fi group: the vario's address on its own network (192.1
 
 <a id="basic-settings-firmware-update"></a>
 ## Settings: Firmware Update
-*For the maker and testers; pilots do not need it.*
+*On the advanced settings page. For the maker and testers; pilots do not need it.*
 
 ### Install update (firmware box)
 At the top of the section: the installed version, a file chooser, the update password and **Install update**. Choose `firmware.bin` (the program) or `littlefs.bin` (the voice clips; this erases flight logs), enter the password and tap Install. Keep the page open until it says *Installed*; a failed upload leaves the old firmware running. Refused while flying. (It was on the Logs & system tab in earlier versions.)
