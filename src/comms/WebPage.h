@@ -1080,7 +1080,8 @@ function areaList(){
     const lab=document.createElement('label'),cb=document.createElement('input');cb.type='checkbox';cb.checked=!!a.on;
     cb.onchange=()=>{a.on=cb.checked;areaPost().then(areaDraw)};
     const chip=document.createElement('span');chip.style.cssText='display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 2px 0 6px;background:'+areaCol(a);
-    lab.append(cb,chip,' '+a.n+' ('+(a.k==='restricted'?'restricted, ':'')+(a.w>0?'warn '+fD(a.w)+', ':'')+a.p.length+' corners)');
+    const inf=[a.k==='restricted'?'restricted':'',a.w>0?'warn '+fD(a.w):''].filter(x=>x).join(', ');
+    lab.append(cb,chip,' '+a.n+(inf?' ('+inf+')':''));
     const bs=document.createElement('span');
     bs.append(areaBtn('Edit',()=>areaEdit(i)),' ',areaBtn('Copy',()=>areaCopy(i)),' ',areaBtn('Delete',()=>{if(confirm('Delete '+a.n+'?')){aAreas.splice(i,1);if(aIdx===i)areaCancel();areaPost().then(areaLoad)}}));
     d.append(lab,bs);el.append(d);
@@ -1147,7 +1148,7 @@ function areaMapInit(){
   const l=document.createElement('link');l.rel='stylesheet';l.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';document.head.append(l);
   const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
   s.onload=areaMapStart;
-  s.onerror=()=>{aTried=false;m.textContent='The map could not be loaded: this phone needs internet (mobile data, or another Wi-Fi). You can still add corners at your position or paste them below.'};
+  s.onerror=()=>{aTried=false;m.textContent='The map could not be loaded: this phone needs internet (mobile data, or another Wi-Fi). You can still paste corners below.'};
   document.head.append(s);
 }
 function areaMapStart(){
