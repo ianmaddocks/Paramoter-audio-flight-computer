@@ -140,6 +140,8 @@ struct Settings {
   bool battLearn = true;
   int32_t battRuntimeMin = 360;
 
+  int32_t memGuardKb = 12;   // last-resort restart when free memory stays below this (half of it in flight); 0 = never
+  int32_t memGuardS = 30;    // ... for this long
   bool igcEnabled = true;
   int32_t igcPreS = 30;
   bool igcQnhAlt = true;

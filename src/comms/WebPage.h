@@ -111,8 +111,6 @@ R"HTML(
 #areaMap{height:340px;border-radius:10px;border:1px solid var(--bd);background:var(--bg)}
 #areaMap[hidden]{display:none}
 #areaBox{position:relative}
-#areaCross{position:absolute;left:50%;top:50%;width:36px;height:36px;margin:-18px 0 0 -18px;pointer-events:none;z-index:1001}
-#areaCross[hidden]{display:none}
 #areaPts{height:222px;overflow-y:auto;overscroll-behavior:contain;border:1px solid var(--bd);border-radius:8px;padding:0 8px;margin:8px 0}
 #areaPts:empty{display:none}
 .apt{display:flex;align-items:center;gap:6px;height:44px;border-top:1px solid var(--bd)}
@@ -220,18 +218,15 @@ R"HTML(
 </section>
 <section class="card"><h2 id="areaTitle">New area</h2>
 <div id="areaBox"><div id="areaMap" hidden></div>
-<svg id="areaCross" viewBox="0 0 36 36" hidden><circle cx="18" cy="18" r="10" fill="none" stroke="#fff" stroke-width="4"/><circle cx="18" cy="18" r="10" fill="none" stroke="#111" stroke-width="2"/><path d="M18 1v10M18 25v10M1 18h10M25 18h10" stroke="#fff" stroke-width="4"/><path d="M18 1v10M18 25v10M1 18h10M25 18h10" stroke="#111" stroke-width="2"/></svg></div>
+</div>
 <p class="mut" id="areaMapMsg">Open this tab to load the map. It needs internet on this phone (mobile data or another Wi-Fi).</p>
-<p class="mut" id="areaHelp"><b>Tap the map</b> to add a corner where you tap, or drag the map until the cross is on a corner and tap <b>Add corner at cross</b>. Drag a numbered corner to move it.</p>
+<p class="mut" id="areaHelp"><b>Tap the map</b> to add a corner where you tap. Drag a numbered corner to move it.</p>
 <div id="areaPts"></div>
 <div class="row"><span>Name</span><input type="text" id="areaName" maxlength="23" autocomplete="off"></div>
 <div class="row"><span>Type</span><select id="areaKind"><option value="safe">Safe (green)</option><option value="restricted">Restricted (red)</option></select></div>
 <div class="row"><span>Warn me <small id="areaWarnU"></small></span><input type="number" id="areaWarn" min="0" step="10" inputmode="numeric"></div>
 <p class="mut" id="areaWarnNote"></p>
 <div class="btns">
-<button type="button" id="areaCursor" class="pri wide">Add corner at cross</button>
-<button type="button" id="areaHere">Add corner at my position</button>
-<button type="button" id="areaGo">Follow me</button>
 <button type="button" id="areaUndo">Remove last corner</button>
 <button type="button" id="areaCancel">Cancel</button>
 <button type="button" id="areaSave" class="pri wide">Save area</button>
@@ -751,7 +746,7 @@ function selectTab(name){
   document.querySelectorAll('button[data-tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===name));
   document.querySelectorAll('.page').forEach(p=>p.hidden=p.id!==name+'Page');
   if(name==='system')loadLogs();
-  if(name==='area'){areaLoad();areaMapInit();if(aMap)setTimeout(()=>{aMap.invalidateSize();if(!aDraft)areaView()},50)}
+  if(name==='area'){if(aWasFly&&aPos)aFollow=true;areaLoad();areaMapInit();if(aMap)setTimeout(()=>{aMap.invalidateSize();if(!aDraft)areaView()},50)}
 )HTML"
 #if PV_HAS_SPECTRUM
 R"HTML(  const was=specOn;specOn=name==='spectrum';if(specOn&&!was)specLoop();
@@ -1037,7 +1032,7 @@ function areaStatus(s){
     else if(a.rstate==='inside')t+=' In a restricted area.';
   }
   txt('areaState',t.trim());
-  if(s.flying&&!aWasFly&&aPos){aFollow=true;areaFollowBtn()}  // taking off: the map follows the pilot until it is dragged
+  if(s.flying&&!aWasFly&&aPos){aFollow=true}  // taking off: the map follows the pilot until it is dragged
   aWasFly=!!s.flying;
   if(aMap&&aPos){
     const mv=!!(g&&g.moving),trk=mv?Math.round(g.track/5)*5:0,key=(mv?'a':'d')+trk;
@@ -1054,7 +1049,6 @@ function areaMeSvg(moving,trk){  // an arrow along the track while moving, a dot
 function areaMeIcon(moving,trk){
   return L.divIcon({className:'',iconSize:[28,28],iconAnchor:[14,14],html:'<svg width="28" height="28" viewBox="0 0 28 28" style="overflow:visible;filter:drop-shadow(0 0 2px #000)">'+areaMeSvg(moving,trk)+'</svg>'});
 }
-function areaFollowBtn(){const b=$a('areaGo');if(b)b.textContent=aFollow?'Stop following':'Follow me'}
 function areaView(){  // what the map shows when it opens or the areas change
   if(!aMap)return;
   if(aFollow&&aPos&&!aDraft)aMap.setView(aPos,Math.max(aMap.getZoom(),15));else areaFit();
@@ -1157,7 +1151,7 @@ function areaMapInit(){
   document.head.append(s);
 }
 function areaMapStart(){
-  $a('areaMapMsg').hidden=true;$a('areaMap').hidden=false;$a('areaCross').removeAttribute('hidden');
+  $a('areaMapMsg').hidden=true;$a('areaMap').hidden=false;
   aMap=L.map('areaMap');
   const street=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'});
   const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Imagery © Esri'});
@@ -1166,27 +1160,9 @@ function areaMapStart(){
   aMeKey='';
   aMap.on('click',e=>{if(!aDraft)areaEdit(-1);aDraft.push([e.latlng.lat,e.latlng.lng]);areaDraw()});
   areaDraw();
-  aMap.on('dragstart',()=>{if(aFollow){aFollow=false;areaFollowBtn()}});
+  aMap.on('dragstart',()=>{if(aFollow){aFollow=false}});
   areaView();
 }
-$a('areaHere').onclick=()=>{
-  if(!aPos){toast('No GPS fix');return}
-  if(!aDraft)areaEdit(-1);
-  if(aDraft.length>=24){toast('At most 24 corners');return}
-  aDraft.push(aPos.slice());areaDraw();if(aMap)aMap.panTo(aPos);
-};
-$a('areaCursor').onclick=()=>{
-  if(!aMap){toast('The map has not loaded');return}
-  if(!aDraft)areaEdit(-1);
-  if(aDraft.length>=24){toast('At most 24 corners');return}
-  const c=aMap.getCenter();aDraft.push([c.lat,c.lng]);areaDraw();
-};
-$a('areaGo').onclick=()=>{
-  if(aFollow){aFollow=false;areaFollowBtn();return}
-  if(!aPos){toast('No GPS fix');return}
-  if(!aMap){toast('The map has not loaded');return}
-  aFollow=true;areaFollowBtn();aMap.setView(aPos,Math.max(aMap.getZoom(),16));
-};
 $a('areaUndo').onclick=()=>{if(aDraft&&aDraft.length){aDraft.pop();areaDraw()}};
 $a('areaCancel').onclick=areaCancel;
 $a('areaKind').onchange=()=>areaKindShow(true);

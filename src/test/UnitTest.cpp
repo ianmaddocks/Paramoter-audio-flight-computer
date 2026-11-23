@@ -38,6 +38,10 @@ bool runUnitSuite(const String& name, String* json) {
     resumeUnitSuite(r);
 #endif
 #if PV_UNIT_HAS(2)
+  } else if (name == "memguard") {
+    memGuardUnitSuite(r);
+#endif
+#if PV_UNIT_HAS(2)
   } else if (name == "alerts") {
     alertsUnitSuite(r);
 #endif

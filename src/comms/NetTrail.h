@@ -15,6 +15,7 @@ enum Code : uint8_t {
   ApJoin,     // a phone joined the vario's own network; arg: how many are joined now
   ApLeave,
   LowMem,     // a web request was refused for lack of memory; arg: the largest free block
+  MemRestart, // restarted by the memory guard (app/MemGuard.h); arg: free memory in bytes
   Deaf,       // joined to the maintenance network but the router no longer answers: joining again
 };
 

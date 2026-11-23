@@ -36,6 +36,7 @@ const char* nameOf(uint8_t c) {
     case ApJoin: return "a device joined the vario's network, now";
     case ApLeave: return "a device left the vario's network, now";
     case LowMem: return "web request refused: low memory, largest block (B)";
+    case MemRestart: return "restarted by the memory guard: free memory (B)";
     case Deaf: return "joined, but the router does not answer: joining again";
     default: return "?";
   }

@@ -115,7 +115,7 @@ Glide range uses the glide ratio and trim airspeed settings, adjusted for the es
 
 ## Areas (safe and restricted)
 
-Draw **safe** areas (green, such as your flying field) and **restricted** areas (red, places to keep out of) on the **Map** tab of the web page. In flight the map follows you (the arrow is you); drag it to look around, and tap **Follow me** to come back. The map comes from the internet, so turn mobile data on while you draw. Tap the map to add each corner, or drag the map until the cross is on a corner and tap **Add corner at cross**; the corners are listed under the map, where you can move or delete them. Choose the **Type** and **Warn me** distance, then **Save area**. Up to 25 areas are kept, and an area can be copied.
+Draw **safe** areas (green, such as your flying field) and **restricted** areas (red, places to keep out of) on the **Map** tab of the web page. In flight the map follows you (the arrow is you); drag it to look around, and open the Map tab again to come back. The map comes from the internet, so turn mobile data on while you draw. Tap the map to add each corner; the corners are listed under the map, where you can move or delete them. Choose the **Type** and **Warn me** distance, then **Save area**. Up to 25 areas are kept, and an area can be copied.
 
 In flight:
 - A **safe** area (warning distance 0): you hear **"You have left the safe area"** when you go outside it, and **"Back in the safe area"** when you return. A larger distance also warns you when you are that close to its edge.

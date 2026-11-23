@@ -851,7 +851,7 @@ For example, at 20 s you hear it every 20 s (sooner if you are well off course).
 
 Areas are places on the map that the vario knows about: **safe** areas, which you want to stay inside (your flying field), and **restricted** areas, which you want to keep out of. You draw each one on the **Map** tab. In flight the vario warns you when you leave a safe area, and before you enter a restricted one.
 
-**Drawing an area.** Open the **Map** tab and tap **New area**. Tap the map to add a corner where you tap, or drag the map until the cross is on a corner and tap **Add corner at cross**; do that for each corner (at least 3, at most 24). **Follow me** centres the map on you and keeps it there; the arrow shows your track (a dot when you are still). In flight the map follows you by itself from takeoff. Dragging the map, or tap **Stop following**, stops it. Without a map you can still tap **Add corner at my position** (walk round the edge and add each corner), or open **Paste corners** and paste a list of latitude, longitude pairs, or the coordinates from a site such as geojson.io. Give the area a name, choose its **Type** and **Warn me** distance, and tap **Save area**.
+**Drawing an area.** Open the **Map** tab and tap **New area**. Tap the map to add each corner (at least 3, at most 24). The arrow shows your track (a dot when you are still). In flight the map follows you by itself from takeoff; dragging the map stops it, and opening the Map tab again follows you again. Without a map you can still open **Paste corners** and paste a list of latitude, longitude pairs, or the coordinates from a site such as geojson.io. Give the area a name, choose its **Type** and **Warn me** distance, and tap **Save area**.
 
 Every corner is listed under the map, in the order they join up. Tap a corner's position to centre the map on it, use the arrows to move it up or down the list (the first has no up arrow, the last no down arrow), or **Delete** it. You can also drag a numbered corner on the map.
 
@@ -1002,6 +1002,11 @@ The oldest logs are deleted automatically if the memory gets short.
 Keeps the logged height from showing odd negative values.
 
 Leave it on. Turn it off only if you specifically need the true standard-pressure altitude, which can be negative on a high-pressure day and makes some viewers complain. Default: On.
+
+### Restart if free memory stays below
+A last-resort safety net: if the vario's free memory stays low, it saves the flight and restarts itself instead of crashing later.
+
+It should never act in normal use. It only counts memory that stays low for the time set in *... for this long* (default 30 s), never a brief dip, and in flight it waits until memory is half as low. A flight is resumed after the restart, as after any restart in the air. It never acts in the first five minutes after a start, so it cannot restart in a loop. 0 turns it off. Default: 12 kB.
 
 ### Keep this much track before takeoff
 Includes the last few seconds before takeoff in the log.

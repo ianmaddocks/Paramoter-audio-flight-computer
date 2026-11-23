@@ -2742,6 +2742,13 @@ def t_resume_logic(v, a):
     return f"{n} cases passed: age, reach, flying speed, missing time/position"
 
 
+def t_memguard_logic(v, a):
+    """Software-level unit test of the last-resort restart for sustained low memory (app/MemGuard.h): a dip never restarts, the
+    hold time, the half limit in flight, off, and the five minutes of grace after a start."""
+    n = unit_suite(v, "memguard", 10)
+    return f"{n} cases passed: brief dips ignored, hold time, half limit in flight, off, grace after a start"
+
+
 def t_audio_logic(v, a):
     """Software-level unit test of what is queued for an utterance: the signal tone before urgent calls only."""
     n = unit_suite(v, "audio", 8)
@@ -4993,8 +5000,7 @@ def t_areas_api(v, a):
 
     code, raw = v._open("/")
     page = raw.decode("utf-8", "replace")
-    for needle in ('data-tab="area"', '>Map</button>', 'id="areaKind"', 'id="areaWarn"', 'id="areaPts"', "Add corner at cross",
-                   "leaflet.min.js", "areaCopy", "Follow me"):
+    for needle in ('data-tab="area"', '>Map</button>', 'id="areaKind"', 'id="areaWarn"', 'id="areaPts"',                    "leaflet.min.js", "areaCopy"):
         if needle not in page:
             raise Fail(f"the page has no {needle!r}")
     if 'data-tab="area" class="needgps"' not in page:
@@ -5184,7 +5190,7 @@ def t_areas_fast_wind(v, a):
 
 def t_ui_map_follow(v, a):
     """The Map tab in flight: the map follows the simulated aircraft from takeoff, shows an arrow along its track, stops following
-    when the map is dragged, and follows again when 'Follow me' is tapped. (The map comes from the internet: this PC needs it.)"""
+    when the map is dragged, and follows again when the Map tab is opened again. (The map comes from the internet: this PC needs it.)"""
     airborne(v, hdg=90, air=10, wfrom=90, wspd=0)  # flying east at 10 m/s
     p = v.page()
     p.tab("area")
@@ -5206,8 +5212,8 @@ def t_ui_map_follow(v, a):
         return math.hypot((c[0] - c0[0]) * M_PER_DEG, (c[1] - c0[1]) * M_PER_DEG * math.cos(math.radians(c0[0])))
 
     time.sleep(3)
-    if not p.js("aFollow") or p.text("areaGo") != "Stop following":
-        raise Fail(f"in flight the map is not following by default: aFollow={p.js('aFollow')}, button '{p.text('areaGo')}'")
+    if not p.js("aFollow"):
+        raise Fail("in flight the map is not following by default")
     c0 = centre()
     time.sleep(8)
     samples = []
@@ -5226,32 +5232,34 @@ def t_ui_map_follow(v, a):
     # dragging the map stops following
     p.js("aMap.fire('dragstart');0")
     time.sleep(1)
-    if p.js("aFollow") or p.text("areaGo") != "Follow me":
+    if p.js("aFollow"):
         raise Fail("dragging the map did not stop it following")
     c1 = centre()
     time.sleep(6)
     if moved_m(c1) > 20:
         raise Fail(f"the map kept moving ({moved_m(c1):.0f} m) after following was stopped")
-    # the button follows again
-    p.click("#areaGo")
+    # opening the Map tab again follows again
+    p.tab("flight")
+    time.sleep(1)
+    p.tab("area")
     time.sleep(3)
     if not p.js("aFollow") or off_m() > 120:
-        raise Fail(f"'Follow me' did not centre the map on the aircraft ({off_m():.0f} m off)")
+        raise Fail(f"opening the Map tab again did not centre the map on the aircraft ({off_m():.0f} m off)")
     # editing an area pauses it
-    p.click("#areaCursor")
+    p.js("aMap.fire('click',{latlng:L.latLng(aPos[0],aPos[1])});0")  # a corner is added: editing begins
     time.sleep(1)
     c2 = centre()
     time.sleep(5)
     if moved_m(c2) > 20:
         raise Fail("the map followed the aircraft while a corner was being added")
-    return "followed from takeoff (centre within 120 m, moving with it), arrow shown, drag stops it, Follow me restores it, paused while editing"
+    return "followed from takeoff (centre within 120 m, moving with it), arrow shown, drag stops it, opening the Map again restores it, paused while editing"
 
 
 TESTS = [
     ("boot", t_boot), ("settings", t_settings), ("vario_climb", t_vario_climb),
     ("vario_sink", t_vario_sink), ("vario_thresholds", t_vario_thresholds), ("vario_logic", t_vario_logic),
     ("mute", t_mute), ("auto_volume", t_auto_volume), ("rpm_logic", t_rpm_logic), ("rpm", t_rpm), ("rpm_speech", t_rpm_speech), ("rpm_glitch", t_rpm_glitch), ("geo_logic", t_geo_logic), ("wind_logic", t_wind_logic),
-    ("circuit_logic", t_circuit_logic), ("battery_logic", t_battery_logic), ("flight_logic", t_flight_logic), ("button_logic", t_button_logic), ("factory_reset", t_factory_reset), ("ble_info", t_ble_info), ("voice_pack", t_voice_pack), ("igc_two_flights", t_igc_two_flights), ("vario_only_flying", t_vario_only_flying), ("maint_retry", t_maint_retry), ("log_list_memory", t_log_list_memory), ("net_trail", t_net_trail), ("stalled_client", t_stalled_client), ("igc_segments", t_igc_segments), ("igc_room", t_igc_room), ("ui_replay", t_ui_replay), ("height_logic", t_height_logic), ("moving_logic", t_moving_logic), ("height_trace", t_height_trace), ("maint_voice", t_maint_voice), ("names_default", t_names_default), ("status_logic", t_status_logic), ("alerts_logic", t_alerts_logic), ("resume_logic", t_resume_logic), ("audio_logic", t_audio_logic), ("rpmtrack_logic", t_rpmtrack_logic), ("baro_logic", t_baro_logic), ("wind", t_wind), ("wind_faults", t_wind_faults), ("wind_change", t_wind_change), ("circuit_right", t_circuit_right), ("circuit_slow_pilot", t_circuit_slow_pilot), ("circuit_left_wind", t_circuit_left_wind),
+    ("circuit_logic", t_circuit_logic), ("battery_logic", t_battery_logic), ("flight_logic", t_flight_logic), ("button_logic", t_button_logic), ("factory_reset", t_factory_reset), ("ble_info", t_ble_info), ("voice_pack", t_voice_pack), ("igc_two_flights", t_igc_two_flights), ("vario_only_flying", t_vario_only_flying), ("maint_retry", t_maint_retry), ("log_list_memory", t_log_list_memory), ("net_trail", t_net_trail), ("stalled_client", t_stalled_client), ("igc_segments", t_igc_segments), ("igc_room", t_igc_room), ("ui_replay", t_ui_replay), ("height_logic", t_height_logic), ("moving_logic", t_moving_logic), ("height_trace", t_height_trace), ("maint_voice", t_maint_voice), ("names_default", t_names_default), ("status_logic", t_status_logic), ("alerts_logic", t_alerts_logic), ("resume_logic", t_resume_logic), ("memguard_logic", t_memguard_logic), ("audio_logic", t_audio_logic), ("rpmtrack_logic", t_rpmtrack_logic), ("baro_logic", t_baro_logic), ("wind", t_wind), ("wind_faults", t_wind_faults), ("wind_change", t_wind_change), ("circuit_right", t_circuit_right), ("circuit_slow_pilot", t_circuit_slow_pilot), ("circuit_left_wind", t_circuit_left_wind),
     ("circuit_events", t_circuit_events),
     ("fault_baro", t_fault_baro), ("fault_gps", t_fault_gps), ("fault_battery", t_fault_battery), ("landing_gps_quality", t_landing_gps_quality), ("landing_hover", t_landing_hover), ("button_actions", t_button_actions), ("alerts_flight", t_alerts_flight), ("resume_flight", t_resume_flight), ("battery_flight", t_battery_flight),
     ("memory_events", t_memory_events), ("soak", t_soak),
@@ -5274,7 +5282,7 @@ PARTS = {
     1: ["boot", "settings", "vario_climb", "vario_sink", "vario_thresholds", "vario_logic", "mute", "auto_volume", "rpm_logic", "rpm",
         "rpm_speech", "rpm_glitch", "geo_logic", "circuit_logic", "height_logic", "moving_logic", "status_logic", "wind", "circuit_events",
         "circuit_right", "fault_baro", "factory_reset", "glide", "soak", "ui_flight", "ui_pilot", "ui_actions", "areas_restricted_flight"],
-    2: ["wind_logic", "battery_logic", "alerts_logic", "resume_logic", "ble_info", "voice_pack", "igc_two_flights", "vario_only_flying",
+    2: ["wind_logic", "battery_logic", "alerts_logic", "resume_logic", "memguard_logic", "ble_info", "voice_pack", "igc_two_flights", "vario_only_flying",
         "maint_retry", "log_list_memory", "net_trail", "stalled_client", "igc_segments", "igc_room", "ui_replay", "height_trace", "maint_voice",
         "names_default", "landing_gps_quality", "wind_faults", "circuit_slow_pilot", "landing_hover", "wind_change", "battery_flight",
         "fault_gps", "ui_layout", "ui_guidance", "areas_api", "areas_safe_flight", "areas_fast_wind", "ui_map_follow"],
@@ -5284,7 +5292,7 @@ PARTS = {
         "spectrum_setting", "ui_system", "ui_help", "ota_guard", "memory"],
 }
 # The unit suites in each part (the same split as PV_UNIT_PART in src/test/UnitTest.cpp); None = a build with all of them.
-PART_SUITES = {1: ("geo", "circuit", "status", "rpm", "moving", "height"), 2: ("wind", "battery", "alerts", "resume"),
+PART_SUITES = {1: ("geo", "circuit", "status", "rpm", "moving", "height"), 2: ("wind", "battery", "alerts", "resume", "memguard"),
                3: ("flight", "baro", "button", "rpmtrack", "audio", "areas"), None: ("geo", "wind", "battery")}
 _all = [n for n, _ in TESTS]
 _in_parts = [n for p in PARTS.values() for n in p]

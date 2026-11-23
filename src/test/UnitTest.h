@@ -63,6 +63,7 @@ void movingUnitSuite(UnitReport& r);
 void statusUnitSuite(UnitReport& r);
 void alertsUnitSuite(UnitReport& r);
 void resumeUnitSuite(UnitReport& r);
+void memGuardUnitSuite(UnitReport& r);
 void audioUnitSuite(UnitReport& r);
 void areasUnitSuite(UnitReport& r);
 #endif

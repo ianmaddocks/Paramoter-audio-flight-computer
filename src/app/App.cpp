@@ -21,6 +21,7 @@
 #include "Settings.h"
 #include "Version.h"
 #include "app/Alerts.h"
+#include "app/MemGuard.h"
 #include "app/Status.h"
 #include "app/UiEvents.h"
 #include "flight/Resume.h"
@@ -31,6 +32,7 @@
 #include "audio/Speech.h"
 #include "audio/VoicePack.h"
 #include "audio/Volume.h"
+#include "comms/NetTrail.h"
 #include "comms/WebUi.h"
 #include "sensors/Mic.h"
 #include "test/Sim.h"
@@ -56,6 +58,7 @@ bool resumePending = false;  // a flight saved as "flying" is waiting for the fi
 FlightRecord resumeRec = {};
 uint32_t resumeDeadlineMs = 0;
 FactoryResetGesture factoryReset;
+MemGuard memGuard;
 uint32_t factoryRestartAtMs = 0;  // set once the settings are wiped: the restart follows when the announcement has played
 
 // ---------- flight state kept across a restart in the air ----------
@@ -255,6 +258,15 @@ void flightTick(uint32_t now) {
   app.moving.update(now, hw::hasGps() && app.nav.fix, app.nav.speedMs, g_cfg.moveShowMs, g_cfg.moveHideMs, (uint32_t)g_cfg.moveHoldS * 1000u);
   uievents::update(now);
   trace::update(now);
+  const uint32_t freeB = ESP.getFreeHeap();
+  if (memGuard.update(now, freeB, app.nav.flying, (uint32_t)g_cfg.memGuardKb * 1024u, (uint32_t)g_cfg.memGuardS)) {
+    LOGE("MEM", "Free memory has stayed below %d kB for %d s (now %u B): saving the flight and restarting", (int)g_cfg.memGuardKb,
+         (int)g_cfg.memGuardS, (unsigned)freeB);
+    nettrail::add(nettrail::MemRestart, freeB > 32767 ? 32767 : (int)freeB);
+    if (app.nav.flying) saveFlightState();
+    delay(100);  // the log line reaches the debug log and the trail is written
+    ESP.restart();
+  }
 }
 
 }  // namespace

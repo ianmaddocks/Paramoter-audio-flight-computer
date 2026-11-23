@@ -165,6 +165,8 @@ const Field kFields[] = {
     B(igcEnabled, "Logging", "Record IGC flight logs"),
     B(igcQnhAlt, "Logging", "IGC pressure altitude referenced to GPS (off = true 1013 hPa, can be negative)"),
     I(igcPreS, "Logging", "Keep this much track before takeoff (RAM only, 0 = off)", "s", 0, 120),
+    I(memGuardKb, "Logging", "Restart (keeping the flight) if free memory stays below (0 = never)", "kB", 0, 64),
+    I(memGuardS, "Logging", "... for this long", "s", 10, 300),
     S(pilotName, "Logging", "Pilot name"),
     S(gliderType, "Logging", "Wing / motor"),
 };

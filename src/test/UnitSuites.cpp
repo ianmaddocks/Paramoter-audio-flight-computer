@@ -25,6 +25,7 @@
 
 #include "Settings.h"
 #include "app/Alerts.h"
+#include "app/MemGuard.h"
 #include "audio/Audio.h"
 #include "audio/Resample.h"
 #include "flight/Approach.h"
@@ -1764,6 +1765,62 @@ void alertsUnitSuite(UnitReport& r) {
 
   alerts::reset();
   audio::testCapture(false);
+}
+#endif
+
+// ---------------------------------------------------------------------------------------------- memory guard
+// MemGuard: the last-resort restart for sustained low memory (app/MemGuard.h).
+#if PV_UNIT_HAS(2)
+void memGuardUnitSuite(UnitReport& r) {
+  const uint32_t lim = 12 * 1024, hold = 30;
+  const uint32_t t0 = MemGuard::kGraceMs + 1000;
+  {  // low for less than the hold time, then recovered: never
+    MemGuard g;
+    bool any = false;
+    for (uint32_t t = t0; t < t0 + 29000; t += 1000) any |= g.update(t, 8000, false, lim, hold);
+    r.check(!any, "restarted before the hold time");
+    r.check(!g.update(t0 + 29000, 20000, false, lim, hold), "restarted after recovering");
+    bool again = false;  // the clock starts again from the next low reading
+    for (uint32_t t = t0 + 30000; t < t0 + 59000; t += 1000) again |= g.update(t, 8000, false, lim, hold);
+    r.check(!again, "the hold time was not restarted after a recovery");
+  }
+  {  // low for the whole hold time: restarts at exactly the hold time
+    MemGuard g;
+    bool early = false;
+    uint32_t at = 0;
+    for (uint32_t t = t0; t <= t0 + 40000 && !at; t += 1000) {
+      if (g.update(t, 8000, false, lim, hold)) at = t - t0;
+    }
+    r.check(!early && at == 30000, "restart came at %lu ms, want 30000", (unsigned long)at);
+  }
+  {  // exactly at the limit is not low
+    MemGuard g;
+    bool any = false;
+    for (uint32_t t = t0; t < t0 + 60000; t += 1000) any |= g.update(t, lim, false, lim, hold);
+    r.check(!any, "restarted at exactly the limit");
+  }
+  {  // in flight the limit is half: 8 kB is fine, 5 kB is not
+    MemGuard g;
+    bool any = false;
+    for (uint32_t t = t0; t < t0 + 90000; t += 1000) any |= g.update(t, 8000, true, lim, hold);
+    r.check(!any, "restarted in flight at 8 kB");
+    MemGuard h;
+    bool low = false;
+    for (uint32_t t = t0; t < t0 + 40000; t += 1000) low |= h.update(t, 5000, true, lim, hold);
+    r.check(low, "no restart in flight at 5 kB");
+  }
+  {  // off, and the grace period after a start
+    MemGuard g;
+    bool any = false;
+    for (uint32_t t = t0; t < t0 + 90000; t += 1000) any |= g.update(t, 1000, false, 0, hold);
+    r.check(!any, "restarted although the guard is off");
+    MemGuard h;
+    bool early = false;
+    for (uint32_t t = 0; t < MemGuard::kGraceMs; t += 1000) early |= h.update(t, 1000, false, lim, hold);
+    r.check(!early, "restarted in the first five minutes");
+    r.check(!h.update(MemGuard::kGraceMs, 1000, false, lim, hold), "the hold time counted the grace period");
+    r.check(h.update(MemGuard::kGraceMs + hold * 1000, 1000, false, lim, hold), "no restart after the grace period and the hold time");
+  }
 }
 #endif
 
