@@ -29,6 +29,8 @@
 #define PV_HELP_WEB_URL "https://github.com/ianmaddocks/Paramoter-audio-flight-computer/blob/main/docs/"
 #endif
 
-// What the boot log, web page and status report as the version, e.g. 20261111-131219. One firmware
-// serves every vario; whether a GPS is fitted is found out at start-up (see Hardware.h).
-#define PV_VERSION PV_STAMP
+// What the web page and status report as the version: the git description of the source, e.g. v1.2-18-g6131e34 (with
+// -dirty after it when it was built with uncommitted changes); the build time (PV_STAMP) when git is not available. The
+// build time is in the start-up log. One firmware serves every vario; whether a GPS is fitted is found out at start-up
+// (see Hardware.h).
+#define PV_VERSION (PV_GIT[0] ? PV_GIT : PV_STAMP)

@@ -4216,7 +4216,7 @@ def t_ui_flight(v, a):
     p.wait_text("t-noise", r"^-60 dBFS$")
     p.wait_text("t-noises", rf"^vario vol {a.volume}%$")
     p.wait_text("t-rpm", r"^(off|\d+ rpm)$")
-    p.wait_text("hver", rf"^v{re.escape(st['version'])} debug$")
+    p.wait_text("hver", rf"^{re.escape(st['version'])} debug$")
     p.check_fits("flight tab")
     p.wait_text("t-glide", r"^–$")
     p.wait_text("t-glides", r"^20 s avg –$")
@@ -4717,7 +4717,7 @@ def t_ui_settings(v, a):
         if where != "Firmware Update":
             raise Fail(f"web page: the firmware update box is in {where!r}, expected Firmware Update on /advanced")
         st0 = v.status()
-        pa.wait_text("fwver", rf"^Installed: {re.escape(st0['version'])} · git {re.escape(st0['git'])} \(debug build\)$", 5)
+        pa.wait_text("fwver", rf"^Installed: {re.escape(st0['version'])} \(debug build\)$", 5)
         pa.click("#fwgo")
         pa.wait_text("toast", r"^Choose a \.bin file first$", 3, "Install refused without a file")
         if pa.js("document.getElementById('fwpass').type") != "password":
@@ -5451,7 +5451,7 @@ def main():
     if not st.get("test"):
         print("The vario is not running the test build. Flash it with: pio run -e test -t upload")
         return 2
-    print(f"ParaVario {st['version']} ({st['git']}) at {a.host}, {len(tests)} tests"
+    print(f"ParaVario {st['version']} (built {st['stamp']}) at {a.host}, {len(tests)} tests"
           f"{'' if a.audio else ', microphone checks off'}")
     v.heap_start = st["heap"]
     saved = v.settings()

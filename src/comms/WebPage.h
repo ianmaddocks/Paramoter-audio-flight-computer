@@ -602,8 +602,8 @@ function renderStatus(s,replay){
     if(s.vol){txt('t-vol',s.vol.vario+' %');
       txt('t-vols','speech '+s.vol.speech+' %'+(!replay&&cfg.varioVolume!=null&&cfg.varioVolume!==s.vol.vario?' · set '+cfg.varioVolume+' %':''))}
     if(!replay){
-    txt('fwver','Installed: '+(s.version||'unknown')+(s.git?' · git '+s.git:'')+(s.debug?' (debug build)':' (release build)'));
-    txt('hver','v'+(s.version||'unknown')+(s.debug?' debug':''));
+    txt('fwver','Installed: '+(s.version||'unknown')+(s.debug?' (debug build)':' (release build)'));
+    txt('hver',(s.version||'unknown')+(s.debug?' debug':''));
     txt('sys','Uptime '+fT(s.uptime)+' · heap '+Math.round(s.heap/1024)+' kB · BLE clients '+s.ble+' · baro '+(s.baro.ok?(s.baro.pressure/100).toFixed(1)+' hPa':'missing'));
     wifiInfo=s.wifi;showWifi();
     // At the bottom of Settings, only while a change that needs a restart is waiting (the vario says so, so it survives a page reload).

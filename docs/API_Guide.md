@@ -36,7 +36,7 @@ The main groups (a group is left out when the hardware is not fitted or there is
 | Key | Contents |
 |---|---|
 | `ready`, `notReady`, `minSats` | Ready to fly, or the reason it is not. |
-| `uptime`, `resetReason`, `restartNeeded`, `version`, `git`, `release` | Firmware and last restart. `restartNeeded` is true after a setting that only takes effect on restart. |
+| `uptime`, `resetReason`, `restartNeeded`, `version`, `git`, `stamp`, `release` | Firmware and last restart. `version` is the git description of the source (for example `v1.2-18-g6131e34`), `stamp` the build time (`yyyymmdd-hhmmss`). `restartNeeded` is true after a setting that only takes effect on restart. |
 | `heap`, `heapMin`, `heapBlock` | Free memory now, lowest since power-up, largest free block (bytes). |
 | `flying`, `flights`, `flightTime`, `agl`, `altMsl`, `vario`, `muted` | Flight state, height above ground and above sea level (m), vertical speed (m/s). |
 | `hw` | Which hardware is fitted: `gps`, `mic`, `spectrum`. |

@@ -358,8 +358,9 @@ void appSetup() {
   Serial.setTxBufferSize(2048);  // before begin(), which otherwise allocates 256 bytes
   Serial.begin(115200);
   Serial.setTxTimeoutMs(0);  // never block when no USB host is listening
-  LOGI("APP", "ParaVario %s (%s, %s build), reset reason %d", PV_VERSION, PV_GIT,
-       dlog::kDebugBuild ? "debug" : "release", (int)esp_reset_reason());
+  LOGI("APP", "ParaVario %s (%s build), reset reason %d", PV_VERSION, dlog::kDebugBuild ? "debug" : "release",
+       (int)esp_reset_reason());
+  LOGI("APP", "Built %s", PV_STAMP);  // yyyymmdd-hhmmss, local time of the build
   LOGI("APP", "Hardware: microphone %s; GPS detected at start-up (setting \"GPS module\")",
        PV_HAS_MIC ? "fitted" : "not fitted");
   settings::load();

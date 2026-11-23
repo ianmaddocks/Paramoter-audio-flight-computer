@@ -68,7 +68,7 @@ def main():
             continue
         st = wait_for_vario(a.host, True)
         time.sleep(15)  # let the Wi-Fi and the web server settle before the first test
-        print(f"    running {st['version']} ({st['git']})", flush=True)
+        print(f"    running {st['version']} (built {st['stamp']})", flush=True)
         log = os.path.join(a.out, f"part{part}.log")
         with open(log, "w", encoding="utf-8") as f:
             p = subprocess.run([sys.executable, os.path.join(ROOT, "tools", "hil_test.py"), "--host", a.host, "--part", str(part),
@@ -88,7 +88,7 @@ def main():
         print("uploaded" if up.returncode == 0 else up.stdout[-1000:])
         if up.returncode == 0:
             st = wait_for_vario(a.host, False)
-            print(f"running {st['version']} ({st['git']})")
+            print(f"running {st['version']} (built {st['stamp']})")
     bad = [s for s in summary if "failed" not in s[1] or not re.search(r"\b0 failed", s[1])]
     return 1 if bad else 0
 

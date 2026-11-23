@@ -308,8 +308,9 @@ void handleStatus() {
     }
   }
 #endif
-  doc["version"] = PV_VERSION;
+  doc["version"] = PV_VERSION;  // the git description, e.g. v1.2-18-g6131e34
   doc["git"] = PV_GIT;
+  doc["stamp"] = PV_STAMP;      // build time, yyyymmdd-hhmmss
   doc["release"] = PV_RELEASE;  // the newest git tag, also in the Bluetooth model name ("ParaVario <release>")
   doc["flying"] = n.flying;
   doc["flights"] = app.flights;
