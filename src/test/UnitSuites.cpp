@@ -21,6 +21,8 @@
 
 #include <math.h>
 
+#include <memory>
+
 #include "Settings.h"
 #include "app/Alerts.h"
 #include "audio/Audio.h"
@@ -339,7 +341,8 @@ void frameToLatLon(float x, float y, float upDeg, double* lat, double* lon) {
 
 struct CircuitRig {
   Approach ap;
-  Wind wind;
+  std::unique_ptr<Wind> windp{new Wind};  // on the heap: the web server task has little stack, and a rig is made many times over
+  Wind& wind = *windp;
   uint32_t ms = 100000;
   float up;
   CircuitRig(float upDeg) : up(upDeg) {}
