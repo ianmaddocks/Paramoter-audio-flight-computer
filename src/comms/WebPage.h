@@ -694,6 +694,12 @@ function render(){
     const h=document.createElement('section');h.className='card';h.id='advHead';
     h.innerHTML='<h2>More settings</h2><p class="mut advnote">The tabs above take you back.</p>';
     root.appendChild(h);
+    const sf=document.createElement('section');sf.className='card';sf.id='settingsFile';
+    sf.innerHTML='<h2>Export and import settings</h2><p class="mut">Export saves every setting to a file you can read and edit (JSON, distances in metres and speeds in metres per second). Import reads such a file back; values outside their limits are brought into range. The file holds passwords, so keep it private. This vario\'s Wi-Fi and Bluetooth names are left out of both.</p><div class="btns"><button type="button" id="setExport">Export settings</button><button type="button" id="setImport">Import settings</button></div><input type="file" id="setFile" accept=".json,application/json" hidden>';
+    root.appendChild(sf);
+    $('#setExport').onclick=settingsExport;
+    $('#setImport').onclick=()=>$('#setFile').click();
+    $('#setFile').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)settingsImport(f)};
     HIDDEN_GROUPS.filter(g=>groups[g]).forEach(g=>group(g,root,'card'));
   }else{
     for(const g in groups)if(!ADV_GROUPS.includes(g)&&!HIDDEN_GROUPS.includes(g))group(g,root,'card');
@@ -724,6 +730,41 @@ async function loadSettings(){
   [schema,cfg]=await Promise.all([fetch('/api/schema').then(r=>r.json()),fetch('/api/settings').then(r=>r.json())]);
   schemaKey=st&&st.hw?st.hw.gps+'/'+st.hw.mic:'';
   render();
+}
+// Export and import of the settings as a readable JSON file (the hidden /advanced page). The names of this unit are not
+// carried over: they hold its own unit code.
+const FILE_SKIP=['bleName','wifiSsid'];
+async function settingsExport(){
+  try{
+    const c=await fetch('/api/settings',{cache:'no-store'}).then(r=>r.json());
+    FILE_SKIP.forEach(k=>delete c[k]);
+    const doc={paravario:'settings',saved:new Date().toISOString(),note:'Distances in metres, speeds in metres per second, angles in degrees. Keys are those of the settings table.',settings:c};
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([JSON.stringify(doc,null,2)+'\n'],{type:'application/json'}));
+    a.download='paravario-settings.json';document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),10000);
+    toast('Settings exported');
+  }catch(e){toast('Export failed')}
+}
+async function settingsImport(file){
+  let o;
+  try{o=JSON.parse(await file.text())}catch(e){toast('Not a settings file');return}
+  if(o&&o.settings&&typeof o.settings==='object')o=o.settings;
+  if(!o||typeof o!=='object'||Array.isArray(o)){toast('Not a settings file');return}
+  const known=new Set(schema.map(f=>f.k)),body={};let n=0,bad=0;
+  for(const k in o){
+    if(!known.has(k)||FILE_SKIP.includes(k))continue;
+    if(typeof o[k]!==typeof cfg[k]){bad++;continue}
+    body[k]=o[k];n++;
+  }
+  if(!n){toast('No settings found in that file');return}
+  if(!confirm('Apply '+n+' settings from '+file.name+(bad?' ('+bad+' ignored)':'')+'?'))return;
+  try{
+    const r=await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const j=await r.json();if(!r.ok)throw j.error;
+    cfg=j.settings;restartRequired=restartRequired||j.restart;render();
+    toast('Imported '+n+' settings'+(j.restart?' · restart required':''));
+  }catch(e){toast('Import failed: '+e)}
 }
 async function saveSettings(){
   if(saveInFlight){saveAgain=true;return}

@@ -4705,6 +4705,27 @@ def t_ui_settings(v, a):
         if pa.js("document.getElementById('fwpass').type") != "password":
             raise Fail("web page: update password box is not masked")
         pa.wait_text("w-server", r"\S")
+        # export and import of the settings as a readable file
+        if not pa.js("!!document.getElementById('setExport') && !!document.getElementById('setImport')"):
+            raise Fail("web page: no export / import buttons on /advanced")
+        exp = len([k for k in v.settings() if k not in ("bleName", "wifiSsid")])
+        pa.js("window.__text=null;window.Blob=class{constructor(p){window.__text=p.join('')}};URL.createObjectURL=()=>'blob:x';"
+              "HTMLAnchorElement.prototype.click=function(){};1")
+        pa.js("settingsExport();1")
+        pa.wait("window.__text!==null", 5, "export produced a file")
+        text = pa.js("window.__text")
+        doc = json.loads(text)
+        if doc.get("paravario") != "settings" or len(doc["settings"]) != exp or chr(10) + "  " not in text:
+            raise Fail(f"web page: the exported file is not readable settings JSON ({len(doc.get('settings', {}))} settings, expected {exp})")
+        if "bleName" in doc["settings"] or "wifiSsid" in doc["settings"]:
+            raise Fail("web page: the export holds this vario's own names")
+        before = v.settings()["climbThreshold"]
+        pa.js("settingsImport(new File([JSON.stringify({settings:{climbThreshold:0.55,bleName:'Other',nonsense:1,sinkThreshold:'x'}})],'t.json'));1")
+        pa.wait("Math.abs(cfg.climbThreshold-0.55)<0.001", 6, "import applied")
+        near(v.settings()["climbThreshold"], 0.55, 0.001, "climb threshold imported")
+        if v.settings()["bleName"] == "Other":
+            raise Fail("web page: import changed the Bluetooth name")
+        v.set(climbThreshold=before)
         # the restart mark on a GPS setting, and the Restart button
         if "· restart" not in pa.js("tRow('gpsLed').textContent"):
             raise Fail("web page: restart mark missing on the GPS LED setting")
