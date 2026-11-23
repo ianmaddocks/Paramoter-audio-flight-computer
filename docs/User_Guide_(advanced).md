@@ -162,7 +162,6 @@ Every setting, with its default, an example and what it does underneath, is in [
 | Takeoff & landing | [Basic](Feature_Reference.md#basic-settings-takeoff-and-landing) and [Advanced](Feature_Reference.md#adv-settings-takeoff-and-landing) |
 | Glide, Landing zone, Landing approach, Emergency, Wind | [Advanced](Feature_Reference.md#adv-settings-glide) |
 | Areas | [Advanced: Areas](Feature_Reference.md#adv-safe-area) |
-| Bluetooth | [Basic](Feature_Reference.md#basic-settings-bluetooth) and [Advanced](Feature_Reference.md#adv-settings-bluetooth) |
 | Wi-Fi | [Basic: Wi-Fi](Feature_Reference.md#basic-settings-wi-fi) |
 | Logging | [Advanced: Logging](Feature_Reference.md#adv-settings-logging) |
 

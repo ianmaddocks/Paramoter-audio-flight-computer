@@ -357,7 +357,7 @@ const GROUP_HELP={'Units':{b:'basic-settings-units-and-audio',a:'adv-settings-un
   'Takeoff & landing':{b:'basic-settings-takeoff-and-landing',a:'adv-settings-takeoff-and-landing'},
   'Glide':{a:'adv-settings-glide'},'Landing zone':{a:'adv-settings-landing-zone'},'Landing approach':{a:'adv-settings-landing-approach'},
   'Areas':{a:'adv-safe-area'},'Emergency':{a:'adv-settings-emergency'},'Wind':{a:'adv-settings-wind'},
-  'Bluetooth':{b:'basic-settings-bluetooth',a:'adv-settings-bluetooth'},'Wi-Fi':{b:'basic-settings-wi-fi'},
+  'Wi-Fi':{b:'basic-settings-wi-fi'},
   'Logging':{a:'adv-settings-logging'}};
 let hwNow={gps:true,mic:true,spectrum:true};
 // A link to a guide section. The address is the GitHub one (for long-press or copy); a tap opens the reader.
@@ -659,7 +659,7 @@ function field(f){
 // end of the list, in this order. A few more (HIDDEN_GROUPS: the maker's and installer's) are on a page of their own,
 // /advanced, which nothing links to (the same page, the same tabs: a tab takes you back).
 const ADV=/^\/advanced\/?$/.test(location.pathname);
-const HIDDEN_GROUPS=['Battery','Firmware Update','GPS','Engine RPM'];
+const HIDDEN_GROUPS=['Bluetooth','Battery','Firmware Update','GPS','Engine RPM'];
 const ADV_GROUPS=['Wi-Fi','Wind','Logging','Glide'];
 function render(){
   $('#fwholder').appendChild($('#fwcard'));  // out of the list before it is cleared

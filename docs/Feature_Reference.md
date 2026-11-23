@@ -17,11 +17,11 @@ Heights in the examples use the default unit (feet). You can switch to metres in
 
 - [Part 1 - Basic](#part-1---basic)
   - [Tiles](#basic-tiles) · [Banner](#basic-banner) · [Buttons and actions](#basic-buttons) · [Sounds](#basic-sounds) · [Spectrum tab](#basic-spectrum)
-  - [Settings: Units and Audio](#basic-settings-units-and-audio) · [Vario](#basic-settings-vario) · [Height calls](#basic-settings-height-calls) · [Takeoff and landing](#basic-settings-takeoff-and-landing) · [Bluetooth](#basic-settings-bluetooth) · [Wi-Fi](#basic-settings-wi-fi)
+  - [Settings: Units and Audio](#basic-settings-units-and-audio) · [Vario](#basic-settings-vario) · [Height calls](#basic-settings-height-calls) · [Takeoff and landing](#basic-settings-takeoff-and-landing) · [Wi-Fi](#basic-settings-wi-fi)
   - [Logs and system tab](#basic-system) · [Help tab](#basic-help)
 - [Part 2 - Advanced](#part-2---advanced)
   - [Tiles](#adv-tiles) · [Banner](#adv-banner) · [Buttons and actions](#adv-buttons) · [Guidance](#adv-guidance) · [Sounds](#adv-sounds)
-  - [Settings: Units and Audio](#adv-settings-units-and-audio) · [Takeoff and landing](#adv-settings-takeoff-and-landing) · [Glide](#adv-settings-glide) · [Landing zone](#adv-settings-landing-zone) · [Landing approach](#adv-settings-landing-approach) · [Areas](#adv-safe-area) · [Emergency](#adv-settings-emergency) · [Wind](#adv-settings-wind) · [Bluetooth](#adv-settings-bluetooth) · [Logging](#adv-settings-logging)
+  - [Settings: Units and Audio](#adv-settings-units-and-audio) · [Takeoff and landing](#adv-settings-takeoff-and-landing) · [Glide](#adv-settings-glide) · [Landing zone](#adv-settings-landing-zone) · [Landing approach](#adv-settings-landing-approach) · [Areas](#adv-safe-area) · [Emergency](#adv-settings-emergency) · [Wind](#adv-settings-wind) · [Logging](#adv-settings-logging)
 
 Settings are changed on the Settings tab of the web page. A change is saved a moment after you make it. A setting marked **restart** takes effect after the vario is restarted: once you have changed one, a **Restart** button appears at the bottom of the Settings tab (it goes away after the restart, and also if you reload the page meanwhile).
 
@@ -362,21 +362,6 @@ If you land on a hillside more than this above where you took off (or above the 
 How much longer a still aircraft above the near-ground height must stay still before it counts as landed. Default: 5 (so 25 s with the default *Landed after* of 5 s). 1 gives the old rule (the same time at any height).
 
 This is for a strong headwind: the vario can hold station with a ground speed near zero, level, high above the ground. That is not a landing, and it can last a minute or two, but a pilot who lands on a hillside above the landing zone is still found, just later. Raise it if you fly in strong wind; lower it if you often land well above the landing zone.
-
-<a id="basic-settings-bluetooth"></a>
-## Settings: Bluetooth
-
-### Device name
-The name your phone or app sees when it looks for the vario.
-
-The default is `ParaVario` with a code taken from its unique hardware address, for example `ParaVario-12B8`, so two varios nearby can be told apart. The setting is used exactly as stored. Its default value includes the unit code (for example `ParaVario-12B8`), written into the setting by a new unit's first start and by a factory reset, so the box shows what the phone sees. Type a name of your own and that is used exactly as typed. An emptied box cannot be used as a name, so at the next start the default (with the code) is written into it. Restart to apply. Default: `ParaVario-XXXX`.
-
-### Vario sentences rate
-How often vario data is sent over Bluetooth.
-
-A rate of 5 times a second suits FlyGaggle. A lower rate saves a little radio traffic. Default: 5 Hz.
-
-The data is sent in the common `$LK8EX1` and `$LXWP0` formats, which FlyGaggle and many other apps understand.
 
 <a id="basic-settings-wi-fi"></a>
 ## Settings: Wi-Fi
@@ -827,23 +812,6 @@ Turn on if the windsock shows something different from the estimate. Default: Of
 The wind you enter when manual wind is on.
 
 "Wind from" is the direction the wind comes from: a westerly is 270°. Wind speed is in your speed unit. Used only while *Use manual wind* is on.
-
-<a id="adv-settings-bluetooth"></a>
-## Settings: Bluetooth
-
-*GPS Module*
-
-### Send pseudo-GPS
-Also sends position data to the app over Bluetooth.
-
-FlyGaggle can then show the vario's GPS position and track. Turn it off if you only want vario data. Default: On.
-
-The sentences are `$GPGGA` and `$GPRMC`. The altitude in them is the barometric altitude.
-
-### Pseudo-GPS rate
-How often the position is sent.
-
-Once a second is enough for most apps. Default: 1 Hz.
 
 <a id="adv-settings-logging"></a>
 ## Settings: Logging

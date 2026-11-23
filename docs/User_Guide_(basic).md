@@ -107,7 +107,6 @@ Details of each tile and button: [reference, Tiles](Feature_Reference.md#basic-t
 | Detect takeoff sooner or later | Takeoff height gain without GPS | [Takeoff and landing](Feature_Reference.md#basic-settings-takeoff-and-landing) |
 | Landing not noticed on high ground | Counts as near the ground below (increase) | [Takeoff and landing](Feature_Reference.md#basic-settings-takeoff-and-landing) |
 | Stop a false "Landed" close to the ground | Landed after (increase) | [Takeoff and landing](Feature_Reference.md#basic-settings-takeoff-and-landing) |
-| Name my vario in the app | Device name | [Bluetooth](Feature_Reference.md#basic-settings-bluetooth) |
 
 ## Bluetooth (FlyGaggle)
 

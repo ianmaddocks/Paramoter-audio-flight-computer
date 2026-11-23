@@ -4620,7 +4620,7 @@ def t_ui_settings(v, a):
         # Battery, Wi-Fi, GPS, Engine RPM, Wind, Logging and Glide sit in a collapsed "Advanced settings"
         # section at the end; the other groups keep the firmware's order.
         adv_order = ["Wi-Fi", "Wind", "Logging", "Glide"]
-        hidden_order = ["Battery", "Firmware Update", "GPS", "Engine RPM"]  # on /advanced, which nothing links to
+        hidden_order = ["Bluetooth", "Battery", "Firmware Update", "GPS", "Engine RPM"]  # on /advanced, which nothing links to
         main_groups = [g for g in groups if g not in adv_order and g not in hidden_order]
         adv_groups = [g for g in adv_order if g in groups]
         hidden_groups = [g for g in hidden_order if g in groups]
@@ -4641,10 +4641,8 @@ def t_ui_settings(v, a):
         if p.js("!!document.querySelector('a[href=\"/advanced\"]')"):
             raise Fail("web page: something links to the hidden /advanced page")
         p.wait_text("w-ap", r"^192\.168\.4\.1 · \d+ connected$", 4)  # the status line has no name: the name is the setting under it
-        # The vario's own names are plain settings: the boxes show the stored values, which are what the phone sees
-        for k in ("bleName", "wifiSsid"):
-            want = v.settings()[k]
-            p.wait(f"tInput('{k}').value===" + json.dumps(want), 6, f"{k} box shows the stored value")
+        # The vario's own Wi-Fi name is a plain setting: the box shows the stored value, which is what the phone sees
+        p.wait("tInput('wifiSsid').value===" + json.dumps(v.settings()["wifiSsid"]), 6, "wifiSsid box shows the stored value")
 
         # Number, saved as typed.
         p.js("tSet('climbThreshold','0.45')")
@@ -4691,7 +4689,7 @@ def t_ui_settings(v, a):
         p.wait_text("saveState", r"^Saved", 5)
         if v.settings()["pilotName"] != "Test Pilot":
             raise Fail("web page: pilot name not saved")
-        # The hidden page, /advanced: the same tabs; Battery, Firmware Update, GPS and Engine RPM, and nothing else
+        # The hidden page, /advanced: the same tabs; Bluetooth, Battery, Firmware Update, GPS and Engine RPM, and nothing else
         pa = v.page("/advanced")
         shown_h = pa.js("[...document.querySelectorAll('#settings>details>summary')].map(s=>s.firstChild.textContent)")
         if shown_h != hidden_groups:
@@ -4700,6 +4698,7 @@ def t_ui_settings(v, a):
             raise Fail("web page: /advanced lacks the tabs, or the Settings tab is not marked")
         near(pa.js("document.querySelectorAll('#settings details label.row').length"), len([f for f in schema if f["g"] in hidden_order]), 0,
              "number of settings on /advanced")
+        pa.wait("tInput('bleName').value===" + json.dumps(v.settings()["bleName"]), 6, "bleName box shows the stored value")
         # The firmware update box is in Firmware Update there (not on the Logs & system tab), version shown, guarded
         where = pa.js("(e=>e?[...e.closest('details').querySelector('summary').childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join(''):null)(document.getElementById('fwcard'))")
         if where != "Firmware Update":
