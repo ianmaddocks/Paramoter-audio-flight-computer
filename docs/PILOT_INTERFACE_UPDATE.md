@@ -66,7 +66,7 @@ again, **only on positive evidence that it is still flying**. At the first trust
 
 Then: landing zone, ground reference (heights), wind and flight time (including the time it was off) are restored and it says "Flight resumed".
 Anything else drops the record. With no GPS time and fix within 3 minutes it gives up for good. A flight is never taken on trust at power-up, so the
-vario cannot start believing it is flying when it is not; and **Reset flight state** (button on the Logs & system tab, or `POST /api/action?do=reset_flight`)
+vario cannot start believing it is flying when it is not; and **Reset flight state** (button on the Logs & system tab)
 is a manual way out. A resumed flight lands by the normal rules (ground speed under the landing speed for the landing time).
 
 ## Settings added

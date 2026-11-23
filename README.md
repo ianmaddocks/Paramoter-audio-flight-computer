@@ -82,6 +82,7 @@ update and maintenance steps is in the user guides.
 | [User_Guide_(advanced).md](docs/User_Guide_(advanced).md) | How to fly and use the Advanced vario (with a GPS module) |
 | [User_Guide_(pilot).md](docs/User_Guide_(pilot).md) | Short how-to for a vario with a GPS module: what to do, nothing about why |
 | [Feature_Reference.md](docs/Feature_Reference.md) | Every tile, button, sound and setting explained, Basic first, then Advanced |
+| [API_Guide.md](docs/API_Guide.md) | The vario's web API, for software that talks to it |
 | [TESTING.md](docs/TESTING.md) | The hardware-in-the-loop test suite that checks the firmware on a real vario |
 | *Architecture* (below) | How the firmware is put together, for anyone changing it |
 
