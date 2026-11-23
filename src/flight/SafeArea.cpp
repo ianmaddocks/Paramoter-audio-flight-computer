@@ -22,7 +22,8 @@ constexpr float kCloseM = 25.0f;        // this close to a restricted area, movi
 constexpr float kMinSpeedMs = 3.0f;     // below this there is no direction of travel to turn from
 constexpr float kMaxExtentM = 100000.0f;
 constexpr float kMinAreaM2 = 100.0f;
-constexpr size_t kMaxFileBytes = 16384;  // 25 areas of 24 corners
+constexpr size_t kMaxFileBytes = 5120;  // about 180 corners. Handling a web upload takes several times its size in memory (measured: 5.4 kB
+                                        // dipped the free memory by 14 kB, 7.3 kB took it down to 7 kB), so more could run the vario out of memory
 constexpr float kFarM = 100.0f;          // an area more than this beyond its warning distance is not looked at every time
 constexpr float kMaxSpeedMs = 40.0f;     // the fastest the pilot could close in on it (so the look is never later than the earliest arrival)
 constexpr uint32_t kMaxLookMs = 60000;   // ...and never longer than a minute apart
@@ -59,6 +60,10 @@ void SafeArea::begin() {
 bool SafeArea::parse(const char* json, Area*& result, int& count, const char** err) {
   result = nullptr;
   count = 0;
+  if (strlen(json) > kMaxFileBytes) {
+    *err = "too much data: at most 5 kB (about 180 corners in all)";
+    return false;
+  }
   JsonDocument doc;
   if (deserializeJson(doc, json) != DeserializationError::Ok || !doc["a"].is<JsonArray>()) {
     *err = "not valid JSON";

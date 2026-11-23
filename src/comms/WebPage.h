@@ -1061,7 +1061,9 @@ function areaView(){  // what the map shows when it opens or the areas change
 }
 function areaLoad(){return fetch('/api/areas',{cache:'no-store'}).then(r=>r.json()).then(j=>{aAreas=j.a||[];areaList();areaDraw();if(!aDraft)areaView()}).catch(()=>{})}
 function areaPost(){
-  return fetch('/api/areas',{method:'POST',body:JSON.stringify({a:aAreas})}).then(async r=>{const j=await r.json();if(!r.ok)throw j.error;toast('Saved');return true})
+  const body=JSON.stringify({a:aAreas});
+  if(body.length>5120){toast('Too many corners in all: at most about 180');areaLoad();return Promise.resolve(false)}
+  return fetch('/api/areas',{method:'POST',body:body}).then(async r=>{const j=await r.json();if(!r.ok)throw j.error;toast('Saved');return true})
     .catch(e=>{toast('Not saved: '+e);areaLoad();return false});
 }
 const AC={safe:'#2a9d5c',restricted:'#e03131'};

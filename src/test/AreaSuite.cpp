@@ -123,6 +123,10 @@ void areasUnitSuite(UnitReport& r) {
       }
       many += "]}";
       r.check(!s.testSet(many.c_str()), "26 areas accepted");
+      String big = "{\"a\":[{\"n\":\"";  // more than 5 kB of data is refused whatever it holds
+      for (int i = 0; i < 5300; ++i) big += 'x';
+      big += "\",\"p\":[[51.5,0.5],[51.5,0.51],[51.51,0.51]]}]}";
+      r.check(!s.testSet(big.c_str()), "over 5 kB accepted");
     }
     r.check(s.testSet("{\"a\":[]}"), "an empty list is valid");
     String two = areas(rect("safe", 0, -100, -100, 100, 100), rect("restricted", 500, 300, 300, 400, 400));

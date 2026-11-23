@@ -5,7 +5,7 @@ For people writing software that talks to the vario (a phone app, a PC tool, a h
 
 The vario has a small HTTP server on port 80, on its own Wi-Fi (the access point, address 192.168.4.1) and on the server network it
 joins if one is set. It is also found as `paravario.local`. Replies are JSON unless said otherwise. Errors are `{"error":"..."}` with
-a 4xx or 5xx status.
+a 4xx or 5xx status. Send a request body with the header `Content-Type: application/json`; without it the vario does not read the body as JSON.
 
 The vario is a small device with little memory. Make one request at a time, do not poll faster than about once a second, and close
 the connection when done. Many parallel connections make it hold requests back, and a page left open slows it down.
@@ -88,6 +88,9 @@ Actions (`do=`):
   restricted area, `p` the corners as `[latitude, longitude]` in degrees, in order round the edge.
 - Up to 25 areas of 3 to 24 corners each. An area must be at least about 10 m across and no more than 100 km across.
 - A POST replaces everything: send all the areas you want to keep.
+- The body may be at most 5 kB (about 180 corners in all). The vario needs several times the body size in free memory while it handles
+  an upload (a 7 kB one took its free memory down to 7 kB), and a much larger one can crash it and make it restart. Over 5 kB it
+  answers 400 `too much data`, but only if it survived reading it, so keep to the limit.
 - The areas are stored in flash and survive restarts.
 
 ## Test build only
