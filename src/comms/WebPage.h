@@ -164,7 +164,7 @@ body.replay .volb{display:none}
 <button type="button" role="tab" aria-selected="true" data-tab="flight">Flight</button>
 <button type="button" role="tab" aria-selected="false" data-tab="system">Logs &amp; system</button>
 <button type="button" role="tab" aria-selected="false" data-tab="settings">Settings</button>
-<button type="button" role="tab" aria-selected="false" data-tab="area" class="needgps">Areas</button>
+<button type="button" role="tab" aria-selected="false" data-tab="area" class="needgps">Map</button>
 )HTML"
 #if PV_HAS_SPECTRUM
 R"HTML(<button type="button" role="tab" aria-selected="false" data-tab="spectrum" class="needmic needspec">Spectrum</button>
@@ -213,7 +213,7 @@ R"HTML(
 <section class="card" id="restartBar" hidden><p>A restart is needed for some of the changes to take effect.</p><div class="btns"><button data-a="restart" class="pri">Restart</button></div></section>
 </div>
 <div id="areaPage" class="page" role="tabpanel" hidden>
-<section class="card"><h2>Areas</h2>
+<section class="card"><h2>Map and areas</h2>
 <p class="mut" id="areaState">No safe area is set.</p>
 <p class="mut">Safe areas (green) are places you want to stay inside: you are told when you leave one. Restricted areas (red) are places to keep out of: you are warned before you enter one, with the way to turn. Add the corners of an area one at a time with the cross on the map.</p>
 <div id="areaList"></div>
@@ -231,7 +231,7 @@ R"HTML(
 <div class="btns">
 <button type="button" id="areaCursor" class="pri wide">Add corner at cross</button>
 <button type="button" id="areaHere">Add corner at my position</button>
-<button type="button" id="areaGo">Show my position</button>
+<button type="button" id="areaGo">Follow me</button>
 <button type="button" id="areaUndo">Remove last corner</button>
 <button type="button" id="areaCancel">Cancel</button>
 <button type="button" id="areaSave" class="pri wide">Save area</button>
@@ -751,7 +751,7 @@ function selectTab(name){
   document.querySelectorAll('button[data-tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===name));
   document.querySelectorAll('.page').forEach(p=>p.hidden=p.id!==name+'Page');
   if(name==='system')loadLogs();
-  if(name==='area'){areaLoad();areaMapInit();if(aMap)setTimeout(()=>{aMap.invalidateSize();if(!aDraft)areaFit()},50)}
+  if(name==='area'){areaLoad();areaMapInit();if(aMap)setTimeout(()=>{aMap.invalidateSize();if(!aDraft)areaView()},50)}
 )HTML"
 #if PV_HAS_SPECTRUM
 R"HTML(  const was=specOn;specOn=name==='spectrum';if(specOn&&!was)specLoop();
@@ -1022,8 +1022,8 @@ $('#fwgo').onclick=()=>{
   x.onerror=()=>done('Update failed: connection lost');
   fwBusy=true;$('#fwgo').disabled=true;setFw(0,'Uploading 0%');x.send(fd);
 };
-// ---- Areas tab: the areas are drawn on a map (Leaflet, loaded from the internet when this tab is first opened) ----
-let aAreas=[],aDraft=null,aIdx=-1,aMap=null,aLayer=null,aMe=null,aTried=false,aPos=null;
+// ---- Map tab: the areas are drawn on a map (Leaflet, loaded from the internet when this tab is first opened) ----
+let aAreas=[],aDraft=null,aIdx=-1,aMap=null,aLayer=null,aMe=null,aTried=false,aPos=null,aFollow=false,aWasFly=false,aMeKey='';
 const $a=id=>document.getElementById(id);
 function areaStatus(s){
   const g=s.gps;aPos=g&&g.fix?[g.lat,g.lon]:null;
@@ -1037,9 +1037,29 @@ function areaStatus(s){
     else if(a.rstate==='inside')t+=' In a restricted area.';
   }
   txt('areaState',t.trim());
-  if(aMe&&aMap&&aPos){aMe.setLatLng(aPos);if(!aMap.hasLayer(aMe))aMe.addTo(aMap)}
+  if(s.flying&&!aWasFly&&aPos){aFollow=true;areaFollowBtn()}  // taking off: the map follows the pilot until it is dragged
+  aWasFly=!!s.flying;
+  if(aMap&&aPos){
+    const mv=!!(g&&g.moving),trk=mv?Math.round(g.track/5)*5:0,key=(mv?'a':'d')+trk;
+    if(!aMe)aMe=L.marker(aPos,{icon:areaMeIcon(mv,trk),interactive:false,keyboard:false,zIndexOffset:1000}).addTo(aMap);
+    else if(key!==aMeKey){const el=aMe.getElement();if(el)el.firstChild.innerHTML=areaMeSvg(mv,trk)}  // (setIcon and removing the marker both fail in Leaflet here)
+    aMeKey=key;
+    aMe.setLatLng(aPos);
+    if(aFollow&&!aDraft)aMap.panTo(aPos,{animate:false});
+  }
 }
-function areaLoad(){return fetch('/api/areas',{cache:'no-store'}).then(r=>r.json()).then(j=>{aAreas=j.a||[];areaList();areaDraw();if(!aDraft)areaFit()}).catch(()=>{})}
+function areaMeSvg(moving,trk){  // an arrow along the track while moving, a dot when still
+  return moving?'<path d="M14 2l9 23-9-5-9 5z" fill="#2a7fff" stroke="#fff" stroke-width="2" stroke-linejoin="round" transform="rotate('+trk+' 14 14)"/>':'<circle cx="14" cy="14" r="7" fill="#2a7fff" stroke="#fff" stroke-width="2.5"/>';
+}
+function areaMeIcon(moving,trk){
+  return L.divIcon({className:'',iconSize:[28,28],iconAnchor:[14,14],html:'<svg width="28" height="28" viewBox="0 0 28 28" style="overflow:visible;filter:drop-shadow(0 0 2px #000)">'+areaMeSvg(moving,trk)+'</svg>'});
+}
+function areaFollowBtn(){const b=$a('areaGo');if(b)b.textContent=aFollow?'Stop following':'Follow me'}
+function areaView(){  // what the map shows when it opens or the areas change
+  if(!aMap)return;
+  if(aFollow&&aPos&&!aDraft)aMap.setView(aPos,Math.max(aMap.getZoom(),15));else areaFit();
+}
+function areaLoad(){return fetch('/api/areas',{cache:'no-store'}).then(r=>r.json()).then(j=>{aAreas=j.a||[];areaList();areaDraw();if(!aDraft)areaView()}).catch(()=>{})}
 function areaPost(){
   return fetch('/api/areas',{method:'POST',body:JSON.stringify({a:aAreas})}).then(async r=>{const j=await r.json();if(!r.ok)throw j.error;toast('Saved');return true})
     .catch(e=>{toast('Not saved: '+e);areaLoad();return false});
@@ -1141,9 +1161,11 @@ function areaMapStart(){
   const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Imagery © Esri'});
   street.addTo(aMap);L.control.layers({Map:street,Satellite:sat}).addTo(aMap);
   aLayer=L.layerGroup().addTo(aMap);
-  aMe=L.circleMarker(aPos||[0,0],{radius:7,color:'#fff',weight:2,fillColor:'#2a7fff',fillOpacity:1});if(aPos)aMe.addTo(aMap);
+  aMeKey='';
   aMap.on('click',e=>{if(!aDraft)areaEdit(-1);aDraft.push([e.latlng.lat,e.latlng.lng]);areaDraw()});
-  areaDraw();areaFit();
+  areaDraw();
+  aMap.on('dragstart',()=>{if(aFollow){aFollow=false;areaFollowBtn()}});
+  areaView();
 }
 $a('areaHere').onclick=()=>{
   if(!aPos){toast('No GPS fix');return}
@@ -1157,7 +1179,12 @@ $a('areaCursor').onclick=()=>{
   if(aDraft.length>=24){toast('At most 24 corners');return}
   const c=aMap.getCenter();aDraft.push([c.lat,c.lng]);areaDraw();
 };
-$a('areaGo').onclick=()=>{if(!aPos){toast('No GPS fix');return}if(!aMap){toast('The map has not loaded');return}aMap.setView(aPos,Math.max(aMap.getZoom(),17))};
+$a('areaGo').onclick=()=>{
+  if(aFollow){aFollow=false;areaFollowBtn();return}
+  if(!aPos){toast('No GPS fix');return}
+  if(!aMap){toast('The map has not loaded');return}
+  aFollow=true;areaFollowBtn();aMap.setView(aPos,Math.max(aMap.getZoom(),16));
+};
 $a('areaUndo').onclick=()=>{if(aDraft&&aDraft.length){aDraft.pop();areaDraw()}};
 $a('areaCancel').onclick=areaCancel;
 $a('areaKind').onchange=()=>areaKindShow(true);

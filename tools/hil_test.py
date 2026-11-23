@@ -4883,7 +4883,7 @@ def t_memory(v, a):
     return note
 
 # --------------------------------------------------------------------------------------------
-# Areas: safe and restricted polygons (flight/SafeArea.cpp, the Areas tab)
+# Areas: safe and restricted polygons (flight/SafeArea.cpp, the Map tab)
 M_PER_DEG = 111194.93
 
 
@@ -4932,7 +4932,7 @@ def t_areas_logic(v, a):
 def t_areas_api(v, a):
     """The areas on the web API and the page: invalid data is refused and changes nothing; valid data is kept, with the
     defaults (safe 0 m, restricted 500 m, an unknown kind is safe); the status shows the state; the areas survive a restart;
-    the Areas tab is on the page; with no GPS the Areas settings are not listed."""
+    the Map tab is on the page; with no GPS the Areas settings are not listed."""
     notes = []
     base = [area_rect(51.5, 0.5, "safe", 0, -200, -200, 200, 200, "Keep")]
     code, r = post_areas(v, base)
@@ -4985,26 +4985,29 @@ def t_areas_api(v, a):
 
     code, raw = v._open("/")
     page = raw.decode("utf-8", "replace")
-    for needle in ('data-tab="area"', '>Areas</button>', 'id="areaKind"', 'id="areaWarn"', 'id="areaPts"', "Add corner at cross",
-                   "leaflet.min.js", "areaCopy"):
+    for needle in ('data-tab="area"', '>Map</button>', 'id="areaKind"', 'id="areaWarn"', 'id="areaPts"', "Add corner at cross",
+                   "leaflet.min.js", "areaCopy", "Follow me"):
         if needle not in page:
             raise Fail(f"the page has no {needle!r}")
     if 'data-tab="area" class="needgps"' not in page:
-        raise Fail("the Areas tab is not marked as needing a GPS")
-    notes.append("page: Areas tab with the type, warning distance, corner list, cross and copy")
+        raise Fail("the Map tab is not marked as needing a GPS")
+    notes.append("page: Map tab with the type, warning distance, corner list, cross and copy")
 
     isolate(v, a)
     v.sim(hasGps=0)
     time.sleep(2)
     hw = v.status().get("hw", {})
-    schema = json.dumps(v.get_json("/api/schema"))
+    schema = v.get_json("/api/schema")
     v.sim(hasGps=1)
     if hw.get("gps") is not False:
         raise Fail(f"hasGps=0 did not make a vario with no GPS: {hw}")
-    if '"g":"Areas"' in schema:
+    if any(x.get("g") == "Areas" for x in schema):
         raise Fail("a vario with no GPS lists the Areas settings")
-    time.sleep(2)
-    if '"g":"Areas"' not in json.dumps(v.get_json("/api/schema")):
+    for _ in range(20):  # the vario takes a few seconds to settle on "has a GPS" again
+        time.sleep(1)
+        if any(x.get("g") == "Areas" for x in v.get_json("/api/schema")):
+            break
+    else:
         raise Fail("a vario with a GPS does not list the Areas settings")
     notes.append("no GPS: no Areas settings")
     return "; ".join(notes)
@@ -5171,6 +5174,71 @@ def t_areas_fast_wind(v, a):
     return f"ground speed {gs:.1f} m/s, 25 areas: warned {left:.0f} m short of the area (warning distance 500 m): '{line.msg}'"
 
 
+def t_ui_map_follow(v, a):
+    """The Map tab in flight: the map follows the simulated aircraft from takeoff, shows an arrow along its track, stops following
+    when the map is dragged, and follows again when 'Follow me' is tapped. (The map comes from the internet: this PC needs it.)"""
+    airborne(v, hdg=90, air=10, wfrom=90, wspd=0)  # flying east at 10 m/s
+    p = v.page()
+    p.tab("area")
+    end = time.time() + 40
+    while not p.js("!!(window.L&&typeof aMap!=='undefined'&&aMap&&aPos)"):
+        if time.time() > end:
+            raise Fail("the map did not load (this PC needs internet for the Leaflet map)")
+        time.sleep(1)
+
+    def off_m():
+        c = p.js("[aMap.getCenter().lat,aMap.getCenter().lng,aPos[0],aPos[1]]")
+        return math.hypot((c[0] - c[2]) * M_PER_DEG, (c[1] - c[3]) * M_PER_DEG * math.cos(math.radians(c[2])))
+
+    def centre():
+        return p.js("[aMap.getCenter().lat,aMap.getCenter().lng]")
+
+    def moved_m(c0):
+        c = centre()
+        return math.hypot((c[0] - c0[0]) * M_PER_DEG, (c[1] - c0[1]) * M_PER_DEG * math.cos(math.radians(c0[0])))
+
+    time.sleep(3)
+    if not p.js("aFollow") or p.text("areaGo") != "Stop following":
+        raise Fail(f"in flight the map is not following by default: aFollow={p.js('aFollow')}, button '{p.text('areaGo')}'")
+    c0 = centre()
+    time.sleep(8)
+    samples = []
+    for _ in range(6):
+        samples.append(round(off_m()))
+        time.sleep(1)
+    if min(samples) > 120:
+        raise Fail(f"the map centre is {samples} m from the aircraft")
+    if moved_m(c0) < 50:
+        raise Fail(f"the aircraft moved 80 m in 8 s but the map centre only {moved_m(c0):.0f} m")
+    key = p.js("aMeKey")
+    if not key.startswith("a"):
+        raise Fail(f"no arrow for the moving aircraft (icon key {key!r})")
+    if not p.js("!!(aMe.getElement()&&aMe.getElement().innerHTML.indexOf('M14 2l9')>=0)"):
+        raise Fail("the aircraft arrow is not drawn on the map")
+    # dragging the map stops following
+    p.js("aMap.fire('dragstart');0")
+    time.sleep(1)
+    if p.js("aFollow") or p.text("areaGo") != "Follow me":
+        raise Fail("dragging the map did not stop it following")
+    c1 = centre()
+    time.sleep(6)
+    if moved_m(c1) > 20:
+        raise Fail(f"the map kept moving ({moved_m(c1):.0f} m) after following was stopped")
+    # the button follows again
+    p.click("#areaGo")
+    time.sleep(3)
+    if not p.js("aFollow") or off_m() > 120:
+        raise Fail(f"'Follow me' did not centre the map on the aircraft ({off_m():.0f} m off)")
+    # editing an area pauses it
+    p.click("#areaCursor")
+    time.sleep(1)
+    c2 = centre()
+    time.sleep(5)
+    if moved_m(c2) > 20:
+        raise Fail("the map followed the aircraft while a corner was being added")
+    return "followed from takeoff (centre within 120 m, moving with it), arrow shown, drag stops it, Follow me restores it, paused while editing"
+
+
 TESTS = [
     ("boot", t_boot), ("settings", t_settings), ("vario_climb", t_vario_climb),
     ("vario_sink", t_vario_sink), ("vario_thresholds", t_vario_thresholds), ("vario_logic", t_vario_logic),
@@ -5188,6 +5256,7 @@ TESTS = [
     ("ota_guard", t_ota_guard), ("memory", t_memory),
     ("areas_logic", t_areas_logic), ("areas_api", t_areas_api), ("areas_safe_flight", t_areas_safe_flight),
     ("areas_restricted_flight", t_areas_restricted_flight), ("areas_fast_wind", t_areas_fast_wind),
+    ("ui_map_follow", t_ui_map_follow),
 ]
 
 # The test build comes in three parts (see src/test/UnitTest.h): each has a third of the on-device unit suites, and so each can run only
@@ -5200,7 +5269,7 @@ PARTS = {
     2: ["wind_logic", "battery_logic", "alerts_logic", "resume_logic", "ble_info", "voice_pack", "igc_two_flights", "vario_only_flying",
         "maint_retry", "log_list_memory", "net_trail", "stalled_client", "igc_segments", "igc_room", "ui_replay", "height_trace", "maint_voice",
         "names_default", "landing_gps_quality", "wind_faults", "circuit_slow_pilot", "landing_hover", "wind_change", "battery_flight",
-        "fault_gps", "ui_layout", "ui_guidance", "areas_api", "areas_safe_flight", "areas_fast_wind"],
+        "fault_gps", "ui_layout", "ui_guidance", "areas_api", "areas_safe_flight", "areas_fast_wind", "ui_map_follow"],
     3: ["flight_logic", "button_logic", "audio_logic", "rpmtrack_logic", "baro_logic", "areas_logic", "resume_flight", "memory_events",
         "circuit_left_wind", "baro_only", "flight", "alerts_flight", "variant_no_gps", "fault_battery", "guidance", "gps_states", "battery",
         "battery_learner", "speech", "volume_ramp", "variant_no_mic", "gps_detect", "button_actions", "ui_settings", "ui_spectrum",
