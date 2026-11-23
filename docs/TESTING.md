@@ -41,7 +41,7 @@ Useful options:
 | `--memory` | print the vario's free memory after each test |
 | `--shuffle [SEED]` | run the selected tests in random order (shows they do not depend on each other; the seed is printed) |
 | `--soak-minutes N` | length of the `soak` flight (default 10) |
-| `--volume 30` | speech and vario volume used during the tests (default 20 %) |
+| `--volume 30` | speech and vario volume used during the tests (default 40 %: at 20 % the microphone often cannot hear the small speaker over the room noise) |
 | `-v` | print every log line received |
 
 The suite runs with the setting *GPS module* on "Always present" so the GPS tests do not depend on what the vario has seen; `gps_detect` tests Auto-detect itself.

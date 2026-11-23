@@ -5352,7 +5352,7 @@ def main():
     ap.add_argument("--host", default="paravario.local")
     ap.add_argument("--no-audio", dest="audio", action="store_false", help="skip microphone checks")
     ap.add_argument("--no-ui", dest="ui", action="store_false", help="skip the web page (browser) tests")
-    ap.add_argument("--volume", type=int, default=20, help="speech and vario volume during the tests (%%)")
+    ap.add_argument("--volume", type=int, default=40, help="speech and vario volume during the tests (%%)")
     ap.add_argument("--memory", action="store_true", help="print the vario's free memory after each test")
     ap.add_argument("--soak-minutes", type=int, default=10, help="length of the soak test's flight (default 10)")
     ap.add_argument("--part", type=int, choices=(1, 2, 3), help="run only the tests of this part of the test build (env test_1, test_2, test_3)")
