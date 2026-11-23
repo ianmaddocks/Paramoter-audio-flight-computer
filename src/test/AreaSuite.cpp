@@ -29,7 +29,15 @@ struct CfgGuard {
 // One rectangular area, corners (e0,n0)-(e1,n1) in metres east and north of the made-up origin.
 String rect(const char* kind, int warn, float e0, float n0, float e1, float n1, bool on = true) {
   const float c[4][2] = {{e0, n0}, {e0, n1}, {e1, n1}, {e1, n0}};
-  String s = String("{\"n\":\"T\",\"on\":") + (on ? "true" : "false") + ",\"k\":\"" + kind + "\",\"w\":" + warn + ",\"p\":[";
+  String s;
+  s.reserve(200);  // once: the heap is scarce on the vario while this runs
+  s += "{\"n\":\"T\",\"on\":";
+  s += on ? "true" : "false";
+  s += ",\"k\":\"";
+  s += kind;
+  s += "\",\"w\":";
+  s += warn;
+  s += ",\"p\":[";
   for (int i = 0; i < 4; ++i) {
     char b[56];
     snprintf(b, sizeof b, "%s[%.6f,%.6f]", i ? "," : "", kLat0 + c[i][1] / kMperDeg, kLon0 + c[i][0] / (kMperDeg * cos(kLat0 * geo::kDegToRad)));
@@ -112,19 +120,26 @@ void areasUnitSuite(UnitReport& r) {
     for (const char* b : bad) r.check(!s.testSet(b), "data not refused: %.40s", b);
     {  // 25 areas are accepted, 26 are not
       const char* one = "{\"p\":[[51.5,0.5],[51.5,0.51],[51.51,0.51]]}";
-      String many = "{\"a\":[";
-      for (int i = 0; i < 26; ++i) {
+      // (strings are sized once, and the heap here is scarce: growing them by many small appends leaves it in holes)
+      String many;
+      many.reserve(26 * 48 + 16);
+      many = "{\"a\":[";
+      for (int i = 0; i < 25; ++i) {
         if (i) many += ',';
         many += one;
-        if (i == 24) {
-          String ok = many + "]}";
-          r.check(s.testSet(ok.c_str()) && s.safeCount() == 25, "25 areas not accepted");
-        }
       }
       many += "]}";
+      r.check(s.testSet(many.c_str()) && s.safeCount() == 25, "25 areas not accepted");
+      many.remove(many.length() - 2);  // the closing "]}"
+      many += ',';
+      many += one;
+      many += "]}";
       r.check(!s.testSet(many.c_str()), "26 areas accepted");
-      String big = "{\"a\":[{\"n\":\"";  // more than 5 kB of data is refused whatever it holds
-      for (int i = 0; i < 5300; ++i) big += 'x';
+      many = "";
+      String big;  // more than 5 kB of data is refused whatever it holds
+      big.reserve(5400);
+      big = "{\"a\":[{\"n\":\"";
+      for (int i = 0; i < 5300; ++i) big += 'x';  // no regrowth: the room is reserved
       big += "\",\"p\":[[51.5,0.5],[51.5,0.51],[51.51,0.51]]}]}";
       r.check(!s.testSet(big.c_str()), "over 5 kB accepted");
     }
@@ -286,7 +301,9 @@ void areasUnitSuite(UnitReport& r) {
   // 24 far-off restricted areas are looked at only now and then; the one ahead must still be warned of at its warning distance, and the
   // pilot must not get into it before being told.
   {
-    String many = "{\"a\":[";
+    String many;
+    many.reserve(24 * 200 + 300);
+    many = "{\"a\":[";
     for (int i = 0; i < 24; ++i) many += rect("restricted", 500, 20000 + 700 * i, 3000, 20400 + 700 * i, 3400) + ",";
     many += rect("restricted", 500, -250, 1000, 250, 1500) + "]}";
     g.load(many);

@@ -902,7 +902,10 @@ def t_auto_volume(v, a):
 
 def unit_suite(v, name, min_cases):
     """Runs an on-device unit suite (src/test/*Test.cpp) and fails on any wrong case."""
-    r = v.get_json("/api/sim?unit=" + name)
+    # The suite holds the vario's main loop for a second or more; the log reader asking meanwhile would leave requests queued, each tying up
+    # network buffers (free memory dips by several kB). So no log polling while it runs: the log is read after.
+    with v.lock:
+        r = v.get_json("/api/sim?unit=" + name)
     if r["fail"] or r["pass"] < min_cases:
         raise Fail(f"unit suite {name}: {r['pass']} passed, {r['fail']} failed (expected at least {min_cases} cases): "
                    + " | ".join(r["failures"][:3]))
