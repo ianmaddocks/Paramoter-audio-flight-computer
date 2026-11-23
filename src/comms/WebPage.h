@@ -695,7 +695,7 @@ function render(){
     h.innerHTML='<h2>More settings</h2><p class="mut advnote">The tabs above take you back.</p>';
     root.appendChild(h);
     const sf=document.createElement('section');sf.className='card';sf.id='settingsFile';
-    sf.innerHTML='<h2>Export and import settings</h2><p class="mut">Export saves every setting to a file you can read and edit (JSON, distances in metres and speeds in metres per second). Import reads such a file back; values outside their limits are brought into range. The file holds passwords, so keep it private. This vario\'s Wi-Fi and Bluetooth names are left out of both.</p><div class="btns"><button type="button" id="setExport">Export settings</button><button type="button" id="setImport">Import settings</button></div><input type="file" id="setFile" accept=".json,application/json" hidden>';
+    sf.innerHTML='<h2>Export and import settings</h2><p class="mut">Export saves every setting and the areas to a file you can read and edit (JSON, distances in metres and speeds in metres per second). Import reads such a file back; values outside their limits are brought into range, and the areas in the file replace the ones on the vario (a file without areas leaves them alone). The file holds passwords, so keep it private. This vario\'s Wi-Fi and Bluetooth names are left out of both.</p><div class="btns"><button type="button" id="setExport">Export settings</button><button type="button" id="setImport">Import settings</button></div><input type="file" id="setFile" accept=".json,application/json" hidden>';
     root.appendChild(sf);
     $('#setExport').onclick=settingsExport;
     $('#setImport').onclick=()=>$('#setFile').click();
@@ -737,8 +737,9 @@ const FILE_SKIP=['bleName','wifiSsid'];
 async function settingsExport(){
   try{
     const c=await fetch('/api/settings',{cache:'no-store'}).then(r=>r.json());
+    const ar=await fetch('/api/areas',{cache:'no-store'}).then(r=>r.json());
     FILE_SKIP.forEach(k=>delete c[k]);
-    const doc={paravario:'settings',saved:new Date().toISOString(),note:'Distances in metres, speeds in metres per second, angles in degrees. Keys are those of the settings table.',settings:c};
+    const doc={paravario:'settings',saved:new Date().toISOString(),note:'Distances in metres, speeds in metres per second, angles in degrees. Keys are those of the settings table. Each area: n name, on enabled, k safe or restricted, w warning distance (restricted), p corners as [latitude, longitude].',settings:c,areas:ar.a||[]};
     const a=document.createElement('a');
     a.href=URL.createObjectURL(new Blob([JSON.stringify(doc,null,2)+'\n'],{type:'application/json'}));
     a.download='paravario-settings.json';document.body.appendChild(a);a.click();a.remove();
@@ -749,6 +750,7 @@ async function settingsExport(){
 async function settingsImport(file){
   let o;
   try{o=JSON.parse(await file.text())}catch(e){toast('Not a settings file');return}
+  const areas=o&&Array.isArray(o.areas)?o.areas:null;
   if(o&&o.settings&&typeof o.settings==='object')o=o.settings;
   if(!o||typeof o!=='object'||Array.isArray(o)){toast('Not a settings file');return}
   const known=new Set(schema.map(f=>f.k)),body={};let n=0,bad=0;
@@ -757,13 +759,24 @@ async function settingsImport(file){
     if(typeof o[k]!==typeof cfg[k]){bad++;continue}
     body[k]=o[k];n++;
   }
-  if(!n){toast('No settings found in that file');return}
-  if(!confirm('Apply '+n+' settings from '+file.name+(bad?' ('+bad+' ignored)':'')+'?'))return;
+  if(!n&&!areas){toast('No settings found in that file');return}
+  const ab=areas?JSON.stringify({a:areas}):'';
+  if(ab.length>5120){toast('Too many corners in all: at most about 180');return}
+  if(!confirm('Apply '+n+' settings'+(areas?' and replace the areas with the '+areas.length+' in the file':'')+' from '+file.name+(bad?' ('+bad+' ignored)':'')+'?'))return;
+  let msg='Imported '+n+' settings';
   try{
-    const r=await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    const j=await r.json();if(!r.ok)throw j.error;
-    cfg=j.settings;restartRequired=restartRequired||j.restart;render();
-    toast('Imported '+n+' settings'+(j.restart?' · restart required':''));
+    if(areas){
+      const r=await fetch('/api/areas',{method:'POST',headers:{'Content-Type':'application/json'},body:ab});
+      if(!r.ok){const j=await r.json().catch(()=>({}));throw 'areas: '+(j.error||r.status)}
+      msg+=' and '+areas.length+' areas';
+    }
+    if(n){
+      const r=await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      const j=await r.json();if(!r.ok)throw j.error;
+      cfg=j.settings;restartRequired=restartRequired||j.restart;render();
+      if(j.restart)msg+=' · restart required';
+    }
+    toast(msg);
   }catch(e){toast('Import failed: '+e)}
 }
 async function saveSettings(){

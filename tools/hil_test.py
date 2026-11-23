@@ -4719,6 +4719,8 @@ def t_ui_settings(v, a):
             raise Fail(f"web page: the exported file is not readable settings JSON ({len(doc.get('settings', {}))} settings, expected {exp})")
         if "bleName" in doc["settings"] or "wifiSsid" in doc["settings"]:
             raise Fail("web page: the export holds this vario's own names")
+        if doc.get("areas") != v.get_json("/api/areas")["a"]:
+            raise Fail("web page: the exported areas are not the vario's areas")
         before = v.settings()["climbThreshold"]
         pa.js("settingsImport(new File([JSON.stringify({settings:{climbThreshold:0.55,bleName:'Other',nonsense:1,sinkThreshold:'x'}})],'t.json'));1")
         pa.wait("Math.abs(cfg.climbThreshold-0.55)<0.001", 6, "import applied")
@@ -4726,6 +4728,16 @@ def t_ui_settings(v, a):
         if v.settings()["bleName"] == "Other":
             raise Fail("web page: import changed the Bluetooth name")
         v.set(climbThreshold=before)
+        # the areas travel in the file too: importing the same areas changes nothing, an unusable list changes nothing
+        areas_now = v.get_json("/api/areas")["a"]
+        pa.js("settingsImport(new File([JSON.stringify({areas:" + json.dumps(areas_now) + "})],'a.json'));1")
+        time.sleep(2)
+        if v.get_json("/api/areas")["a"] != areas_now:
+            raise Fail("web page: importing the vario's own areas changed them")
+        pa.js("settingsImport(new File([JSON.stringify({areas:[{n:'x',on:true,k:'safe',p:[[1,1]]}]})],'b.json'));1")
+        time.sleep(2)
+        if v.get_json("/api/areas")["a"] != areas_now:
+            raise Fail("web page: an unusable area list in an imported file changed the areas")
         # the restart mark on a GPS setting, and the Restart button
         if "· restart" not in pa.js("tRow('gpsLed').textContent"):
             raise Fail("web page: restart mark missing on the GPS LED setting")
