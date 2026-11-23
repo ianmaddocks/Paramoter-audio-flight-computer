@@ -18,9 +18,9 @@ struct Settings {
 
   int32_t speechVolume = 15;
   int32_t varioVolume = 10;
-  int32_t volumeRampPctS = 500;  // fastest change of the applied volume, % per second
+  int32_t volumeRampPctS = 40;  // fastest change of the applied volume, % per second
   bool autoVolume = true;
-  float noiseQuietDb = -50.0f;  // dBFS at the mic: at or below this the set volumes are used
+  float noiseQuietDb = -52.0f;  // dBFS at the mic: at or below this the set volumes are used
   float noiseLoudDb = -30.0f;   // at or above this both volumes go to 100 %
   int32_t noiseReleaseS = 1;
 
@@ -32,7 +32,7 @@ struct Settings {
   bool spectrumEnabled = false;  // show the Spectrum tab (needs a build with the spectrum feature)
 
   bool varioEnabled = true;
-  bool muteUntilFlight = false;  // no vario beeps or sink alarm until the takeoff has been detected (and again after landing)
+  bool muteUntilFlight = true;  // no vario beeps or sink alarm until the takeoff has been detected (and again after landing)
   bool varioClimbBeeps = true;
   bool varioSinkAlarm = true;
   float climbThreshold = 0.3f;
@@ -57,7 +57,7 @@ struct Settings {
   float takeoffSpeedMs = 5.0f / 3.6f;
   int32_t takeoffTimeS = 3;
   float takeoffGainM = 3.048f;  // 10 ft
-  float baroTakeoffGainM = 15.24f;   // height gain that counts as takeoff with no usable GPS
+  float baroTakeoffGainM = 6.096f;   // height gain that counts as takeoff with no usable GPS
   float groundHoldVarioMs = 0.5f;   // ground level stops following the baro above this rate
   float landingSpeedMs = 1.4f;
   int32_t landingTimeS = 5;

@@ -200,7 +200,7 @@ Set it so the beeps are clear over your engine noise or wind but not painful. Th
 ### Fastest volume change
 Stops the volume from changing suddenly.
 
-If you change the volume (or the noise around you changes), the sound moves to the new volume smoothly instead of jumping. A lower number is gentler. Default: 500 % per second.
+If you change the volume (or the noise around you changes), the sound moves to the new volume smoothly instead of jumping. A lower number is gentler. Default: 40 % per second.
 
 At 40 %/s, going from 10 % to 100 % takes about 2 to 3 seconds. The step is also spread over a tenth of a second inside the audio output, so there is never a click.
 
@@ -214,7 +214,7 @@ Between the two noise levels you set (below), the volume rises in proportion. Th
 ### Noise for set volume (see Background noise tile)
 The noise level at or below which the normal volume is used.
 
-Read the Background noise tile when it is quiet (for example -50 dBFS) and enter that. Default: -50 dBFS.
+Read the Background noise tile when it is quiet (for example -52 dBFS) and enter that. Default: -52 dBFS.
 
 ### Noise for full volume
 The noise level at which the volume reaches 100 %.
@@ -237,7 +237,7 @@ The master switch for the beeps.
 Turn off to have no beeps and no sink alarm at all. Spoken calls are not affected. Default: On.
 
 ### Mute until flight
-No beeps and no sink alarm until takeoff has been detected, and none again after landing. Spoken calls are not affected. Default: Off.
+No beeps and no sink alarm until takeoff has been detected, and none again after landing. Spoken calls are not affected. Default: On.
 
 ### Climb beeps
 Switch the climb beeps on or off.
@@ -333,7 +333,7 @@ For example, at 5 min you hear "Flight time 15 minutes". 0 turns it off. Default
 ### Takeoff height gain without GPS
 How far you must climb for the vario to decide you have taken off.
 
-For example, at 49 ft (15 m), once you have climbed 49 ft from where you stood, you hear "Take off" and the flight starts. Lower it to detect takeoff sooner, but not so low that carrying the vario upstairs counts. Default: 50 ft (15 m).
+For example, at 49 ft (15 m), once you have climbed 49 ft from where you stood, you hear "Take off" and the flight starts. Lower it to detect takeoff sooner, but not so low that carrying the vario upstairs counts. Default: 20 ft (6 m).
 
 An Advanced vario with a good GPS fix uses speed instead (see Part 2); this setting is also its fall-back when the GPS has no usable fix.
 
