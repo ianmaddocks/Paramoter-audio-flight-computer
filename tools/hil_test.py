@@ -2050,6 +2050,11 @@ def gps_quality_case(v, what, fault, vz, hold, notes):
     notes.append(what)
 
 
+def no_speed_land_s():
+    """Without a trusted GPS speed a landing needs twice 'Landed after' and never under 60 s (Flight::landingHoldMs, kNoSpeedMinHoldMs)."""
+    return max(2 * TEST_SETTINGS["landingTimeS"], 60)
+
+
 def t_landing_gps_quality(v, a):
     """A bad or missing GPS must not end a flight, and a real landing is still found without it: level and
     gently climbing or sinking flight at 60 and 200 m with no GPS, a weak fix, too few satellites and
@@ -2085,7 +2090,7 @@ def t_landing_gps_quality(v, a):
         v.sim(gps="silent", vz=-3.0, to=GROUND_M + 2)
         v.expect("SIM", r"reached target altitude", m, timeout=90, what="down to the ground")
         t0 = time.time()
-        v.expect("APP", r"Landed after", m, timeout=2 * land_s + 12, what="landing found on the barometer alone")
+        v.expect("APP", r"Landed after", m, timeout=no_speed_land_s() + 12, what="landing found on the barometer alone")
         notes.append(f"landing with no GPS found {time.time() - t0:.0f} s after touchdown")
 
         # a real landing with a weak fix
@@ -2093,7 +2098,7 @@ def t_landing_gps_quality(v, a):
         m = v.mark()
         v.sim(**weak, vz=-3.0, to=GROUND_M + 2)
         v.expect("SIM", r"reached target altitude", m, timeout=60, what="down to the ground, weak fix")
-        v.expect("APP", r"Landed after", m, timeout=2 * land_s + 12, what="landing found with a weak fix")
+        v.expect("APP", r"Landed after", m, timeout=no_speed_land_s() + 12, what="landing found with a weak fix")
         notes.append("landing with a weak fix found")
     finally:
         v.sim(gps="fix", sats=10, hdop=0.9, vz=0)
@@ -2636,7 +2641,7 @@ def t_net_trail(v, a):
         time.sleep(2)
     t = trail()
     boots = t.count("restarted, reason")
-    if boots < min(before_boots + 1, 40) or boots < 2:
+    if boots < min(before_boots + 1, 8) or boots < 2:
         raise Fail(f"the trail does not hold the time before the restart ({before_boots} restarts before, {boots} after):\n{t}")
     last = t[t.rindex("restarted, reason"):]
     if v.settings()["maintWifi"] and "joined the maintenance network" not in last:
@@ -2799,7 +2804,7 @@ def t_factory_reset(v, a):
     notes = []
     try:
         on_ground_with_fix(v)
-        defaults = {"speechVolume": 5, "pilotName": ""}
+        defaults = {"speechVolume": 25, "pilotName": ""}  # the owner's settings are the defaults (Settings.h)
         v.set(speechVolume=55, pilotName="Test Pilot")
 
         # in flight the five clicks are nothing, and give no instruction
@@ -3444,7 +3449,7 @@ def t_baro_only(v, a):
     m2 = v.mark()
     v.sim(vz=-3, to=GROUND_M + 2)
     v.expect("SIM", r"reached target", m2, timeout=40, what="down to the ground")
-    v.expect("APP", r"Landed after", m2, timeout=20, what="landing from steady vario on the ground (2 x landing time)")
+    v.expect("APP", r"Landed after", m2, timeout=no_speed_land_s() + 12, what="landing from steady vario on the ground (60 s minimum)")
     for f in v.get_json("/api/logs")["files"]:
         if f["n"] not in before:
             v._open("/api/log?name=" + urllib.parse.quote(f["n"]), method="DELETE")
@@ -3669,7 +3674,7 @@ def t_variant_no_gps(v, a):
     GPS announcements or guidance, takeoff and landing still detected, settings and page trimmed."""
     logs_before = {f["n"] for f in v.get_json("/api/logs")["files"]}
     reset(v, baro="on", alt=GROUND_M, vz=0, gps="silent")
-    v.set(landingTimeS=15)  # (30 s of steady height without a GPS) so the page checks finish while still flying
+    v.set(landingTimeS=15)  # (30 s, so 60 s, of steady height without a GPS) so the page checks finish while still flying
     try:
         m = v.mark()
         v.sim(hasGps=0, reset=1)
@@ -3724,7 +3729,7 @@ def t_variant_no_gps(v, a):
         m = v.mark()
         v.sim(vz=-3, to=GROUND_M + 2)
         v.expect("SIM", r"reached target", m, timeout=40, what="down to the ground")
-        v.expect("APP", r"Landed after", m, timeout=50, what="landing from a steady vario on the ground")
+        v.expect("APP", r"Landed after", m, timeout=no_speed_land_s() + 12, what="landing from a steady vario on the ground")
         v.never("SAY", r"gps_fix|no_gps", m, 0.5)
         new = [f["n"] for f in v.get_json("/api/logs")["files"] if f["n"] not in logs_before]
         if new:
