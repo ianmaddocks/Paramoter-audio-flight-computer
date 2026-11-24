@@ -414,7 +414,7 @@ Open the Logging section and the vario's own messages scroll past. *Pause* freez
 ### Check for updates
 Tells you whether a newer version of the vario's program has been published.
 
-On the Logs & system tab, under *System*, tap *Check for updates*. Your phone asks GitHub for the latest release, so it needs mobile data: a phone joined only to the vario's Wi-Fi has no internet, and you see *Could not check*. A box shows the version installed on the vario, the latest release and, when there is a newer one, a link to its release notes. If the vario has the latest release, or something newer than it, the box says so.
+On the Logs & system tab, under *System*, tap *Check for updates*. While your phone is connected to the vario via Wi-Fi, this action will use your mobile data to check for the latest firmware. A box shows the version installed, the latest release and, when there is a newer one, a link to its release notes and the option to update.
 
 The button only checks: it does not install anything. A new version is installed from a computer (see Maintenance in the user guide).
 
