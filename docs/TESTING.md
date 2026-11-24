@@ -26,7 +26,7 @@ full run (about 40 minutes each).
    python tools/hil_test.py --part 2
    ```
 
-The flight logs the tests make stay on the vario (`--delete-logs` removes them) and are copied to `results/hil_parts/igc` after each part, with the
+`tools/hil_parts.py` exports the settings and areas to `results/hil_parts/settings_before_run.json` before the run; after the run (and the release build is back) it deletes all flight logs on the vario and imports that file again. The flight logs the tests make are copied to `results/hil_parts/igc` after each part before that, with the
 console log of each part in `results/hil_parts` (git ignores that folder). The vario's own settings are saved first and put back, and so are its stored areas (also kept in a file in the temporary folder, in case a run
 dies); the area warnings are off in every test but the area tests. The logs hold the vario's real GPS position: do not commit them.
 

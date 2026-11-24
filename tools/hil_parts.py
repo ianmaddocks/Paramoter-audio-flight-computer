@@ -12,8 +12,10 @@ Usage:
   python tools/hil_parts.py --out some/dir -- --no-ui      # anything after -- goes to hil_test.py
   python tools/hil_parts.py --release          # put the release build back on the vario at the end
 
-The vario must be free for the whole run (no phone page open, nobody on its Wi-Fi: see docs/TESTING.md). The flight logs the tests make stay on
-the vario, and are also copied to <out>/igc after each part (the vario deletes its oldest logs when space runs low); with the console logs they
+Before the run the settings and areas are exported to <out>/settings_before_run.json; after it (and after the release build is back) all flight logs on the
+vario are deleted and that file is imported again.
+
+The vario must be free for the whole run (no phone page open, nobody on its Wi-Fi: see docs/TESTING.md). The flight logs the tests make are copied to <out>/igc after each part (the vario deletes its oldest logs when space runs low) before they are deleted; with the console logs they
 are in results/hil_parts by default, which git ignores: they hold the vario's real GPS position, so do not commit them.
 """
 import argparse
@@ -23,6 +25,7 @@ import re
 import subprocess
 import sys
 import time
+import urllib.parse
 import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -47,6 +50,48 @@ def wait_for_vario(host, want_test, timeout=240):
     raise SystemExit(f"the vario did not come back as the {'test' if want_test else 'release'} build within {timeout} s")
 
 
+FILE_SKIP = ("bleName", "wifiSsid")  # this vario's own names are not carried in a settings file
+
+
+def get_json(host, path):
+    with urllib.request.urlopen(f"http://{host}{path}", timeout=10) as r:
+        return json.loads(r.read())
+
+
+def post_json(host, path, body, method="POST"):
+    req = urllib.request.Request(f"http://{host}{path}", data=json.dumps(body).encode(), method=method,
+                                 headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=15) as r:
+        return json.loads(r.read())
+
+
+def export_settings(host, path):
+    """Saves the settings and areas to a file, as the /advanced Export does."""
+    st = {k: v for k, v in get_json(host, "/api/settings").items() if k not in FILE_SKIP}
+    doc = {"paravario": "settings", "saved": time.strftime("%Y-%m-%dT%H:%M:%S"), "settings": st, "areas": get_json(host, "/api/areas").get("a", [])}
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(doc, f, indent=2)
+        f.write(chr(10))
+    return len(st), len(doc["areas"])
+
+
+def import_settings(host, path):
+    """Puts a file made by export_settings back: the areas in it replace the vario's, then the settings."""
+    doc = json.load(open(path, encoding="utf-8"))
+    post_json(host, "/api/areas", {"a": doc["areas"]})
+    post_json(host, "/api/settings", doc["settings"])
+    return len(doc["settings"]), len(doc["areas"])
+
+
+def delete_all_logs(host):
+    n = 0
+    for f in get_json(host, "/api/logs").get("files", []):
+        req = urllib.request.Request(f"http://{host}/api/log?name={urllib.parse.quote(f['n'])}", method="DELETE")
+        urllib.request.urlopen(req, timeout=15).read()
+        n += 1
+    return n
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--parts", type=int, nargs="*", default=[1, 2, 3], choices=(1, 2, 3))
@@ -58,6 +103,12 @@ def main():
     extra = [x for x in a.rest if x != "--"]
     os.makedirs(a.out, exist_ok=True)
     summary = []
+    saved = os.path.join(a.out, "settings_before_run.json")
+    try:
+        ns, na = export_settings(a.host, saved)
+        print(f"settings exported before the run: {ns} settings, {na} areas -> {saved}", flush=True)
+    except Exception as e:  # noqa: BLE001 - without the export there is nothing to put back: stop before touching the vario
+        raise SystemExit(f"could not export the settings before the run ({e}); nothing was started")
     for part in a.parts:
         env = f"test_{part}"
         print(f"\n=== part {part}: building and uploading {env}", flush=True)
@@ -89,6 +140,12 @@ def main():
         if up.returncode == 0:
             st = wait_for_vario(a.host, False)
             print(f"running {st['version']} (built {st['stamp']})")
+    try:
+        n = delete_all_logs(a.host)
+        ns, na = import_settings(a.host, saved)
+        print(f"after the run: {n} flight logs deleted; {ns} settings and {na} areas imported from {saved}")
+    except Exception as e:  # noqa: BLE001
+        print(f"after the run: could not delete the logs or import the settings ({e}); the export is in {saved}")
     bad = [s for s in summary if "failed" not in s[1] or not re.search(r"\b0 failed", s[1])]
     return 1 if bad else 0
 
