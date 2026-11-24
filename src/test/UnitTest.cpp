@@ -33,7 +33,7 @@ bool runUnitSuite(const String& name, String* json) {
   } else if (name == "audio") {
     audioUnitSuite(r);
 #endif
-#if PV_UNIT_HAS(2)
+#if PV_UNIT_HAS(1)
   } else if (name == "resume") {
     resumeUnitSuite(r);
 #endif

@@ -22,6 +22,10 @@
 // link address and for "Open on GitHub". Both must end in a slash. For a fork, change them with
 // -DPV_HELP_RAW_URL=\"https://raw.githubusercontent.com/you/fork/main/docs/\" and
 // -DPV_HELP_WEB_URL=\"https://github.com/you/fork/blob/main/docs/\".
+// The GitHub repository whose latest release the "Check for updates" button asks about (owner/name).
+#ifndef PV_REPO
+#define PV_REPO "ianmaddocks/Paramoter-audio-flight-computer"
+#endif
 #ifndef PV_HELP_RAW_URL
 #define PV_HELP_RAW_URL "https://raw.githubusercontent.com/ianmaddocks/Paramoter-audio-flight-computer/main/docs/"
 #endif

@@ -89,6 +89,10 @@ button.on{outline:2px solid var(--acc)}
 .mut{color:var(--mut);font-size:13px}
 #toast{position:fixed;left:50%;top:12px;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:20px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw}
 #toast.show{opacity:.92}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+.modal[hidden]{display:none}
+.mbox{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px;max-width:380px;width:100%}
+.mbox h2{margin:0 0 8px}.mbox p{margin:6px 0}.mbox .btns{margin-top:12px}
 .ready{display:flex;justify-content:space-between;align-items:center;gap:10px;border-radius:12px;padding:12px 14px;margin-bottom:8px;font-size:16px;color:#fff}
 .ready.ok{background:var(--ok)}.ready.wait{background:var(--warn)}.ready.hide{display:none}
 .ready.appr{background:var(--acc)}.ready.emerg{background:var(--bad)}
@@ -258,6 +262,7 @@ R"HTML(
 <button data-a="restart">Restart</button>
 <button data-a="reset_flight">Reset flight state</button>
 <button data-a="defaults" class="dng">Factory defaults</button>
+<button type="button" id="updCheck">Check for updates</button>
 </div><p class="mut" id="sys"></p></section>
 </div>
 <!-- The firmware update box lives in Settings / Advanced / Firmware Update: the settings list is rebuilt now and then, so
@@ -277,6 +282,9 @@ R"HTML(
 <article id="helpDoc"></article></section>
 </div>
 <footer id="hver"></footer>
+<div id="updModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="updTitle"><div class="mbox">
+<h2 id="updTitle"></h2><p id="updCur"></p><p id="updNew"></p><p id="updNote"></p>
+<div class="btns"><button type="button" class="pri" id="updClose">Close</button></div></div></div>
 <div id="toast"></div>
 <script>
 // The vario's web server answers one request at a time, every request is a new connection, and the connections' buffers
@@ -346,7 +354,7 @@ const fR=r=>r>=50?'>50 : 1':r.toFixed(1)+' : 1';
 // content, without the GitHub project around them: the Markdown is fetched from GitHub's raw file server
 // (always the latest version) and turned into HTML by the small converter below. It needs the phone to
 // have internet; if it cannot be fetched the reader says so and offers the GitHub address.
-const HELPRAW=')HTML" PV_HELP_RAW_URL R"HTML(',HELPWEB=')HTML" PV_HELP_WEB_URL R"HTML(';
+const HELPRAW=')HTML" PV_HELP_RAW_URL R"HTML(',HELPWEB=')HTML" PV_HELP_WEB_URL R"HTML(',REPO=')HTML" PV_REPO R"HTML(';
 const DOCS={basic:'User_Guide_(basic).md',adv:'User_Guide_(advanced).md',ref:'Feature_Reference.md'};
 const docUrl=(f,base)=>base+encodeURI(f).replace(/\(/g,'%28').replace(/\)/g,'%29');
 const webLink=(f,a)=>docUrl(f,HELPWEB)+(a?'#'+a:'');
@@ -859,6 +867,33 @@ $('#specfloor').onchange=drawSpec;
 R"HTML(
 document.querySelectorAll('button[data-tab]').forEach(b=>b.onclick=()=>{if(ADV)location.href='/#'+b.dataset.tab;else selectTab(b.dataset.tab)});
 
+const relNum=t=>{const m=/^v?(\d+)\.(\d+)/.exec(t||'');return m?[+m[1],+m[2]]:null};
+function updClose(){$('#updModal').hidden=true}
+function updShow(cur,rel,newer){
+  $('#updTitle').textContent=newer?'Update available':'No update needed';
+  $('#updCur').textContent='Installed: '+cur;
+  $('#updNew').textContent='Latest release: '+rel.tag_name;
+  const n=$('#updNote');n.textContent='';
+  if(!newer){n.textContent='This vario has the latest release.'}
+  else if(/^https:\/\/github\.com\//.test(rel.html_url||'')){
+    const a=document.createElement('a');a.href=rel.html_url;a.target='_blank';a.rel='noopener';a.textContent='Release notes for '+rel.tag_name;n.appendChild(a)}
+  $('#updModal').hidden=false;$('#updClose').focus();
+}
+async function checkUpdate(){
+  const b=$('#updCheck');b.disabled=true;
+  try{
+    const st=await fetch('/api/status',{cache:'no-store'}).then(r=>r.json());
+    const r=await fetch('https://api.github.com/repos/'+REPO+'/releases/latest',{headers:{Accept:'application/vnd.github+json'},cache:'no-store'});
+    if(!r.ok)throw 0;
+    const rel=await r.json(),cur=relNum(st.release||st.version),nw=relNum(rel.tag_name);
+    if(!nw)throw 0;
+    updShow(st.version,rel,!cur||nw[0]>cur[0]||(nw[0]===cur[0]&&nw[1]>cur[1]));
+  }catch(e){toast('Could not check: turn mobile data on and try again')}
+  b.disabled=false;
+}
+$('#updCheck').onclick=checkUpdate;$('#updClose').onclick=updClose;
+$('#updModal').onclick=e=>{if(e.target.id==='updModal')updClose()};
+document.addEventListener('keydown',e=>{if(e.key==='Escape')updClose()});
 async function act(a){
   if(a==='defaults'&&!confirm('Reset all settings to defaults?'))return;
   if(a==='reset_flight'&&!confirm('Forget the current flight? Use this if the vario thinks it is flying when it is not.'))return;

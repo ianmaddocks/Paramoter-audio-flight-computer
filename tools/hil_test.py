@@ -4416,6 +4416,36 @@ def t_ui_pilot(v, a):
             time.sleep(0.5)
         notes.append("no Quick settings card, a setting changed in its group is saved")
 
+        # Check for updates: the phone asks GitHub (answered here by a stand-in); a newer release gives a box with both versions and
+        # a link to its notes, the same or an older one says no update is needed, no answer gives a message and no box
+        p.tab("system")
+        st_rel = v.get_json("/api/status")["release"]
+        major, minor = [int(x) for x in re.match(r"v?(\d+)\.(\d+)", st_rel).groups()]
+
+        def check(tag, ok=True):
+            p.js("window.__f=window.__f||window.fetch;window.fetch=(u,o)=>String(u).includes('api.github.com')?(" + ("Promise.resolve({ok:true,json:()=>Promise.resolve({tag_name:" + json.dumps(tag) + ",html_url:'https://github.com/x/y/releases/tag/" + tag + "'})})" if ok else "Promise.reject(new Error('offline'))") + "):window.__f(u,o);document.getElementById('updModal').hidden=true;checkUpdate();1")
+            time.sleep(1.2)
+            return p.js("({open:!document.getElementById('updModal').hidden,title:document.getElementById('updTitle').textContent,"
+                        "cur:document.getElementById('updCur').textContent,nw:document.getElementById('updNew').textContent,"
+                        "a:(document.querySelector('#updNote a')||{}).href||''})")
+        try:
+            r = check("v%d.%d" % (major, minor + 1))
+            if not (r["open"] and r["title"] == "Update available" and r["nw"] == "Latest release: v%d.%d" % (major, minor + 1)
+                    and r["cur"].startswith("Installed: ") and r["a"].endswith("/releases/tag/v%d.%d" % (major, minor + 1))):
+                raise Fail(f"web page: update box for a newer release: {r}")
+            r = check(st_rel)
+            if not (r["open"] and r["title"] == "No update needed" and not r["a"]):
+                raise Fail(f"web page: update box for the same release: {r}")
+            r = check("v0.1")
+            if not (r["open"] and r["title"] == "No update needed"):
+                raise Fail(f"web page: update box for an older release: {r}")
+            r = check("v9.9", ok=False)
+            if r["open"]:
+                raise Fail("web page: an update box shown with no answer from GitHub")
+            notes.append("Check for updates: newer release shows both versions and a notes link, same or older says no update, no answer gives no box")
+        finally:
+            p.js("if(window.__f)window.fetch=window.__f;1")
+
         # reset the flight state from the Logs & system tab
         p.tab("system")
         m = v.mark()
@@ -5400,7 +5430,7 @@ PARTS = {
         "spectrum_setting", "ui_system", "ui_help", "ota_guard", "memory"],
 }
 # The unit suites in each part (the same split as PV_UNIT_PART in src/test/UnitTest.cpp); None = a build with all of them.
-PART_SUITES = {1: ("geo", "circuit", "status", "rpm", "moving", "height"), 2: ("wind", "battery", "alerts", "resume", "memguard", "button"),
+PART_SUITES = {1: ("geo", "circuit", "status", "rpm", "moving", "height", "resume"), 2: ("wind", "battery", "alerts", "memguard", "button"),
                3: ("flight", "baro", "rpmtrack", "audio", "areas"), None: ("geo", "wind", "battery")}
 _all = [n for n, _ in TESTS]
 _in_parts = [n for p in PARTS.values() for n in p]

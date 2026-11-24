@@ -1827,7 +1827,7 @@ void memGuardUnitSuite(UnitReport& r) {
 // ---------------------------------------------------------------------------------------------- resume
 // resumeDecide(): when a flight saved in the air is believed again at power-up. Expectations are written out from the
 // rules, with distances computed here and not by the code under test.
-#if PV_UNIT_HAS(2)
+#if PV_UNIT_HAS(1)
 void resumeUnitSuite(UnitReport& r) {
   using V = ResumeVerdict;
   ResumeParams p;
