@@ -128,7 +128,7 @@ The landing approach and emergency glide calls come first: the areas stay quiet 
 1. On your phone, join the Wi-Fi network **ParaVario-XXXX** (by default it has no password: it is an open network until you set one under Settings → Wi-Fi), where XXXX is a code unique to your unit (the last four digits of its MAC address), so several varios nearby can be told apart. The same code is in its Bluetooth name.
 2. The page usually opens by itself. If it doesn't, open **http://192.168.4.1** in a browser.
 
-The phone has no internet while it's on this network, so turn mobile data on if you need both.
+Mobile data is required to open help pages and view the map.
 
 | Section | Contents |
 |---|---|

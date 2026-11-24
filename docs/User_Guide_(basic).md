@@ -76,7 +76,7 @@ With no GPS the vario uses the barometer alone.
 1. On your phone, join the Wi-Fi network **ParaVario-XXXX** (by default it has no password: it is an open network until you set one under Settings → Wi-Fi). XXXX is a code unique to your vario, so you can tell several varios apart; the same code is in its Bluetooth name.
 2. The page opens by itself. If it does not, open **http://192.168.4.1** in a browser.
 
-The phone has no internet while joined to the vario, so turn mobile data on if you need both.
+Mobile data is required to open help pages and view the map.
 
 There are four tabs:
 
