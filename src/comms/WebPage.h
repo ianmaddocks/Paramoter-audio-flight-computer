@@ -660,7 +660,7 @@ function field(f){
 // /advanced, which nothing links to (the same page, the same tabs: a tab takes you back).
 const ADV=/^\/advanced\/?$/.test(location.pathname);
 const HIDDEN_GROUPS=['Bluetooth','Battery','Firmware Update','GPS','Engine RPM'];
-const ADV_GROUPS=['Wi-Fi','Wind','Logging','Glide','Vario tuning'];
+const ADV_GROUPS=['Wi-Fi','Wind','Logging','Glide','Vario tuning','Takeoff & landing'];
 function render(){
   $('#fwholder').appendChild($('#fwcard'));  // out of the list before it is cleared
   const root=$('#settings');root.innerHTML='';const groups={};

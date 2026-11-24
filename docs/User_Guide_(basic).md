@@ -104,9 +104,9 @@ Details of each tile and button: [reference, Tiles](Feature_Reference.md#basic-t
 | Change the pitch of the beeps | Base tone, Tone rise per m/s (in Advanced settings) | [Vario tuning](Feature_Reference.md#basic-settings-vario-tuning) |
 | Change when heights are spoken | Boundaries when climbing / descending | [Height calls](Feature_Reference.md#basic-settings-height-calls) |
 | Stop the height every minute | Periodic height every = 0 | [Height calls](Feature_Reference.md#basic-settings-height-calls) |
-| Detect takeoff sooner or later | Takeoff height gain without GPS | [Takeoff and landing](Feature_Reference.md#basic-settings-takeoff-and-landing) |
-| Landing not noticed on high ground | Counts as near the ground below (increase) | [Takeoff and landing](Feature_Reference.md#basic-settings-takeoff-and-landing) |
-| Stop a false "Landed" close to the ground | Landed after (increase) | [Takeoff and landing](Feature_Reference.md#basic-settings-takeoff-and-landing) |
+| Detect takeoff sooner or later | Takeoff height gain without GPS | [Takeoff and landing](Feature_Reference.md#basic-settings-takeoff-and-landing) (in Advanced settings) |
+| Landing not noticed on high ground | Counts as near the ground below (increase) | [Takeoff and landing](Feature_Reference.md#basic-settings-takeoff-and-landing) (in Advanced settings) |
+| Stop a false "Landed" close to the ground | Landed after (increase) | [Takeoff and landing](Feature_Reference.md#basic-settings-takeoff-and-landing) (in Advanced settings) |
 
 ## Bluetooth (FlyGaggle)
 
