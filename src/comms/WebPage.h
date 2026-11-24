@@ -353,7 +353,7 @@ const webLink=(f,a)=>docUrl(f,HELPWEB)+(a?'#'+a:'');
 // Settings group -> its entry in the Feature Reference (b = the part every vario has, a = the part for GPS / microphone)
 const GROUP_HELP={'Units':{b:'basic-settings-units-and-audio',a:'adv-settings-units-and-audio'},
   'Audio':{b:'basic-settings-units-and-audio'},
-  'Vario':{b:'basic-settings-vario'},'Height calls':{b:'basic-settings-height-calls'},
+  'Vario':{b:'basic-settings-vario'},'Vario tuning':{b:'basic-settings-vario-tuning'},'Height calls':{b:'basic-settings-height-calls'},
   'Takeoff & landing':{b:'basic-settings-takeoff-and-landing',a:'adv-settings-takeoff-and-landing'},
   'Glide':{a:'adv-settings-glide'},'Landing zone':{a:'adv-settings-landing-zone'},'Landing approach':{a:'adv-settings-landing-approach'},
   'Areas':{a:'adv-safe-area'},'Emergency':{a:'adv-settings-emergency'},'Wind':{a:'adv-settings-wind'},
@@ -660,7 +660,7 @@ function field(f){
 // /advanced, which nothing links to (the same page, the same tabs: a tab takes you back).
 const ADV=/^\/advanced\/?$/.test(location.pathname);
 const HIDDEN_GROUPS=['Bluetooth','Battery','Firmware Update','GPS','Engine RPM'];
-const ADV_GROUPS=['Wi-Fi','Wind','Logging','Glide'];
+const ADV_GROUPS=['Wi-Fi','Wind','Logging','Glide','Vario tuning'];
 function render(){
   $('#fwholder').appendChild($('#fwcard'));  // out of the list before it is cleared
   const root=$('#settings');root.innerHTML='';const groups={};

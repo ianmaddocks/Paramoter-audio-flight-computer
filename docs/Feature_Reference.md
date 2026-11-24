@@ -17,7 +17,7 @@ Heights in the examples use the default unit (feet). You can switch to metres in
 
 - [Part 1 - Basic](#part-1---basic)
   - [Tiles](#basic-tiles) · [Banner](#basic-banner) · [Buttons and actions](#basic-buttons) · [Sounds](#basic-sounds) · [Spectrum tab](#basic-spectrum)
-  - [Settings: Units and Audio](#basic-settings-units-and-audio) · [Vario](#basic-settings-vario) · [Height calls](#basic-settings-height-calls) · [Takeoff and landing](#basic-settings-takeoff-and-landing) · [Wi-Fi](#basic-settings-wi-fi)
+  - [Settings: Units and Audio](#basic-settings-units-and-audio) · [Vario](#basic-settings-vario) · [Vario tuning](#basic-settings-vario-tuning) · [Height calls](#basic-settings-height-calls) · [Takeoff and landing](#basic-settings-takeoff-and-landing) · [Wi-Fi](#basic-settings-wi-fi)
   - [Logs and system tab](#basic-system) · [Help tab](#basic-help)
 - [Part 2 - Advanced](#part-2---advanced)
   - [Tiles](#adv-tiles) · [Banner](#adv-banner) · [Buttons and actions](#adv-buttons) · [Guidance](#adv-guidance) · [Sounds](#adv-sounds)
@@ -25,7 +25,7 @@ Heights in the examples use the default unit (feet). You can switch to metres in
 
 Settings are changed on the Settings tab of the web page. A change is saved a moment after you make it. A setting marked **restart** takes effect after the vario is restarted: once you have changed one, a **Restart** button appears at the bottom of the Settings tab (it goes away after the restart, and also if you reload the page meanwhile).
 
-The settings most pilots never need to change are collected in an **Advanced settings** section at the end of the list. It starts closed; tap it to open it. It holds the groups Wi-Fi, Wind, Logging (including *Keep this much track before takeoff*) and Glide. A vario with no GPS module shows only those that apply to it: Wi-Fi.
+The settings most pilots never need to change are collected in an **Advanced settings** section at the end of the list. It starts closed; tap it to open it. It holds the groups Wi-Fi, Wind, Logging (including *Keep this much track before takeoff*), Glide and Vario tuning. A vario with no GPS module shows only those that apply to it: Wi-Fi and Vario tuning.
 
 ---
 
@@ -258,6 +258,11 @@ For example, at 0.3 m/s the beeps start once you climb faster than 0.3 m/s. Rais
 How fast you must sink before the sink tone starts.
 
 For example, at -2.0 m/s, sinking faster than 2 m/s starts the tone. Closer to zero (-1.0) warns sooner. Default: -2.0 m/s.
+
+<a id="basic-settings-vario-tuning"></a>
+## Settings: Vario tuning
+
+These are in **Advanced settings**: most pilots never need to change them.
 
 ### Base tone
 The pitch of the beeps at the weakest lift.

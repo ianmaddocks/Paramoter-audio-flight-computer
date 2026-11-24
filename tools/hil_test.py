@@ -4612,9 +4612,9 @@ def t_ui_settings(v, a):
         for f in schema:
             if f["g"] not in groups:
                 groups.append(f["g"])
-        # Battery, Wi-Fi, GPS, Engine RPM, Wind, Logging and Glide sit in a collapsed "Advanced settings"
+        # Wi-Fi, Wind, Logging, Glide and Vario tuning sit in a collapsed "Advanced settings"
         # section at the end; the other groups keep the firmware's order.
-        adv_order = ["Wi-Fi", "Wind", "Logging", "Glide"]
+        adv_order = ["Wi-Fi", "Wind", "Logging", "Glide", "Vario tuning"]
         hidden_order = ["Bluetooth", "Battery", "Firmware Update", "GPS", "Engine RPM"]  # on /advanced, which nothing links to
         main_groups = [g for g in groups if g not in adv_order and g not in hidden_order]
         adv_groups = [g for g in adv_order if g in groups]

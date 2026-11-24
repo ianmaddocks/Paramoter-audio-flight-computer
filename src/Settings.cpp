@@ -66,11 +66,11 @@ const Field kFields[] = {
     B(varioSinkAlarm, "Vario", "Sink alarm"),
     FL(climbThreshold, "Vario", "Climb threshold", "m/s", 0.0f, 5.0f),
     FL(sinkThreshold, "Vario", "Sink alarm threshold", "m/s", -10.0f, 0.0f),
-    FL(varioBaseHz, "Vario", "Base tone", "Hz", 200.0f, 2000.0f),
-    FL(varioHzPerMs, "Vario", "Tone rise per m/s", "Hz", 0.0f, 400.0f),
-    FL(varioAccelNoise, "Vario", "Responsiveness (higher = faster, noisier)", "", 0.05f, 10.0f),
-    I(varioSettleS, "Vario", "Settle time at power-on", "s", 0, 30),
-    I(baroStuckS, "Vario", "Barometer frozen after (0 = not checked)", "s", 0, 60),
+    FL(varioBaseHz, "Vario tuning", "Base tone", "Hz", 200.0f, 2000.0f),
+    FL(varioHzPerMs, "Vario tuning", "Tone rise per m/s", "Hz", 0.0f, 400.0f),
+    FL(varioAccelNoise, "Vario tuning", "Responsiveness (higher = faster, noisier)", "", 0.05f, 10.0f),
+    I(varioSettleS, "Vario tuning", "Settle time at power-on", "s", 0, 30),
+    I(baroStuckS, "Vario tuning", "Barometer frozen after (0 = not checked)", "s", 0, 60),
 
     // Each "Announce" switch sits above its list; the web page greys the list out while it is off
     // (gate table in WebPage.h).

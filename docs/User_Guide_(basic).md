@@ -101,7 +101,7 @@ Details of each tile and button: [reference, Tiles](Feature_Reference.md#basic-t
 | Make the beeps louder or quieter | Vario volume | [Units and Audio](Feature_Reference.md#basic-settings-units-and-audio) |
 | Make the voice louder or quieter | Speech volume | [Units and Audio](Feature_Reference.md#basic-settings-units-and-audio) |
 | Hear beeps for weaker or stronger lift only | Climb threshold | [Vario](Feature_Reference.md#basic-settings-vario) |
-| Change the pitch of the beeps | Base tone, Tone rise per m/s | [Vario](Feature_Reference.md#basic-settings-vario) |
+| Change the pitch of the beeps | Base tone, Tone rise per m/s (in Advanced settings) | [Vario tuning](Feature_Reference.md#basic-settings-vario-tuning) |
 | Change when heights are spoken | Boundaries when climbing / descending | [Height calls](Feature_Reference.md#basic-settings-height-calls) |
 | Stop the height every minute | Periodic height every = 0 | [Height calls](Feature_Reference.md#basic-settings-height-calls) |
 | Detect takeoff sooner or later | Takeoff height gain without GPS | [Takeoff and landing](Feature_Reference.md#basic-settings-takeoff-and-landing) |
