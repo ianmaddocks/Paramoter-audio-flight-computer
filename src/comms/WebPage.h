@@ -869,12 +869,12 @@ document.querySelectorAll('button[data-tab]').forEach(b=>b.onclick=()=>{if(ADV)l
 
 const relNum=t=>{const m=/^v?(\d+)\.(\d+)/.exec(t||'');return m?[+m[1],+m[2]]:null};
 function updClose(){$('#updModal').hidden=true}
-function updShow(cur,rel,newer){
+function updShow(cur,rel,newer,ahead){
   $('#updTitle').textContent=newer?'Update available':'No update needed';
   $('#updCur').textContent='Installed: '+cur;
   $('#updNew').textContent='Latest release: '+rel.tag_name;
   const n=$('#updNote');n.textContent='';
-  if(!newer){n.textContent='This vario has the latest release.'}
+  if(!newer){n.textContent=ahead?'This version is newer than the latest release.':'This vario has the latest release.'}
   else if(/^https:\/\/github\.com\//.test(rel.html_url||'')){
     const a=document.createElement('a');a.href=rel.html_url;a.target='_blank';a.rel='noopener';a.textContent='Release notes for '+rel.tag_name;n.appendChild(a)}
   $('#updModal').hidden=false;$('#updClose').focus();
@@ -887,7 +887,7 @@ async function checkUpdate(){
     if(!r.ok)throw 0;
     const rel=await r.json(),cur=relNum(st.release||st.version),nw=relNum(rel.tag_name);
     if(!nw)throw 0;
-    updShow(st.version,rel,!cur||nw[0]>cur[0]||(nw[0]===cur[0]&&nw[1]>cur[1]));
+    const d=cur?(nw[0]-cur[0])||(nw[1]-cur[1]):1;updShow(st.version,rel,d>0,d<0);
   }catch(e){toast('Could not check: turn mobile data on and try again')}
   b.disabled=false;
 }

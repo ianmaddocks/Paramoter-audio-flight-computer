@@ -4437,7 +4437,7 @@ def t_ui_pilot(v, a):
             if not (r["open"] and r["title"] == "No update needed" and not r["a"]):
                 raise Fail(f"web page: update box for the same release: {r}")
             r = check("v0.1")
-            if not (r["open"] and r["title"] == "No update needed"):
+            if not (r["open"] and r["title"] == "No update needed" and "newer than the latest" in p.js("document.getElementById('updNote').textContent")):
                 raise Fail(f"web page: update box for an older release: {r}")
             r = check("v9.9", ok=False)
             if r["open"]:
