@@ -25,7 +25,7 @@ Heights in the examples use the default unit (feet). You can switch to metres in
 
 Settings are changed on the Settings tab of the web page. A change is saved a moment after you make it. A setting marked **restart** takes effect after the vario is restarted: once you have changed one, a **Restart** button appears at the bottom of the Settings tab (it goes away after the restart, and also if you reload the page meanwhile).
 
-The settings most pilots never need to change are collected in an **Advanced settings** section at the end of the list. It starts closed; tap it to open it. It holds the groups Wi-Fi, Wind, Logging (including *Keep this much track before takeoff*), Glide, Vario tuning and Takeoff & landing. A vario with no GPS module shows only those that apply to it: Wi-Fi, Vario tuning and Takeoff & landing (fewer settings).
+The settings most pilots never need to change are collected in an **Advanced settings** section at the end of the list. It starts closed; tap it to open it. It holds the groups Wi-Fi, Wind, Logging (including *Keep this much track before takeoff*), Glide, Vario tuning, Takeoff & landing, Landing zone, Landing approach, Areas and Emergency. A vario with no GPS module shows only those that apply to it: Wi-Fi, Vario tuning and Takeoff & landing (fewer settings).
 
 ---
 
@@ -751,7 +751,7 @@ Areas are places on the map that the vario knows about: **safe** areas, which yo
 
 Every corner is listed under the map, in the order they join up. Tap a corner's position to centre the map on it, use the arrows to move it up or down the list (the first has no up arrow, the last no down arrow), or **Delete** it. You can also drag a numbered corner on the map.
 
-You can keep up to 25 areas, with about 180 corners in all. In the list of areas tick or untick one to switch it on or off, or tap **Edit**, **Copy** (a copy to change, for a neighbouring field) or **Delete**. When the tab opens, the map zooms to show all your areas. The layers button on the map switches between a street map and a satellite picture. The map comes from the internet, so the phone needs mobile data (or another Wi-Fi) when you set an area up. Flying needs no internet: the areas are stored on the vario.
+You can keep up to 25 areas, with about 180 corners in all. In the list of areas tick or untick one to switch it on or off (an area that is on gives its warnings in flight, one that is off gives none), or tap **Edit**, **Copy** (a copy to change, for a neighbouring field) or **Delete**. When the tab opens, the map zooms to show all your areas. The layers button on the map switches between a street map and a satellite picture. The map comes from the internet, so the phone needs mobile data (or another Wi-Fi) when you set an area up. Flying needs no internet: the areas are stored on the vario.
 
 **Type.** Safe areas are drawn green on the map and in the list, restricted areas red; a switched-off area is grey. An area is flat: it applies at every height.
 
@@ -774,14 +774,8 @@ The status line on the tab shows whether you are inside or outside a safe area a
 
 *Areas settings*
 
-### Warn when I leave a safe area
-Switches the safe-area warnings on or off. The areas stay stored. Default: Off.
-
 ### Repeat that warning every
 How often "Outside the safe area" (or the edge warning) is repeated while it applies. Default: 20 s.
-
-### Warn about restricted areas
-Switches the restricted-area warnings on or off. Default: Off.
 
 ### Repeat a restricted-area warning every
 How often a restricted-area warning that still applies is repeated. Default: 10 s.

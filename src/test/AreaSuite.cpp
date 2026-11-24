@@ -99,7 +99,6 @@ Rig rig;  // static: the polygons are bigger than the stack of the web server ta
 void areasUnitSuite(UnitReport& r) {
   CfgGuard guard;
   g_cfg.distUnit = 0;  // metres
-  g_cfg.safeAreaOn = g_cfg.restrictedAreaOn = true;
   g_cfg.safeAreaRepeatS = 20;
   g_cfg.restrictedRepeatS = 10;
   audio::testCapture(true);
@@ -199,11 +198,10 @@ void areasUnitSuite(UnitReport& r) {
   g.place(0, 600, 0);
   g.steps(8);
   const int calls = audio::testSaid();
-  g_cfg.safeAreaOn = false;
+  g.load(areas(rect("safe", 0, -500, -500, 500, 500, false)));  // the area switched off on the Map tab
   g.place(0, 600, 0);
   g.steps(60);
-  r.check(audio::testSaid() == 0 && calls >= 1, "switched off: still said %d", audio::testSaid());
-  g_cfg.safeAreaOn = true;
+  r.check(audio::testSaid() == 0 && calls >= 1 && g.sa.state() == SafeArea::State::None, "switched off: still said %d", audio::testSaid());
 
   // ---------------------------------------------------------------- a safe area with a warning distance: also told near the edge
   g.load(areas(rect("safe", 200, -500, -500, 500, 500)));
@@ -259,11 +257,6 @@ void areasUnitSuite(UnitReport& r) {
   g.steps(300);
   r.check(audio::testSaid() == 0 && g.sa.restrictedCount() == 0, "restricted area switched off: said %d", audio::testSaid());
   g.load(areas(rect("restricted", 500, -250, 1000, 250, 1500)));
-  g_cfg.restrictedAreaOn = false;
-  g.place(0, 0, 0);
-  g.steps(300);
-  r.check(audio::testSaid() == 0, "restricted warnings off in the settings: said %d", audio::testSaid());
-  g_cfg.restrictedAreaOn = true;
   g.flying = false;
   g.place(0, 0, 0);
   g.steps(300);

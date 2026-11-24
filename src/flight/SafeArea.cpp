@@ -330,7 +330,7 @@ void SafeArea::update(const NavState& nav, bool guidanceActive) {
   }
 
   // ---- safe areas: "You have left the safe area", and "Safe area edge" when a warning distance is set
-  const bool speak = g_cfg.safeAreaOn && nav.flying && nav.gpsGood && !guidanceActive;
+  const bool speak = nav.flying && nav.gpsGood && !guidanceActive;
   const uint32_t repeatMs = (uint32_t)g_cfg.safeAreaRepeatS * 1000u;
   if (safeCount() == 0) {
     state_ = State::None;
@@ -379,7 +379,7 @@ void SafeArea::update(const NavState& nav, bool guidanceActive) {
     rDistM_ = -1;
     return;
   }
-  const bool rSpeak = g_cfg.restrictedAreaOn && nav.flying && nav.gpsGood && !guidanceActive;
+  const bool rSpeak = nav.flying && nav.gpsGood && !guidanceActive;
   const uint32_t rRepeatMs = (uint32_t)g_cfg.restrictedRepeatS * 1000u;
   if (rInside) {
     if (rInsideCount_ < 255) ++rInsideCount_;

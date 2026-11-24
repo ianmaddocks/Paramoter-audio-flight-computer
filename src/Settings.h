@@ -88,9 +88,7 @@ struct Settings {
   float offHeadingDeg = 30.0f;
   int32_t guidanceUpdateS = 20;
 
-  bool safeAreaOn = false;         // say when the vario leaves the safe areas drawn on the Safe area tab (nothing is said when none is set)
   int32_t safeAreaRepeatS = 20;   // repeat "outside the safe area" this often while it holds
-  bool restrictedAreaOn = false;   // warn about the restricted areas (each has its own warning distance)
   int32_t restrictedRepeatS = 10; // repeat a restricted-area warning this often while it holds
 
   int32_t emergencyUpdateS = 30;

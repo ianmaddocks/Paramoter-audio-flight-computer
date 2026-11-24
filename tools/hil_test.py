@@ -558,7 +558,6 @@ TEST_SETTINGS = dict(
     onCourseDeg=15, offHeadingDeg=30, battLowV=3.5, battFullV=4.09, battRuntimeMin=360,
     igcEnabled=True, igcPreS=20, igcQnhAlt=True, gpsMode=1,
     rpmPulsesPerRev=1.0, rpmMin=1200, rpmMax=10000, rpmMinConfidence=3.0, spectrumEnabled=True,
-    safeAreaOn=False, restrictedAreaOn=False,  # the area tests switch them on; the pilot's own areas must not talk in the other tests
 )
 
 GROUND_M = 100.0  # simulated field elevation
@@ -4612,9 +4611,9 @@ def t_ui_settings(v, a):
         for f in schema:
             if f["g"] not in groups:
                 groups.append(f["g"])
-        # Wi-Fi, Wind, Logging, Glide, Vario tuning and Takeoff & landing sit in a collapsed "Advanced settings"
+        # Wi-Fi, Wind, Logging, Glide, Vario tuning, Takeoff & landing, Landing zone, Landing approach, Areas and Emergency sit in a collapsed "Advanced settings"
         # section at the end; the other groups keep the firmware's order.
-        adv_order = ["Wi-Fi", "Wind", "Logging", "Glide", "Vario tuning", "Takeoff & landing"]
+        adv_order = ["Wi-Fi", "Wind", "Logging", "Glide", "Vario tuning", "Takeoff & landing", "Landing zone", "Landing approach", "Areas", "Emergency"]
         hidden_order = ["Bluetooth", "Battery", "Firmware Update", "GPS", "Engine RPM"]  # on /advanced, which nothing links to
         main_groups = [g for g in groups if g not in adv_order and g not in hidden_order]
         adv_groups = [g for g in adv_order if g in groups]
@@ -5140,7 +5139,7 @@ def t_areas_safe_flight(v, a):
     """Simulated flight in and out of a safe area: 'left_area' (no turn, no distance) when leaving, 'outside_area' repeated
     while outside, 'back_inside' on return; with a warning distance 'safe_edge' with a distance before 'left_area'."""
     notes = []
-    v.set(safeAreaOn=True, restrictedAreaOn=True, safeAreaRepeatS=20)
+    v.set(safeAreaRepeatS=20)
     airborne(v, hdg=0, air=10, wfrom=0, wspd=0)
     lat0, lon0 = sim_pos(v)
     # 300 m either side, 400 m behind and 250 m ahead of the aircraft, which flies north at 10 m/s
@@ -5193,7 +5192,7 @@ def t_areas_restricted_flight(v, a):
     """Simulated flight at a restricted area: a warning with the turn about 400 m ahead, again every 10 s, 'in_restricted' with the
     way out after entering; then the pilot turns as told and the track does not enter it."""
     notes = []
-    v.set(safeAreaOn=True, restrictedAreaOn=True, restrictedRepeatS=10)
+    v.set(restrictedRepeatS=10)
     airborne(v, hdg=0, air=10, wfrom=0, wspd=0)
     lat0, lon0 = sim_pos(v)
     # 400 m wide, 300 m deep, starting 700 m ahead of the aircraft (flying north at 10 m/s); warn 400 m ahead
@@ -5266,7 +5265,7 @@ def t_areas_restricted_flight(v, a):
 def t_areas_fast_wind(v, a):
     """50 mph (22.4 m/s) over the ground in a strong tailwind, with 25 areas stored (24 of them far away, so looked at only now and
     then): the restricted area ahead is still warned of at its warning distance, and the aircraft is not in it when told."""
-    v.set(safeAreaOn=True, restrictedAreaOn=True, restrictedRepeatS=10)
+    v.set(restrictedRepeatS=10)
     airborne(v, hdg=0, air=10, wfrom=0, wspd=0)
     v.sim(windFrom=180, windSpd=12.4)  # from the south: a tailwind for a northbound aircraft
     time.sleep(6)
@@ -5522,6 +5521,7 @@ def main():
     with open(areas_file, "w", encoding="utf-8") as f:
         json.dump(saved_areas, f)
     print(f"The vario's {len(saved_areas.get('a', []))} stored area(s) are kept in {areas_file} and put back at the end.")
+    post_areas(v, [])  # an enabled area speaks whenever the vario is flying: the pilot's own must not talk in the other tests
     logs_before = {f["n"] for f in v.get_json("/api/logs")["files"]}
     results = []
     touched = []  # tests during which something other than the harness was using the vario

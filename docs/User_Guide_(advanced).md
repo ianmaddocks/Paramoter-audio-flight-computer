@@ -115,7 +115,7 @@ Glide range uses the glide ratio and trim airspeed settings, adjusted for the es
 
 ## Areas (safe and restricted)
 
-Draw **safe** areas (green, such as your flying field) and **restricted** areas (red, places to keep out of) on the **Map** tab of the web page. In flight the map follows you (the arrow is you); drag it to look around, and open the Map tab again to come back. The map comes from the internet, so turn mobile data on while you draw. Tap the map to add each corner; the corners are listed under the map, where you can move or delete them. Choose the **Type** and **Warn me** distance, then **Save area**. Up to 25 areas are kept, and an area can be copied.
+Draw **safe** areas (green, such as your flying field) and **restricted** areas (red, places to keep out of) on the **Map** tab of the web page. In flight the map follows you (the arrow is you); drag it to look around, and open the Map tab again to come back. The map comes from the internet, so turn mobile data on while you draw. Tap the map to add each corner; the corners are listed under the map, where you can move or delete them. Choose the **Type** and **Warn me** distance, then **Save area**. Up to 25 areas are kept, and an area can be copied. An area that is ticked in the list warns you; untick it to switch its warnings off.
 
 In flight:
 - A **safe** area (warning distance 0): you hear **"You have left the safe area"** when you go outside it, and **"Back in the safe area"** when you return. A larger distance also warns you when you are that close to its edge.
@@ -138,7 +138,7 @@ The phone has no internet while it's on this network, so turn mobile data on if 
 | Actions | One card headed **Actions**, and which one you see depends on the phase. **In flight:** **Landing support**, **Emergency support**, **Status** and **Mute vario** (the same as the button). **On the ground:** **Status**. Each button shows the push-button presses that do the same, for example **[...]**. (Setting the landing zone is in Settings → Landing zone: **Use current position**.) Below them, **Full screen** (hides the browser's bars). |
 | Areas | The **Map** tab: safe and restricted areas drawn on a map, each with its warning distance (see [Areas](#areas-safe-and-restricted)). |
 | Alerts | A strip under the banner for what a pilot must know in flight: **Battery low** or **critical** (with the minutes left and the distance to the LZ), **Barometer failed**, **No GPS fix**. It clears when the problem goes away. |
-| Settings | Collapsible groups (see below); Wi-Fi, Wind, Logging, Glide, Vario tuning and Takeoff & landing are inside **Advanced settings** at the end. Change a value and it is saved a moment later. Settings marked *restart* apply after a restart. |
+| Settings | Collapsible groups (see below); Wi-Fi, Wind, Logging, Glide, Vario tuning, Takeoff & landing, Landing zone, Landing approach, Areas and Emergency are inside **Advanced settings** at the end. Change a value and it is saved a moment later. Settings marked *restart* apply after a restart. |
 | Reset flight state | On the Logs & system tab. The way out if the vario ever thinks it is flying when it is not: it forgets the flight and any guidance. |
 | Flight logs | IGC files for each flight. Tap a name to download or Delete to remove. The oldest logs are deleted automatically when space runs low. |
 | Logging | Live messages from the vario, with Pause, Clear and Save as file, for finding problems. Opens automatically on the debug firmware. The same lines appear on the USB serial port. (Flight recording is set in the Logging group of the settings.) |
@@ -161,8 +161,8 @@ Every setting, with its default, an example and what it does underneath, is in [
 | Vario tuning (in Advanced settings) | [Basic: Vario tuning](Feature_Reference.md#basic-settings-vario-tuning) |
 | Height calls | [Basic: Height calls](Feature_Reference.md#basic-settings-height-calls) |
 | Takeoff & landing (in Advanced settings) | [Basic](Feature_Reference.md#basic-settings-takeoff-and-landing) and [Advanced](Feature_Reference.md#adv-settings-takeoff-and-landing) |
-| Glide, Landing zone, Landing approach, Emergency, Wind | [Advanced](Feature_Reference.md#adv-settings-glide) |
-| Areas | [Advanced: Areas](Feature_Reference.md#adv-safe-area) |
+| Glide, Landing zone, Landing approach, Emergency, Wind (in Advanced settings) | [Advanced](Feature_Reference.md#adv-settings-glide) |
+| Areas (in Advanced settings) | [Advanced: Areas](Feature_Reference.md#adv-safe-area) |
 | Wi-Fi | [Basic: Wi-Fi](Feature_Reference.md#basic-settings-wi-fi) |
 | Logging | [Advanced: Logging](Feature_Reference.md#adv-settings-logging) |
 
