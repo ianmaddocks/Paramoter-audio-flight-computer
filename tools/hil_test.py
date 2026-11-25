@@ -4442,9 +4442,9 @@ def t_ui_pilot(v, a):
             # the tap is acknowledged at once (button disabled and renamed, a message in the box) and the page stops its own polling
             # while the update is on its way: the vario's server takes one request at a time
             p.js("window.__polls=0;window.__f2=window.fetch;window.fetch=(u,o)=>{if(String(u).includes('/api/status')||String(u).includes('/api/height'))window.__polls++;return window.__f2(u,o)};updInstall();1")
-            ack = p.js("({dis:document.getElementById('updGo').disabled,label:document.getElementById('updGo').textContent,"
+            ack = p.js("({gone:document.getElementById('updGo').hidden,label:document.getElementById('updClose').textContent,"
                        "note:document.getElementById('updNote').textContent})")
-            if not (ack["dis"] and ack["label"] == "Installing…" and ack["note"]):
+            if not (ack["gone"] and ack["label"] == "Cancel" and ack["note"]):
                 raise Fail(f"web page: Install update not acknowledged at once: {ack}")
             p.wait("/^Update failed/.test(document.getElementById('updNote').textContent)", 40, "a refused image gives a message")
             if p.js("window.__polls") > 1:  # the one status check of the install itself, and no polling

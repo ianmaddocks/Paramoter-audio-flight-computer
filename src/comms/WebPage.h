@@ -858,8 +858,10 @@ R"HTML(
 document.querySelectorAll('button[data-tab]').forEach(b=>b.onclick=()=>{if(ADV)location.href='/#'+b.dataset.tab;else selectTab(b.dataset.tab)});
 
 const relNum=t=>{const m=/^v?(\d+)\.(\d+)/.exec(t||'');return m?[+m[1],+m[2]]:null};
-let updRel=null,updBusy=false,updLabel='Install update';
+let updRel=null,updBusy=false,updLabel='Install update',updAbort=null;
 function updClose(){if(!updBusy)$('#updModal').hidden=true}
+// The box's button: Close, or Cancel while the update is being downloaded.
+function updCloseBtn(){if(updBusy){if(updAbort)updAbort.abort()}else updClose()}
 function updShow(cur,rel,newer,ahead){
   $('#updTitle').textContent=newer?'Update available':'No update needed';
   $('#updCur').textContent='Installed: '+cur;
@@ -891,17 +893,21 @@ async function updInstall(){
   // Acknowledge the tap at once (the first request can wait behind the page's own), and stop the page's own polling for
   // the duration: the vario's web server takes one request at a time and is busy receiving the update, so every status
   // request meanwhile queues up, uses its memory and can make the upload fail.
-  updBusy=true;$('#updGo').disabled=true;$('#updGo').textContent='Installing…';$('#updClose').disabled=true;updMsg(0,'Starting…');
-  const fail=m=>{updBusy=false;$('#updGo').disabled=false;$('#updGo').textContent=updLabel;$('#updClose').disabled=false;updMsg(0,m)};
+  // Once started, Install goes away and Close becomes Cancel for the download (which really stops it); while the image is
+  // being sent to the vario there is nothing to press: stopping that part half-way helps nobody.
+  updBusy=true;updAbort=new AbortController();$('#updGo').hidden=true;$('#updClose').textContent='Cancel';$('#updClose').hidden=false;$('#updClose').disabled=false;updMsg(0,'Starting…');
+  const fail=m=>{updBusy=false;$('#updGo').hidden=false;$('#updGo').disabled=false;$('#updGo').textContent=updLabel;$('#updClose').hidden=false;$('#updClose').textContent='Close';$('#updClose').disabled=false;updMsg(0,m)};
   try{
     const st=await fetch('/api/status',{cache:'no-store'}).then(r=>r.json());
     if(st.flying)return fail('Not while flying.');
     updMsg(0,'Downloading '+updRel.tag_name+'…');
-    const r=await fetch('https://raw.githubusercontent.com/'+REPO+'/main/firmware/paravario-'+updRel.tag_name+'-firmware.bin',{cache:'no-store'});
+    const r=await fetch('https://raw.githubusercontent.com/'+REPO+'/main/firmware/paravario-'+updRel.tag_name+'-firmware.bin',{cache:'no-store',signal:updAbort.signal});
     if(!r.ok)return fail('Could not download '+updRel.tag_name);
     const want=+r.headers.get('content-length')||0,rd=r.body.getReader(),parts=[];let got=0;
     for(;;){const c=await rd.read();if(c.done)break;parts.push(c.value);got+=c.value.length;if(want)updMsg(got/want/2,'Downloading '+Math.round(got/want*100)+'%')}
     if(got<100000||(want&&!r.headers.get('content-encoding')&&got!==want))return fail('Download incomplete');
+    if(updAbort.signal.aborted)return fail('Cancelled.');
+    $('#updClose').hidden=true;  // from here on the image goes to the vario
     const fd=new FormData();fd.append('file',new Blob(parts),'firmware.bin');
     // A weak Wi-Fi link can lose the connection mid-upload, or the vario can restart. Then wait for the vario to answer again and
     // send the image again, twice at most. If it came back already running the new version, the update did go in.
@@ -918,7 +924,7 @@ async function updInstall(){
       if(n<2)updMsg(.5,'Connection lost – sending again ('+(n+1)+' of 2)…');
     }
     fail('Update failed: connection lost');
-  }catch(e){fail('Download failed: turn mobile data on and try again')}
+  }catch(e){fail(e&&e.name==='AbortError'?'Cancelled.':'Download failed: turn mobile data on and try again')}
 }
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 // Sends the image; resolves {status,error} when the vario answers, {lost:true} when the connection goes.
@@ -945,7 +951,7 @@ async function updDone(back){
   if(!back){await sleep(3000);await updWaitVario(60)}
   location.reload()}
 $('#updGo').onclick=updInstall;
-$('#updCheck').onclick=checkUpdate;$('#updClose').onclick=updClose;
+$('#updCheck').onclick=checkUpdate;$('#updClose').onclick=updCloseBtn;
 $('#updModal').onclick=e=>{if(e.target.id==='updModal')updClose()};
 document.addEventListener('keydown',e=>{if(e.key==='Escape')updClose()});
 async function act(a){
