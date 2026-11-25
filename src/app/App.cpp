@@ -50,6 +50,7 @@ constexpr uint32_t kResumeWindowMs = 180000;  // a saved flight not resumed or r
 // Restarts the vario if the main loop stops running for this long (a blocked network call, a
 // stuck file operation): better a restart than an instrument that is silent until power-cycled.
 constexpr uint32_t kLoopWatchdogS = 30;
+constexpr uint32_t kUploadWatchdogS = 120;  // while a firmware upload is being received (see appLoopWatchdog)
 
 uint32_t lastTickMs = 0;
 uint32_t lastSoundMs = 0;
@@ -388,6 +389,11 @@ void appSetup() {
   esp_task_wdt_add(nullptr);                // watch this (the loop) task
   // The ready beep and "Ready" are played from the loop by variosound.
   LOGI("APP", "ParaVario ready, free heap %u", ESP.getFreeHeap());
+}
+
+int appLoopWatchdog(bool relaxed) {
+  esp_task_wdt_reset();
+  return (int)esp_task_wdt_init(relaxed ? kUploadWatchdogS : kLoopWatchdogS, true);
 }
 
 void appLoop() {

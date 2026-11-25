@@ -869,10 +869,12 @@ void handleOtaUpload() {
   if (up.status == UPLOAD_FILE_START) {
     // The web server library waits for upload data with no time limit, so an upload whose
     // sender has gone (out of range, PC asleep) would block the vario until the connection is
-    // noticed dead, by default hours later. Probe the connection so that takes seconds; the
-    // loop watchdog in App.cpp (30 s) is the backstop. Dead-link detection takes 8 + 4 x 4 = 24 s: long enough for a weak Wi-Fi
-    // link (the vario at -88 dBm lost whole seconds of traffic and an 11 s limit cut uploads off), and under the watchdog.
-    int idleS = 8, intervalS = 4, probes = 4;
+    // noticed dead, by default hours later. Probe the connection so that takes a while but ends: a link silent for
+    // 20 + 6 x 10 = 80 s is cut and the old firmware stays. A weak Wi-Fi link (the vario at -88 dBm) stalls an upload for
+    // 25 to 30 s and then carries on, so the limit is well above that. The main-loop watchdog (30 s normally) would
+    // restart the vario in such a stall, so it is relaxed to 120 s for the length of the upload: still the backstop.
+    int idleS = 20, intervalS = 10, probes = 6;
+    LOGI("OTA", "Loop watchdog relaxed for the upload (result %d)", appLoopWatchdog(true));
     server.client().setOption(TCP_KEEPIDLE, &idleS);
     server.client().setOption(TCP_KEEPINTVL, &intervalS);
     server.client().setOption(TCP_KEEPCNT, &probes);
@@ -882,6 +884,7 @@ void handleOtaUpload() {
     LOGI("OTA", "%s update from '%s'", otaFs ? "File system" : "Firmware", up.filename.c_str());
     if (!Update.begin(UPDATE_SIZE_UNKNOWN, otaFs ? U_SPIFFS : U_FLASH)) {
       otaFail(Update.errorString());
+      appLoopWatchdog(false);
       return;
     }
     if (server.hasArg("md5") && !Update.setMD5(server.arg("md5").c_str())) otaFail("bad md5");
@@ -890,6 +893,7 @@ void handleOtaUpload() {
       otaFail(Update.errorString());
     }
   } else if (up.status == UPLOAD_FILE_END) {
+    appLoopWatchdog(false);  // the whole image has arrived: back to the normal 30 s
     // Never hand the library a firmware image of under 16 bytes at its end: it works out the length of its last write
     // as (bytes held - 16), which wraps to about 4 GB and overwrites the whole flash (bootloader, settings, file system)
     // with zeros. No real image is anywhere near this small.
@@ -900,6 +904,7 @@ void handleOtaUpload() {
       LOGI("OTA", "Update OK, %u bytes", (unsigned)up.totalSize);
     }
   } else if (up.status == UPLOAD_FILE_ABORTED) {
+    appLoopWatchdog(false);
     // The connection ended before the whole image arrived. Logged with the state at that
     // moment, since the web server reports nothing itself.
     LOGW("OTA", "Upload aborted after %u bytes (client %s, free memory %u, lowest %u)", (unsigned)up.totalSize,

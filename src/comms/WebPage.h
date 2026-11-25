@@ -530,10 +530,14 @@ function setAlerts(s,G,hw,bm){
   al.forEach(a=>{const d=document.createElement('div');d.className='alert '+a[0];d.textContent=a[1];el.appendChild(d)});
 }
 setTimeout(()=>document.body.classList.remove('loading'),4000);  // a vario that does not answer: show the page as it is
+let lastUp=null;
 async function poll(){
   if(updBusy)return;
   try{
     const r=await fetch('/api/status',{cache:'no-store'});const s=await r.json();
+    // The vario restarted (its uptime went backwards) while the update box is open: reload, so the box and the page match the new version.
+    if(lastUp!=null&&s.uptime<lastUp-2&&!$('#updModal').hidden){location.reload();return}
+    lastUp=s.uptime;
     if(rp){rp.hw=s.hw||rp.hw;return}  // replaying a log: the screen follows the log, not the vario
     renderStatus(s,false);
   }catch(e){}
@@ -899,15 +903,47 @@ async function updInstall(){
     for(;;){const c=await rd.read();if(c.done)break;parts.push(c.value);got+=c.value.length;if(want)updMsg(got/want/2,'Downloading '+Math.round(got/want*100)+'%')}
     if(got<100000||(want&&!r.headers.get('content-encoding')&&got!==want))return fail('Download incomplete');
     const fd=new FormData();fd.append('file',new Blob(parts),'firmware.bin');
-    const x=new XMLHttpRequest();x.open('POST','/api/ota');
-    x.upload.onprogress=e=>{if(e.lengthComputable)updMsg(.5+e.loaded/e.total/2,'Installing '+Math.round(e.loaded/e.total*100)+'%')};
-    x.onload=()=>{let j={};try{j=JSON.parse(x.responseText)}catch(e){}
-      if(x.status!=200)return fail('Update failed: '+(j.error||'HTTP '+x.status));
-      updMsg(1,'Installed. Restarting – rejoin the ParaVario Wi-Fi if your phone drops it.');setTimeout(()=>location.reload(),10000)};
-    x.onerror=()=>fail('Update failed: connection lost');
-    x.send(fd);
+    // A weak Wi-Fi link can lose the connection mid-upload, or the vario can restart. Then wait for the vario to answer again and
+    // send the image again, twice at most. If it came back already running the new version, the update did go in.
+    const t0=Date.now(),up0=st.uptime||0,want2=relNum(updRel.tag_name);
+    for(let n=0;n<3;n++){
+      const res=await updSend(fd);
+      if(res.status===200)return updDone(false);
+      if(!res.lost)return fail('Update failed: '+res.error);
+      updMsg(.5,'Connection lost – waiting for the vario…');
+      const s2=await updWaitVario(60);
+      if(!s2)return fail('Update failed: the vario did not answer again. Check it and try again.');
+      const rn=relNum(s2.release||s2.version),restarted=(s2.uptime||0)<up0+(Date.now()-t0)/1000-10;
+      if(restarted&&rn&&want2&&rn[0]===want2[0]&&rn[1]===want2[1])return updDone(true);
+      if(n<2)updMsg(.5,'Connection lost – sending again ('+(n+1)+' of 2)…');
+    }
+    fail('Update failed: connection lost');
   }catch(e){fail('Download failed: turn mobile data on and try again')}
 }
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+// Sends the image; resolves {status,error} when the vario answers, {lost:true} when the connection goes.
+const updSend=fd=>new Promise(res=>{
+  const x=new XMLHttpRequest();x.open('POST','/api/ota');
+  let last=Date.now(),pct=0;
+  const t=setInterval(()=>{if(Date.now()-last>8000)updMsg(.5+pct/2,'Installing '+Math.round(pct*100)+'% – waiting for the Wi-Fi link…')},2000);
+  const end=v=>{clearInterval(t);res(v)};
+  x.upload.onprogress=e=>{if(e.lengthComputable){last=Date.now();pct=e.loaded/e.total;updMsg(.5+pct/2,'Installing '+Math.round(pct*100)+'%')}};
+  x.onload=()=>{let j={};try{j=JSON.parse(x.responseText)}catch(e){}end({status:x.status,error:j.error||'HTTP '+x.status})};
+  x.onerror=x.onabort=x.ontimeout=()=>end({lost:true});
+  x.send(fd)});
+// The vario's status once it answers (it restarts, and the phone may drop the Wi-Fi meanwhile); null after `secs`.
+async function updWaitVario(secs){
+  const end=Date.now()+secs*1000;
+  while(Date.now()<end){
+    try{const c=new AbortController(),t=setTimeout(()=>c.abort(),3000);
+      const r=await fetch('/api/status',{cache:'no-store',signal:c.signal});clearTimeout(t);if(r.ok)return await r.json()}catch(e){}
+    await sleep(2000)}
+  return null}
+// The image is in: wait for the restart to finish, then reload so the page (and this box) is the new version's.
+async function updDone(back){
+  updMsg(1,'Installed. Restarting…');
+  if(!back){await sleep(3000);await updWaitVario(60)}
+  location.reload()}
 $('#updGo').onclick=updInstall;
 $('#updCheck').onclick=checkUpdate;$('#updClose').onclick=updClose;
 $('#updModal').onclick=e=>{if(e.target.id==='updModal')updClose()};

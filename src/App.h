@@ -55,6 +55,11 @@ extern App app;
 void appSetup();
 void appLoop();
 
+// The main-loop watchdog restarts the vario when the loop stops for 30 s. A firmware upload is handled inside one pass
+// of the loop and a weak Wi-Fi link can stall it for tens of seconds, so the web UI relaxes the limit (120 s) for the
+// length of an upload and puts it back afterwards. Returns the esp_err_t of the change (0 = done).
+int appLoopWatchdog(bool relaxed);
+
 // Pilot actions, shared by the push button and the web UI.
 void actionToggleApproach();
 void actionToggleEmergency();
