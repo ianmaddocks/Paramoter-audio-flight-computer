@@ -4737,15 +4737,21 @@ def t_ui_settings(v, a):
              "number of settings on /advanced")
         pa.wait("tInput('bleName').value===" + json.dumps(v.settings()["bleName"]), 6, "bleName box shows the stored value")
         pa.wait_text("w-server", r"\S")
-        # export and import of the settings as a readable file
-        if not pa.js("!!document.getElementById('setExport') && !!document.getElementById('setImport')"):
-            raise Fail("web page: no export / import buttons on /advanced")
+        # export and import of the settings as a readable file (Backup and restore, Logs & system tab)
+        # (Backup and restore is on the Logs & system tab of the main page, not on /advanced)
+        if pa.js("!!document.getElementById('setExport') || !!document.getElementById('setImport')"):
+            raise Fail("web page: export / import buttons are still on /advanced")
+        p.tab("system")
+        if not p.js("!!document.querySelector('#systemPage #setExport') && !!document.querySelector('#systemPage #setImport')"):
+            raise Fail("web page: no export / import buttons on the Logs & system tab")
+        if "Backup and restore" not in p.js("document.querySelector('#systemPage #settingsFile h2').textContent"):
+            raise Fail("web page: the export / import card is not called Backup and restore")
         exp = len([k for k in v.settings() if k not in ("bleName", "wifiSsid")])
-        pa.js("window.__text=null;window.Blob=class{constructor(p){window.__text=p.join('')}};URL.createObjectURL=()=>'blob:x';"
+        p.js("window.__text=null;window.Blob=class{constructor(p){window.__text=p.join('')}};URL.createObjectURL=()=>'blob:x';"
               "HTMLAnchorElement.prototype.click=function(){};1")
-        pa.js("settingsExport();1")
-        pa.wait("window.__text!==null", 5, "export produced a file")
-        text = pa.js("window.__text")
+        p.js("settingsExport();1")
+        p.wait("window.__text!==null", 5, "export produced a file")
+        text = p.js("window.__text")
         doc = json.loads(text)
         if doc.get("paravario") != "settings" or len(doc["settings"]) != exp or chr(10) + "  " not in text:
             raise Fail(f"web page: the exported file is not readable settings JSON ({len(doc.get('settings', {}))} settings, expected {exp})")
@@ -4754,8 +4760,8 @@ def t_ui_settings(v, a):
         if doc.get("areas") != v.get_json("/api/areas")["a"]:
             raise Fail("web page: the exported areas are not the vario's areas")
         before = v.settings()["climbThreshold"]
-        pa.js("settingsImport(new File([JSON.stringify({settings:{climbThreshold:0.55,bleName:'Other',nonsense:1,sinkThreshold:'x'}})],'t.json'));1")
-        pa.wait("Math.abs(cfg.climbThreshold-0.55)<0.001", 6, "import applied")
+        p.js("settingsImport(new File([JSON.stringify({settings:{climbThreshold:0.55,bleName:'Other',nonsense:1,sinkThreshold:'x'}})],'t.json'));1")
+        p.wait("Math.abs(cfg.climbThreshold-0.55)<0.001", 6, "import applied")
         near(v.settings()["climbThreshold"], 0.55, 0.001, "climb threshold imported")
         if v.settings()["bleName"] == "Other":
             raise Fail("web page: import changed the Bluetooth name")
@@ -4765,7 +4771,7 @@ def t_ui_settings(v, a):
         areas_now = v.get_json("/api/areas")["a"]
 
         def import_file(obj, name):
-            pa.js("settingsImport(new File([JSON.stringify(" + json.dumps(obj) + ")]," + json.dumps(name) + "));1")
+            p.js("settingsImport(new File([JSON.stringify(" + json.dumps(obj) + ")]," + json.dumps(name) + "));1")
             time.sleep(2.5)
             return v.get_json("/api/areas")["a"]
 
@@ -4804,9 +4810,9 @@ def t_ui_settings(v, a):
             if import_file({"areas": []}, "none.json") != []:
                 raise Fail("web page: an imported file with an empty area list did not remove the areas")
             # 7. a file made by Export, edited, comes back as written: settings and areas together
-            pa.js("window.__text=null;settingsExport();1")
-            pa.wait("window.__text!==null", 5, "second export")
-            doc = json.loads(pa.js("window.__text"))
+            p.js("window.__text=null;settingsExport();1")
+            p.wait("window.__text!==null", 5, "second export")
+            doc = json.loads(p.js("window.__text"))
             doc["settings"]["climbThreshold"] = 0.42
             doc["areas"] = new_areas[:1]
             got = import_file(doc, "edited.json")

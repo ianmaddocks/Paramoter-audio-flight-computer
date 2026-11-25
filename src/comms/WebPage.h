@@ -262,6 +262,7 @@ R"HTML(
 <button data-a="defaults" class="dng">Factory defaults</button>
 <button type="button" id="updCheck">Check for updates</button>
 </div><p class="mut" id="sys"></p></section>
+<section class="card" id="settingsFile"><h2>Backup and restore</h2><p class="mut">Export saves every setting and the areas to a file you can read and edit (JSON, distances in metres and speeds in metres per second). Import reads such a file back; values outside their limits are brought into range, and the areas in the file replace the ones on the vario (a file without areas leaves them alone). The file holds passwords, so keep it private. This vario's Wi-Fi and Bluetooth names are left out of both.</p><div class="btns"><button type="button" id="setExport">Export settings</button><button type="button" id="setImport">Import settings</button></div><input type="file" id="setFile" accept=".json,application/json" hidden></section>
 </div>
 <div id="helpPage" class="page" role="tabpanel" hidden>
 <section class="card" id="helpList"><h2>Help and guides</h2>
@@ -689,12 +690,6 @@ function render(){
     const h=document.createElement('section');h.className='card';h.id='advHead';
     h.innerHTML='<h2>More settings</h2><p class="mut advnote">The tabs above take you back.</p>';
     root.appendChild(h);
-    const sf=document.createElement('section');sf.className='card';sf.id='settingsFile';
-    sf.innerHTML='<h2>Export and import settings</h2><p class="mut">Export saves every setting and the areas to a file you can read and edit (JSON, distances in metres and speeds in metres per second). Import reads such a file back; values outside their limits are brought into range, and the areas in the file replace the ones on the vario (a file without areas leaves them alone). The file holds passwords, so keep it private. This vario\'s Wi-Fi and Bluetooth names are left out of both.</p><div class="btns"><button type="button" id="setExport">Export settings</button><button type="button" id="setImport">Import settings</button></div><input type="file" id="setFile" accept=".json,application/json" hidden>';
-    root.appendChild(sf);
-    $('#setExport').onclick=settingsExport;
-    $('#setImport').onclick=()=>$('#setFile').click();
-    $('#setFile').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)settingsImport(f)};
     HIDDEN_GROUPS.filter(g=>groups[g]).forEach(g=>group(g,root,'card'));
   }else{
     for(const g in groups)if(!ADV_GROUPS.includes(g)&&!HIDDEN_GROUPS.includes(g))group(g,root,'card');
@@ -726,8 +721,8 @@ async function loadSettings(){
   schemaKey=st&&st.hw?st.hw.gps+'/'+st.hw.mic:'';
   render();
 }
-// Export and import of the settings as a readable JSON file (the hidden /advanced page). The names of this unit are not
-// carried over: they hold its own unit code.
+// Export and import of the settings as a readable JSON file (Backup and restore on the Logs & system tab). The names of
+// this unit are not carried over: they hold its own unit code.
 const FILE_SKIP=['bleName','wifiSsid'];
 async function settingsExport(){
   try{
@@ -774,6 +769,9 @@ async function settingsImport(file){
     toast(msg);
   }catch(e){toast('Import failed: '+e)}
 }
+$('#setExport').onclick=settingsExport;
+$('#setImport').onclick=()=>$('#setFile').click();
+$('#setFile').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)settingsImport(f)};
 async function saveSettings(){
   if(saveInFlight){saveAgain=true;return}
   saveInFlight=true;saveAgain=false;
