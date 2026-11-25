@@ -187,6 +187,11 @@ Feet or metres.
 
 Choose what you are used to. Everything shown on the page and every height spoken uses it, and the heights you type in settings (such as the height calls) are entered in the same unit. Default: Feet.
 
+### Appearance
+Auto, Light or Dark.
+
+Auto follows the light or dark setting of your phone. Light and Dark keep the page that way whatever the phone does. Default: Auto.
+
 ### Speech volume
 How loud the spoken calls are.
 

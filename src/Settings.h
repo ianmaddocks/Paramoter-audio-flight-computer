@@ -15,6 +15,7 @@ struct Settings {
   int32_t heightUnit = HU_FEET;
   int32_t distUnit = DU_METRES;
   int32_t speedUnit = SU_KMH;
+  int32_t theme = 0;  // web page appearance: 0 Auto (follows the phone), 1 Light, 2 Dark
 
   int32_t speechVolume = 15;
   int32_t varioVolume = 10;

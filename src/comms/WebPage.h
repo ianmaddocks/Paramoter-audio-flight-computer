@@ -17,7 +17,8 @@ static const char kIndexHtml[] PROGMEM = R"HTML(<!doctype html>
 <title>ParaVario</title>
 <style>
 :root{--bg:#f2f3f5;--card:#fff;--fg:#15171b;--mut:#6b7280;--acc:#0b6bcb;--bad:#c62828;--ok:#1b8a4b;--warn:#b26a00;--bd:#dfe2e6}
-@media(prefers-color-scheme:dark){:root{--bg:#0e1013;--card:#191c21;--fg:#e9ebef;--mut:#9aa1ab;--acc:#5aa7ff;--bad:#ff6b6b;--ok:#4cc38a;--warn:#f0b44c;--bd:#2a2f37}}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0e1013;--card:#191c21;--fg:#e9ebef;--mut:#9aa1ab;--acc:#5aa7ff;--bad:#ff6b6b;--ok:#4cc38a;--warn:#f0b44c;--bd:#2a2f37}}
+:root[data-theme=dark]{--bg:#0e1013;--card:#191c21;--fg:#e9ebef;--mut:#9aa1ab;--acc:#5aa7ff;--bad:#ff6b6b;--ok:#4cc38a;--warn:#f0b44c;--bd:#2a2f37}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:0 12px 96px}
 footer{text-align:center;color:var(--mut);font-size:12px;padding:20px 0 4px}
@@ -667,7 +668,15 @@ function field(f){
 const ADV=/^\/advanced\/?$/.test(location.pathname);
 const HIDDEN_GROUPS=['Bluetooth','Battery','Firmware Update','GPS','Engine RPM'];
 const ADV_GROUPS=['Areas','Emergency','Glide','Landing approach','Landing zone','Logging','Takeoff & landing','Vario tuning','Wi-Fi','Wind'];  // alphabetical
+// Appearance: Auto follows the phone's light/dark setting; the choice is also kept in the browser so the page paints right before the settings arrive.
+function applyTheme(t){
+  const m=['auto','light','dark'][t]||'auto';
+  if(m==='auto')document.documentElement.removeAttribute('data-theme');else document.documentElement.setAttribute('data-theme',m);
+  try{localStorage.setItem('theme',m)}catch(e){}
+}
+try{const m=localStorage.getItem('theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m)}catch(e){}
 function render(){
+  applyTheme(cfg.theme||0);
   const root=$('#settings');root.innerHTML='';const groups={};
   for(const f of schema)(groups[f.g]=groups[f.g]||[]).push(f);
   const group=(g,parent,cls)=>{

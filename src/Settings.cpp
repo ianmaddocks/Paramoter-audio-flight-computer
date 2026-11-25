@@ -44,6 +44,7 @@ const Field kFields[] = {
     E(heightUnit, "Units", "Height", "Feet|Metres"),
     E(distUnit, "Units", "Distance", "Metres / km|Feet / miles"),
     E(speedUnit, "Units", "Speed", "km/h|mph|knots"),
+    E(theme, "Units", "Appearance", "Auto|Light|Dark"),
 
     I(speechVolume, "Audio", "Speech volume", "%", 0, 100),
     I(varioVolume, "Audio", "Vario volume", "%", 0, 100),
