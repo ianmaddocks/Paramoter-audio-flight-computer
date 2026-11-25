@@ -893,6 +893,8 @@ async function checkUpdate(){
   }catch(e){toast('Could not check: turn mobile data on and try again')}
   b.disabled=false;
 }
+// The bar's first 10% is the download (a few seconds on mobile data); the rest is the upload to the vario, which takes most of the time.
+const UPD_DL=.1;
 function updMsg(p,m){$('#updBar').style.width=Math.round(p*100)+'%';$('#updProg').hidden=false;$('#updNote').textContent=m}
 async function updInstall(){
   if(updBusy||!updRel)return;
@@ -911,7 +913,7 @@ async function updInstall(){
     const r=await fetch('https://raw.githubusercontent.com/'+REPO+'/main/firmware/paravario-'+updRel.tag_name+'-firmware.bin',{cache:'no-store',signal:updAbort.signal});
     if(!r.ok)return fail('Could not download '+updRel.tag_name);
     const want=+r.headers.get('content-length')||0,rd=r.body.getReader(),parts=[];let got=0;
-    for(;;){const c=await rd.read();if(c.done)break;parts.push(c.value);got+=c.value.length;if(want)updMsg(got/want/2,'Downloading '+Math.round(got/want*100)+'%')}
+    for(;;){const c=await rd.read();if(c.done)break;parts.push(c.value);got+=c.value.length;if(want)updMsg(got/want*UPD_DL,'Downloading '+Math.round(got/want*100)+'%')}
     if(got<100000||(want&&!r.headers.get('content-encoding')&&got!==want))return fail('Download incomplete');
     if(updAbort.signal.aborted)return fail('Cancelled.');
     $('#updClose').hidden=true;  // from here on the image goes to the vario
@@ -923,12 +925,12 @@ async function updInstall(){
       const res=await updSend(fd);
       if(res.status===200)return updDone(false);
       if(!res.lost)return fail('Update failed: '+res.error);
-      updMsg(.5,'Connection lost – waiting for the vario…');
+      updMsg(UPD_DL,'Connection lost – waiting for the vario…');
       const s2=await updWaitVario(60);
       if(!s2)return fail('Update failed: the vario did not answer again. Check it and try again.');
       const rn=relNum(s2.release||s2.version),restarted=(s2.uptime||0)<up0+(Date.now()-t0)/1000-10;
       if(restarted&&rn&&want2&&rn[0]===want2[0]&&rn[1]===want2[1])return updDone(true);
-      if(n<2)updMsg(.5,'Connection lost – sending again ('+(n+1)+' of 2)…');
+      if(n<2)updMsg(UPD_DL,'Connection lost – sending again ('+(n+1)+' of 2)…');
     }
     fail('Update failed: connection lost');
   }catch(e){fail(e&&e.name==='AbortError'?'Cancelled.':'Download failed: turn mobile data on and try again')}
@@ -938,9 +940,9 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const updSend=fd=>new Promise(res=>{
   const x=new XMLHttpRequest();x.open('POST','/api/ota');
   let last=Date.now(),pct=0;
-  const t=setInterval(()=>{if(Date.now()-last>8000)updMsg(.5+pct/2,'Installing '+Math.round(pct*100)+'% – waiting for the Wi-Fi link…')},2000);
+  const t=setInterval(()=>{if(Date.now()-last>8000)updMsg(UPD_DL+pct*(1-UPD_DL),'Installing '+Math.round(pct*100)+'% – waiting for the Wi-Fi link…')},2000);
   const end=v=>{clearInterval(t);res(v)};
-  x.upload.onprogress=e=>{if(e.lengthComputable){last=Date.now();pct=e.loaded/e.total;updMsg(.5+pct/2,'Installing '+Math.round(pct*100)+'%')}};
+  x.upload.onprogress=e=>{if(e.lengthComputable){last=Date.now();pct=e.loaded/e.total;updMsg(UPD_DL+pct*(1-UPD_DL),'Installing '+Math.round(pct*100)+'%')}};
   x.onload=()=>{let j={};try{j=JSON.parse(x.responseText)}catch(e){}end({status:x.status,error:j.error||'HTTP '+x.status})};
   x.onerror=x.onabort=x.ontimeout=()=>end({lost:true});
   x.send(fd)});
