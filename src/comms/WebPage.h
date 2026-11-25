@@ -478,7 +478,7 @@ $('#helpDoc').onclick=e=>{
 // between flights), fetched every few seconds.
 let hgData=null,hgBusy=false;
 async function pollHeight(){
-  if(rp)return;
+  if(rp||updBusy)return;
   if(hgBusy||document.hidden||$('#flightPage').hidden)return;hgBusy=true;
   try{
     const b=await fetch('/api/height',{cache:'no-store'}).then(r=>r.arrayBuffer());
@@ -531,6 +531,7 @@ function setAlerts(s,G,hw,bm){
 }
 setTimeout(()=>document.body.classList.remove('loading'),4000);  // a vario that does not answer: show the page as it is
 async function poll(){
+  if(updBusy)return;
   try{
     const r=await fetch('/api/status',{cache:'no-store'});const s=await r.json();
     if(rp){rp.hw=s.hw||rp.hw;return}  // replaying a log: the screen follows the log, not the vario
@@ -881,8 +882,11 @@ async function checkUpdate(){
 function updMsg(p,m){$('#updBar').style.width=Math.round(p*100)+'%';$('#updProg').hidden=false;$('#updNote').textContent=m}
 async function updInstall(){
   if(updBusy||!updRel)return;
-  updBusy=true;$('#updGo').disabled=true;$('#updClose').disabled=true;
-  const fail=m=>{updBusy=false;$('#updGo').disabled=false;$('#updClose').disabled=false;updMsg(0,m)};
+  // Acknowledge the tap at once (the first request can wait behind the page's own), and stop the page's own polling for
+  // the duration: the vario's web server takes one request at a time and is busy receiving the update, so every status
+  // request meanwhile queues up, uses its memory and can make the upload fail.
+  updBusy=true;$('#updGo').disabled=true;$('#updGo').textContent='Installing…';$('#updClose').disabled=true;updMsg(0,'Starting…');
+  const fail=m=>{updBusy=false;$('#updGo').disabled=false;$('#updGo').textContent='Install update';$('#updClose').disabled=false;updMsg(0,m)};
   try{
     const st=await fetch('/api/status',{cache:'no-store'}).then(r=>r.json());
     if(st.flying)return fail('Not while flying.');
@@ -1078,7 +1082,7 @@ $('#rpExit').onclick=replayExit;
 let dbgNext=0,dbgPaused=false,dbgText=[],dbgBusy=false;
 const DBG_MAX=1500;
 async function pollDbg(){
-  if(dbgBusy||dbgPaused||!$('#dbg').open)return;dbgBusy=true;
+  if(updBusy||dbgBusy||dbgPaused||!$('#dbg').open)return;dbgBusy=true;
   try{
     const t=await fetch('/api/debuglog?since='+dbgNext,{cache:'no-store'}).then(r=>r.text());
     const lines=t.split('\n');const h=/#next=(\d+) dropped=(\d+) debug=(\d)/.exec(lines.shift());

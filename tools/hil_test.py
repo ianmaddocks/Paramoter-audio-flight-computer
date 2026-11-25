@@ -4439,8 +4439,17 @@ def t_ui_pilot(v, a):
             if not (r["open"] and r["title"] == "Update available" and r["nw"] == "Latest release: " + newer_tag
                     and r["cur"].startswith("Installed: ") and r["a"].endswith("/releases/tag/" + newer_tag) and r["go"]):
                 raise Fail(f"web page: update box for a newer release: {r}")
-            p.js("updInstall();1")
+            # the tap is acknowledged at once (button disabled and renamed, a message in the box) and the page stops its own polling
+            # while the update is on its way: the vario's server takes one request at a time
+            p.js("window.__polls=0;window.__f2=window.fetch;window.fetch=(u,o)=>{if(String(u).includes('/api/status')||String(u).includes('/api/height'))window.__polls++;return window.__f2(u,o)};updInstall();1")
+            ack = p.js("({dis:document.getElementById('updGo').disabled,label:document.getElementById('updGo').textContent,"
+                       "note:document.getElementById('updNote').textContent})")
+            if not (ack["dis"] and ack["label"] == "Installing…" and ack["note"]):
+                raise Fail(f"web page: Install update not acknowledged at once: {ack}")
             p.wait("/^Update failed/.test(document.getElementById('updNote').textContent)", 40, "a refused image gives a message")
+            if p.js("window.__polls") > 1:  # the one status check of the install itself, and no polling
+                raise Fail(f"web page: the page kept polling the vario during the install ({p.js('window.__polls')} requests)")
+            p.js("window.fetch=window.__f2;1")
             raw = p.js("window.__raw")
             if not raw.endswith("/firmware/paravario-%s-firmware.bin" % newer_tag):
                 raise Fail(f"web page: the firmware was asked for at {raw}")
