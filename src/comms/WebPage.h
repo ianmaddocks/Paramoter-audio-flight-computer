@@ -1264,15 +1264,52 @@ function areaPoints(){
   });
   el.scrollTop=aDraft.length>aPtsN?el.scrollHeight:top;aPtsN=aDraft.length;
 }
+// The warning distance as a dotted line: that many metres outside a restricted area's edge (the track is warned before it would
+// cross), inside a safe area's edge. Worked out flat in metres around the middle of the shape. Gives null when it cannot be drawn
+// properly (a narrow or sharply bent area where the line would fold over itself): better no line than a wrong one.
+function areaOffset(pts,d){
+  const n=pts.length;if(n<3||!(d>0||d<0))return null;
+  let la=0,lo=0;pts.forEach(p=>{la+=p[0];lo+=p[1]});la/=n;lo/=n;
+  const kx=111320*Math.cos(la*Math.PI/180),ky=110540,P=pts.map(p=>[(p[1]-lo)*kx,(p[0]-la)*ky]);
+  const ar=V=>{let a=0;for(let i=0;i<V.length;i++){const p=V[i],q=V[(i+1)%V.length];a+=p[0]*q[1]-q[0]*p[1]}return a};
+  const A=ar(P);if(Math.abs(A)<1)return null;
+  const s=A>0?1:-1;  // +1: corners go counter-clockwise
+  const ed=i=>{const a=P[i],b=P[(i+1)%n],dx=b[0]-a[0],dy=b[1]-a[1],l=Math.hypot(dx,dy)||1;return [s*dy/l,-s*dx/l,dx/l,dy/l]};  // outward normal, direction
+  const Q=[];
+  for(let i=0;i<n;i++){
+    const e1=ed((i+n-1)%n),e2=ed(i),c=e1[2]*e2[3]-e1[3]*e2[2];
+    let x,y;
+    if(Math.abs(c)<1e-6){x=P[i][0]+d*e1[0];y=P[i][1]+d*e1[1]}
+    else{const t=(d*(e2[0]-e1[0])*e2[3]-d*(e2[1]-e1[1])*e2[2])/c;x=P[i][0]+d*e1[0]+t*e1[2];y=P[i][1]+d*e1[1]+t*e1[3]}
+    const dx=x-P[i][0],dy=y-P[i][1],l=Math.hypot(dx,dy),m=3*Math.abs(d);  // a very sharp corner: cut the point short
+    if(l>m){x=P[i][0]+dx*m/l;y=P[i][1]+dy*m/l}
+    Q.push([x,y]);
+  }
+  // an edge that has run past its neighbours (the shape is narrower than the distance) points the other way round: no line
+  for(let i=0;i<n;i++){const j=(i+1)%n;if((Q[j][0]-Q[i][0])*(P[j][0]-P[i][0])+(Q[j][1]-Q[i][1])*(P[j][1]-P[i][1])<=0)return null}
+  const AQ=ar(Q);
+  if(AQ*A<=0||(d<0&&Math.abs(AQ)>=Math.abs(A))||(d>0&&Math.abs(AQ)<=Math.abs(A)))return null;
+  const cr=(a,b,c)=>(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
+  for(let i=0;i<n;i++)for(let j=i+2;j<n;j++){if(i===0&&j===n-1)continue;
+    const a=Q[i],b=Q[(i+1)%n],c=Q[j],e=Q[(j+1)%n];
+    if(cr(a,b,c)*cr(a,b,e)<0&&cr(c,e,a)*cr(c,e,b)<0)return null}
+  if(d<0)for(const q of Q){let in_=false;for(let i=0,j=n-1;i<n;j=i++)if((P[i][1]>q[1])!==(P[j][1]>q[1])&&q[0]<(P[j][0]-P[i][0])*(q[1]-P[i][1])/(P[j][1]-P[i][1])+P[i][0])in_=!in_;if(!in_)return null}
+  return Q.map(q=>[la+q[1]/ky,lo+q[0]/kx]);
+}
+function areaWarnLine(pts,restricted,w,col){
+  if(!(w>0))return;
+  const o=areaOffset(pts,restricted?w:-w);
+  if(o)L.polygon(o,{color:col,weight:2,dashArray:'2 6',lineCap:'round',fill:false,interactive:false}).addTo(aLayer);
+}
 function areaDraw(){
   areaPoints();
   if(aDraft)$a('areaTitle').textContent=(aIdx>=0?'Edit '+aAreas[aIdx].n:'New area')+' – '+aDraft.length+' corner'+(aDraft.length===1?'':'s');
   if(!aMap)return;
   aLayer.clearLayers();
-  aAreas.forEach((a,i)=>{if(i===aIdx&&aDraft)return;L.polygon(a.p,{color:areaCol(a),weight:2,fillOpacity:.12}).bindTooltip(a.n).addTo(aLayer)});
+  aAreas.forEach((a,i)=>{if(i===aIdx&&aDraft)return;L.polygon(a.p,{color:areaCol(a),weight:2,fillOpacity:.12}).bindTooltip(a.n).addTo(aLayer);areaWarnLine(a.p,a.k==='restricted',a.w||0,areaCol(a))});
   if(!aDraft)return;
   const kc=AC[$a('areaKind').value]||AC.safe;
-  if(aDraft.length>=3)L.polygon(aDraft,{color:kc,weight:3,dashArray:'6 6',fillColor:kc,fillOpacity:.15}).addTo(aLayer);
+  if(aDraft.length>=3){L.polygon(aDraft,{color:kc,weight:3,dashArray:'6 6',fillColor:kc,fillOpacity:.15}).addTo(aLayer);areaWarnLine(aDraft,$a('areaKind').value==='restricted',areaWarnM(),kc)}
   else if(aDraft.length===2)L.polyline(aDraft,{color:kc,weight:3,dashArray:'6 6'}).addTo(aLayer);
   aDraft.forEach((p,i)=>{
     const m=L.marker(p,{draggable:true,icon:L.divIcon({className:'',html:'<div class="acn">'+(i+1)+'</div>',iconSize:[22,22],iconAnchor:[11,11]})});
@@ -1312,7 +1349,7 @@ function areaMapStart(){
 $a('areaUndo').onclick=()=>{if(aDraft&&aDraft.length){aDraft.pop();areaDraw()}};
 $a('areaCancel').onclick=areaCancel;
 $a('areaKind').onchange=()=>areaKindShow(true);
-$a('areaWarn').oninput=()=>{aWarnTouched=true};
+$a('areaWarn').oninput=()=>{aWarnTouched=true;areaDraw()};
 areaFormReset();
 $a('areaSave').onclick=async()=>{
   if(!aDraft||aDraft.length<3){toast('An area needs at least 3 corners');return}

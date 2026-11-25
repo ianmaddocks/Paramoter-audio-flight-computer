@@ -5179,12 +5179,12 @@ def t_areas_api(v, a):
 
     code, raw = v._open("/")
     page = raw.decode("utf-8", "replace")
-    for needle in ('data-tab="area"', '>Map</button>', 'id="areaKind"', 'id="areaWarn"', 'id="areaPts"',                    "leaflet.min.js", "areaCopy"):
+    for needle in ('data-tab="area"', '>Map</button>', 'id="areaKind"', 'id="areaWarn"', 'id="areaPts"',                    "leaflet.min.js", "areaCopy", "function areaOffset", "areaWarnLine("):
         if needle not in page:
             raise Fail(f"the page has no {needle!r}")
     if 'data-tab="area" class="needgps"' not in page:
         raise Fail("the Map tab is not marked as needing a GPS")
-    notes.append("page: Map tab with the type, warning distance, corner list, cross and copy")
+    notes.append("page: Map tab with the type, warning distance, corner list, cross and copy, dotted warning line")
 
     isolate(v, a)
     v.sim(hasGps=0)

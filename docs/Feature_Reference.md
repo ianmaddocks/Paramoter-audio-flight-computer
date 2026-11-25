@@ -759,6 +759,8 @@ You can keep up to 25 areas, with about 180 corners in all. In the list of areas
 - **Safe area, 0 (the default):** you are told only when you leave it. A larger distance also tells you when you are that close to an edge from inside, without saying which way to turn.
 - **Restricted area, 500 m (the default):** you are warned when your track would take you into it within that distance, and told which way to turn. With 0 you are warned only once you are inside.
 
+The map shows the distance as a dotted line in the area's colour: that far outside a restricted area, that far inside a safe one. For a restricted area it is a guide, since the warning depends on your track. It is left out where it would not fit (an area narrower than the distance).
+
 If you change the type while setting up a new area, the distance changes to that type's default (until you have typed your own).
 
 **What you hear** (while flying):
