@@ -4432,7 +4432,7 @@ def t_ui_pilot(v, a):
             time.sleep(1.2)
             return p.js("({open:!document.getElementById('updModal').hidden,title:document.getElementById('updTitle').textContent,"
                         "cur:document.getElementById('updCur').textContent,nw:document.getElementById('updNew').textContent,"
-                        "a:(document.querySelector('#updNote a')||{}).href||'',go:!document.getElementById('updGo').hidden,"
+                        "a:(document.querySelector('#updNote a')||{}).href||'',go:!document.getElementById('updGo').hidden,btn:document.getElementById('updGo').textContent,"
                         "note:document.getElementById('updNote').textContent})")
         try:
             r = check(newer_tag)
@@ -4456,10 +4456,10 @@ def t_ui_pilot(v, a):
             if v.status()["uptime"] < 5:
                 raise Fail("vario restarted after a refused image")
             r = check(st_rel)
-            if not (r["open"] and r["title"] == "No update needed" and not r["a"] and not r["go"]):
+            if not (r["open"] and r["title"] == "No update needed" and not r["a"] and r["go"] and r["btn"] == "Reinstall " + st_rel):
                 raise Fail(f"web page: update box for the same release: {r}")
             r = check("v0.1")
-            if not (r["open"] and r["title"] == "No update needed" and not r["go"] and "newer than the latest" in r["note"]):
+            if not (r["open"] and r["title"] == "No update needed" and r["go"] and r["btn"] == "Install v0.1 (older)" and "newer than the latest" in r["note"]):
                 raise Fail(f"web page: update box for an older release: {r}")
             r = check("v9.9", ok=False)
             if r["open"]:

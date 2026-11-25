@@ -854,7 +854,7 @@ R"HTML(
 document.querySelectorAll('button[data-tab]').forEach(b=>b.onclick=()=>{if(ADV)location.href='/#'+b.dataset.tab;else selectTab(b.dataset.tab)});
 
 const relNum=t=>{const m=/^v?(\d+)\.(\d+)/.exec(t||'');return m?[+m[1],+m[2]]:null};
-let updRel=null,updBusy=false;
+let updRel=null,updBusy=false,updLabel='Install update';
 function updClose(){if(!updBusy)$('#updModal').hidden=true}
 function updShow(cur,rel,newer,ahead){
   $('#updTitle').textContent=newer?'Update available':'No update needed';
@@ -864,7 +864,9 @@ function updShow(cur,rel,newer,ahead){
   if(!newer){n.textContent=ahead?'This version is newer than the latest release.':'This vario has the latest release.'}
   else if(/^https:\/\/github\.com\//.test(rel.html_url||'')){
     const a=document.createElement('a');a.href=rel.html_url;a.target='_blank';a.rel='noopener';a.textContent='Release notes for '+rel.tag_name;n.appendChild(a)}
-  updRel=newer?rel:null;$('#updGo').hidden=!newer;$('#updGo').disabled=false;$('#updProg').hidden=true;
+  // The latest release can always be installed: a newer one is an update, the same one a reinstall, an older one a step back.
+  updRel=rel;updLabel=newer?'Install update':ahead?'Install '+rel.tag_name+' (older)':'Reinstall '+rel.tag_name;
+  $('#updGo').hidden=false;$('#updGo').textContent=updLabel;$('#updGo').disabled=false;$('#updProg').hidden=true;
   $('#updModal').hidden=false;$('#updClose').focus();
 }
 async function checkUpdate(){
@@ -886,7 +888,7 @@ async function updInstall(){
   // the duration: the vario's web server takes one request at a time and is busy receiving the update, so every status
   // request meanwhile queues up, uses its memory and can make the upload fail.
   updBusy=true;$('#updGo').disabled=true;$('#updGo').textContent='Installing…';$('#updClose').disabled=true;updMsg(0,'Starting…');
-  const fail=m=>{updBusy=false;$('#updGo').disabled=false;$('#updGo').textContent='Install update';$('#updClose').disabled=false;updMsg(0,m)};
+  const fail=m=>{updBusy=false;$('#updGo').disabled=false;$('#updGo').textContent=updLabel;$('#updClose').disabled=false;updMsg(0,m)};
   try{
     const st=await fetch('/api/status',{cache:'no-store'}).then(r=>r.json());
     if(st.flying)return fail('Not while flying.');

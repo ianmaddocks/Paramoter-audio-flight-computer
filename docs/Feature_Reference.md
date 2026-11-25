@@ -414,9 +414,9 @@ Open the Logging section and the vario's own messages scroll past. *Pause* freez
 ### Check for updates
 Tells you whether a newer version of the vario's program has been published, and installs it.
 
-On the Logs & system tab, under *System*, tap *Check for updates*. While your phone is connected to the vario via Wi-Fi, this action will use your mobile data to check for the latest firmware. A box shows the version installed, the latest release and, when there is a newer one, a link to its release notes and an *Install update* button. If the vario has the latest release, or something newer than it, the box says so. If the phone cannot reach GitHub you see *Could not check*.
+On the Logs & system tab, under *System*, tap *Check for updates*. While your phone is connected to the vario via Wi-Fi, this action will use your mobile data to check for the latest firmware. A box shows the version installed, the latest release and a link to the release notes of a newer one, and an install button. The button reads *Install update* when there is a newer release; if the vario has the latest release, or something newer, the box says so and the button reads *Reinstall* or *Install … (older)*, which puts that release on the vario anyway. If the phone cannot reach GitHub you see *Could not check*.
 
-*Install update* downloads the new version to your phone (mobile data again), sends it to the vario and restarts it. Keep the page open until it says *Installed*, then rejoin the vario's Wi-Fi if your phone drops it. If something goes wrong the old version keeps running. It is not possible while flying, and no password is needed. Versions can also be installed from a computer (see Maintenance in the user guide).
+The install button downloads the release to your phone (mobile data again), sends it to the vario and restarts it. Keep the page open until it says *Installed*, then rejoin the vario's Wi-Fi if your phone drops it. If something goes wrong the old version keeps running. It is not possible while flying, and no password is needed. Versions can also be installed from a computer (see Maintenance in the user guide).
 
 ### Restart / Factory defaults
 Restart the vario, or put every setting back to its starting value.
