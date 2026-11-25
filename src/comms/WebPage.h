@@ -257,12 +257,12 @@ R"HTML(
 <div class="dbgbar"><button id="dbgpause">Pause</button><button id="dbgclear">Clear</button><button id="dbgsave">Save as file</button></div>
 <pre id="dbglog"></pre></details>
 <section class="card"><h2>System</h2><div class="btns">
+<button type="button" id="setExport">Export settings</button>
+<button type="button" id="setImport">Import settings</button>
 <button data-a="restart">Restart</button>
 <button data-a="reset_flight">Reset flight state</button>
 <button data-a="defaults" class="dng">Factory defaults</button>
 <button type="button" id="updCheck">Check for updates</button>
-<button type="button" id="setExport">Export settings</button>
-<button type="button" id="setImport">Import settings</button>
 </div><input type="file" id="setFile" accept=".json,application/json" hidden><p class="mut" id="sys"></p></section>
 
 </div>
@@ -609,7 +609,8 @@ function renderStatus(s,replay){
       txt('t-vols','speech '+s.vol.speech+' %'+(!replay&&cfg.varioVolume!=null&&cfg.varioVolume!==s.vol.vario?' · set '+cfg.varioVolume+' %':''))}
     if(!replay){
     txt('hver',(s.version||'unknown')+(s.debug?' debug':''));
-    txt('sys','Uptime '+fT(s.uptime)+' · heap '+Math.round(s.heap/1024)+' kB · Bluetooth clients '+s.ble+' · baro '+(s.baro.ok?(s.baro.pressure/100).toFixed(1)+' hPa':'missing'));
+//    txt('sys','Uptime '+fT(s.uptime)+' · heap '+Math.round(s.heap/1024)+' kB · Bluetooth clients '+s.ble+' · baro '+(s.baro.ok?(s.baro.pressure/100).toFixed(1)+' hPa':'missing'));
+    txt('sys','baro '+(s.baro.ok?(s.baro.pressure/100).toFixed(1)+' hPa':'missing')+' · Bluetooth clients '+s.ble);
     wifiInfo=s.wifi;showWifi();
     // At the bottom of Settings, only while a change that needs a restart is waiting (the vario says so, so it survives a page reload).
     $('#restartBar').hidden=!(s.restartNeeded||(s.wifi&&s.wifi.restart));
@@ -879,7 +880,7 @@ function updShow(cur,rel,newer,ahead,low){
     const a=document.createElement('a');a.href=rel.html_url;a.target='_blank';a.rel='noopener';a.textContent='Release notes for '+rel.tag_name;n.appendChild(a)}
   // The latest release can always be installed: a newer one is an update, the same one a reinstall, an older one a step back.
   updRel=rel;updLabel=newer?'Install update':ahead?'Install '+rel.tag_name+' (older)':'Reinstall '+rel.tag_name;
-  $('#updGo').hidden=false;$('#updGo').textContent=updLabel;$('#updGo').disabled=!!low;$('#updProg').hidden=true;
+  $('#updGo').hidden=!!low;$('#updGo').textContent=updLabel;$('#updGo').disabled=false;$('#updProg').hidden=true;  // low battery: no button, only the note below
   if(low){const d=document.createElement('div');d.textContent=lowBattMsg();n.appendChild(d)}
   $('#updModal').hidden=false;$('#updClose').focus();
 }
