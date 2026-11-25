@@ -51,9 +51,6 @@ def write_version_header():
 
 write_version_header()
 
-# Single source for the update password: custom_ota_password in platformio.ini.
-OTA_PASSWORD = env.GetProjectOption("custom_ota_password", "")
-projenv.Append(CPPDEFINES=[("OTA_PASSWORD", env.StringifyMacro(OTA_PASSWORD))])
 
 
 AP_ADDRESS = "192.168.4.1"  # the vario's own access point
@@ -117,7 +114,6 @@ def send_image(host, md5, fs, boundary, body):
         conn.putrequest("POST", "/api/ota?md5=%s%s" % (md5, "&target=fs" if fs else ""))
         conn.putheader("Content-Type", "multipart/form-data; boundary=" + boundary)
         conn.putheader("Content-Length", str(len(body)))
-        conn.putheader("X-OTA-Password", OTA_PASSWORD)
         conn.endheaders()
         for i in range(0, len(body), 1400):
             conn.send(body[i:i + 1400])

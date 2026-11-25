@@ -11,7 +11,7 @@ The vario is a small device with little memory. Make one request at a time, do n
 the connection when done. Many parallel connections make it hold requests back, and a page left open slows it down.
 
 **There is no login.** Anyone on the vario's network can change settings and areas, start and cancel guidance, restart it, and read the
-flight logs. Only the firmware update (`/api/ota`) needs a password. Keep it on a network you trust.
+flight logs. None of it, the firmware update (`/api/ota`) included, needs a password. Keep it on a network you trust.
 
 ## Reading
 
@@ -60,7 +60,7 @@ All distances are metres, speeds m/s and angles degrees, whatever units the pilo
 | `POST /api/areas` | Replaces all areas. See below. 400 with the reason if not usable (nothing changes). |
 | `POST /api/action?do=<action>` | One of the actions below. Reply `{"ok":true}`. |
 | `DELETE /api/log?name=<name>.igc` | Deletes one flight log. |
-| `POST /api/ota` | Firmware update: multipart form with the image, header `X-OTA-Password`. `?target=fs` updates the file system image instead; `?md5=<hex>` checks it. The vario restarts when it succeeds. 401 for a wrong password. |
+| `POST /api/ota` | Firmware update: multipart form with the image, no password. `?target=fs` updates the file system image instead; `?md5=<hex>` checks it. The vario restarts when it succeeds; 500 with the reason when the image is refused. |
 
 Actions (`do=`):
 

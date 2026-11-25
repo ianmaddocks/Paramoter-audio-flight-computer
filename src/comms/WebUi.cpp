@@ -39,10 +39,6 @@
 #include "test/UnitTest.h"
 
 
-// Set from custom_ota_password in platformio.ini by tools/pio_ota.py; empty rejects every upload.
-#ifndef OTA_PASSWORD
-#define OTA_PASSWORD ""
-#endif
 
 namespace webui {
 namespace {
@@ -854,20 +850,12 @@ void handleLogDelete() {
 }
 
 // Firmware or file-system image upload (multipart POST to /api/ota, ?target=fs for the
-// LittleFS image, optional ?md5=). Needs the X-OTA-Password header; allowed in flight so a
-// bad build can always be replaced. The vario restarts after a good image.
+// LittleFS image, optional ?md5=). No password: whoever is on the vario's network can send one (the page
+// refuses while flying; the PC uploader is allowed in flight so a bad build can always be replaced). The vario restarts after a good image.
 String otaError;
 bool otaFs = false;
 bool otaOk = false;
-const char* kOtaHeaders[] = {"X-OTA-Password", "X-HIL"};
-
-bool otaPasswordOk() {
-  const String given = server.header("X-OTA-Password");
-  const size_t n = strlen(OTA_PASSWORD);
-  uint8_t diff = given.length() != n;
-  for (size_t i = 0; i < n; ++i) diff |= (uint8_t)((i < given.length() ? given[i] : 0) ^ OTA_PASSWORD[i]);
-  return n > 0 && diff == 0;
-}
+const char* kOtaHeaders[] = {"X-HIL"};
 
 void otaFail(const String& msg) {
   if (otaError.isEmpty()) otaError = msg;
@@ -889,11 +877,6 @@ void handleOtaUpload() {
     otaError = "";
     otaOk = false;
     otaFs = server.arg("target") == "fs";
-    if (!otaPasswordOk()) {
-      otaError = "wrong password";
-      LOGW("OTA", "Update rejected: wrong password");
-      return;
-    }
     LOGI("OTA", "%s update from '%s'", otaFs ? "File system" : "Firmware", up.filename.c_str());
     if (!Update.begin(UPDATE_SIZE_UNKNOWN, otaFs ? U_SPIFFS : U_FLASH)) {
       otaFail(Update.errorString());
@@ -926,7 +909,7 @@ void handleOtaDone() {
   if (!ok) {
     if (otaError.isEmpty()) otaError = "no image received";
     LOGE("OTA", "Update failed: %s", otaError.c_str());
-    sendError(otaError == "wrong password" ? 401 : 500, otaError.c_str());
+    sendError(500, otaError.c_str());
     otaError = "";
     return;
   }
@@ -1063,7 +1046,7 @@ void begin() {
   route("/api/log", HTTP_DELETE, handleLogDelete);
   server.on("/api/ota", HTTP_POST, handleOtaDone, handleOtaUpload);
   server.addHandler(new RedirectToUi());
-  server.collectHeaders(kOtaHeaders, 2);
+  server.collectHeaders(kOtaHeaders, 1);
   server.begin();
   LOGI("WEB", "Wi-Fi AP '%s' at %s", settings::apSsid(), WiFi.softAPIP().toString().c_str());
 }

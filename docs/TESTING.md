@@ -147,7 +147,8 @@ A failure prints the vario's state, the simulator state and the last log lines.
 | `variant_no_gps` | vario with no GPS: ready, takeoff, height, landing, no GPS calls or log, page and settings trimmed |
 | `variant_no_mic` | vario without a microphone: set volume used, battery still read, page and settings trimmed |
 | `ui_flight` | banner and every tile on the flight tab |
-| `ui_settings` (firmware box) | the firmware update box is in Firmware Update on the hidden /advanced page (not on Logs & system); that page holds Bluetooth, Battery, Firmware Update, GPS and Engine RPM and nothing links to it, shows the installed version, refuses without a file, password masked |
+| `ui_settings` (hidden page) | the hidden /advanced page holds Bluetooth, Battery, Firmware Update (the maintenance Wi-Fi settings), GPS and Engine RPM and nothing links to it; there is no firmware upload box on any page |
+| `ui_settings` (Check for updates) | a newer release gives a box with both versions, a notes link and Install update (it fetches `firmware/paravario-<tag>-firmware.bin`; an image the vario refuses gives a message and the vario keeps running); the same or an older release says no update; no answer from GitHub gives no box |
 | `ui_settings` (export and import) | on the hidden /advanced page: Export gives readable settings JSON with the areas and without the unit names; Import applies settings (out-of-range and wrongly typed values handled), a file with areas replaces the vario's areas (none of the old remain), without areas leaves them, an unusable or over-sized list and a bad file change nothing, an empty list removes them, an edited export comes back as written |
 | `ui_actions` | on the ground: only Status [.] (no Mute button) and the Landing zone settings button (Use current position: refused without a fix, accepted with one); the page has no Set LZ manually / LZ = takeoff buttons |
 | `ui_guidance` | flying display, emergency/approach banners, log list and delete |
@@ -155,7 +156,7 @@ A failure prints the vario's state, the simulator state and the last log lines.
 | `ui_spectrum` | spectrum graph, tone marker, pause (skipped on a build made with `-DPV_HAS_SPECTRUM=0`) |
 | `ui_help` | Help tab and the Help links on the settings groups: the right guide for the hardware, links that stay in the docs folder and point at sections that exist |
 | `ui_system` | tabs, logging viewer, firmware box, version line |
-| `ota_guard` | firmware upload refused without the right password |
+| `ota_guard` | a firmware upload needs no password; an image that is not firmware is refused (HTTP 500) and the vario keeps running |
 | `memory` | free memory not run down, and never dangerously low |
 
 **Simulator limits.** None of this verifies hardware behaviour. In particular the barometer checks are exercised on a

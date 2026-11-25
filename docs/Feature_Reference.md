@@ -412,11 +412,11 @@ Open the Logging section and the vario's own messages scroll past. *Pause* freez
 **Screen events ("UI" lines).** Every time something on the Flight tab appears, disappears or changes state, the vario writes one Info line starting `UI`, with the numbers that caused it: the compass arrow, landing zone arrow and windsock appearing or hiding (a direction of travel exists when there is a fix and the ground speed is at least 1.5 m/s), the GPS tile class, the ready banner, flying and grounded (Actions card, height trace), mute, and the alert strip (barometer, no GPS fix, battery). They use the same tests as the page, on the same values. More than 30 in a minute are summarised ("N more were not logged") so a flickering tile cannot fill the log. Use them to find out why a tile came or went.
 
 ### Check for updates
-Tells you whether a newer version of the vario's program has been published.
+Tells you whether a newer version of the vario's program has been published, and installs it.
 
-On the Logs & system tab, under *System*, tap *Check for updates*. While your phone is connected to the vario via Wi-Fi, this action will use your mobile data to check for the latest firmware. A box shows the version installed, the latest release and, when there is a newer one, a link to its release notes and the option to update.
+On the Logs & system tab, under *System*, tap *Check for updates*. While your phone is connected to the vario via Wi-Fi, this action will use your mobile data to check for the latest firmware. A box shows the version installed, the latest release and, when there is a newer one, a link to its release notes and an *Install update* button. If the vario has the latest release, or something newer than it, the box says so. If the phone cannot reach GitHub you see *Could not check*.
 
-The button only checks: it does not install anything. A new version is installed from a computer (see Maintenance in the user guide).
+*Install update* downloads the new version to your phone (mobile data again), sends it to the vario and restarts it. Keep the page open until it says *Installed*, then rejoin the vario's Wi-Fi if your phone drops it. If something goes wrong the old version keeps running. It is not possible while flying, and no password is needed. Versions can also be installed from a computer (see Maintenance in the user guide).
 
 ### Restart / Factory defaults
 Restart the vario, or put every setting back to its starting value.

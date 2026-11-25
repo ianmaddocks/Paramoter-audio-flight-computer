@@ -101,9 +101,7 @@ button.on{outline:2px solid var(--acc)}
 #dbglog{margin:0 12px 6px;max-height:55vh;overflow:auto;font:11px/1.35 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-all;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:8px}
 #dbglog .E{color:var(--bad)}#dbglog .W{color:var(--warn)}#dbglog .D{color:var(--mut)}
 .prog{height:8px;background:var(--bg);border:1px solid var(--bd);border-radius:4px;overflow:hidden;margin:10px 0 6px}
-#fwbar{height:100%;width:0;background:var(--acc);transition:width .2s}
-#fwfile,#fwpass{width:100%;font:inherit;margin-bottom:8px}#fwgo{width:100%}
-#fwpass{padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--fg)}
+#updBar{height:100%;width:0;background:var(--acc);transition:width .2s}
 )HTML"
 #if PV_HAS_SPECTRUM
 R"HTML(#specCv{width:100%;height:280px;display:block}
@@ -265,15 +263,6 @@ R"HTML(
 <button type="button" id="updCheck">Check for updates</button>
 </div><p class="mut" id="sys"></p></section>
 </div>
-<!-- The firmware update box lives in Settings / Advanced / Firmware Update: the settings list is rebuilt now and then, so
-     the box waits here and is put into the group each time (see render). -->
-<div id="fwholder" hidden><div id="fwcard">
-<p class="mut" id="fwver"></p>
-<input type="file" id="fwfile" accept=".bin">
-<input type="password" id="fwpass" placeholder="Update password" autocomplete="off">
-<button class="pri" id="fwgo">Install update</button>
-<div class="prog"><div id="fwbar"></div></div><p class="mut" id="fwmsg">Choose firmware.bin (program) or littlefs.bin (voice clips &ndash; erases flight logs) and enter the update password.</p>
-</div></div>
 <div id="helpPage" class="page" role="tabpanel" hidden>
 <section class="card" id="helpList"><h2>Help and guides</h2>
 <div id="helpBody"></div></section>
@@ -284,7 +273,8 @@ R"HTML(
 <footer id="hver"></footer>
 <div id="updModal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="updTitle"><div class="mbox">
 <h2 id="updTitle"></h2><p id="updCur"></p><p id="updNew"></p><p id="updNote"></p>
-<div class="btns"><button type="button" class="pri" id="updClose">Close</button></div></div></div>
+<div class="prog" id="updProg" hidden><div id="updBar"></div></div>
+<div class="btns"><button type="button" class="pri" id="updGo" hidden>Install update</button><button type="button" id="updClose">Close</button></div></div></div>
 <div id="toast"></div>
 <script>
 // The vario's web server answers one request at a time, every request is a new connection, and the connections' buffers
@@ -610,7 +600,6 @@ function renderStatus(s,replay){
     if(s.vol){txt('t-vol',s.vol.vario+' %');
       txt('t-vols','speech '+s.vol.speech+' %'+(!replay&&cfg.varioVolume!=null&&cfg.varioVolume!==s.vol.vario?' · set '+cfg.varioVolume+' %':''))}
     if(!replay){
-    txt('fwver','Installed: '+(s.version||'unknown')+(s.debug?' (debug build)':' (release build)'));
     txt('hver',(s.version||'unknown')+(s.debug?' debug':''));
     txt('sys','Uptime '+fT(s.uptime)+' · heap '+Math.round(s.heap/1024)+' kB · Bluetooth clients '+s.ble+' · baro '+(s.baro.ok?(s.baro.pressure/100).toFixed(1)+' hPa':'missing'));
     wifiInfo=s.wifi;showWifi();
@@ -670,14 +659,12 @@ const ADV=/^\/advanced\/?$/.test(location.pathname);
 const HIDDEN_GROUPS=['Bluetooth','Battery','Firmware Update','GPS','Engine RPM'];
 const ADV_GROUPS=['Areas','Emergency','Glide','Landing approach','Landing zone','Logging','Takeoff & landing','Vario tuning','Wi-Fi','Wind'];  // alphabetical
 function render(){
-  $('#fwholder').appendChild($('#fwcard'));  // out of the list before it is cleared
   const root=$('#settings');root.innerHTML='';const groups={};
   for(const f of schema)(groups[f.g]=groups[f.g]||[]).push(f);
   const group=(g,parent,cls)=>{
     const d=document.createElement('details');d.className=cls;d.open=openGroups.has(g);
     d.ontoggle=()=>d.open?openGroups.add(g):openGroups.delete(g);
     const s=document.createElement('summary');s.textContent=g;d.appendChild(s);
-    if(g==='Firmware Update')d.appendChild($('#fwcard'));
     if(g==='Wi-Fi')d.insertAdjacentHTML('beforeend','<div class="row"><span>Status</span><b id="w-ap">–</b></div>');
     // The maintenance connection (for the maker and testers) is a sub-section that exists only while its switch is on.
     const MAINT=['serverSsid','serverPass','serverGiveUpS'];
@@ -868,7 +855,8 @@ R"HTML(
 document.querySelectorAll('button[data-tab]').forEach(b=>b.onclick=()=>{if(ADV)location.href='/#'+b.dataset.tab;else selectTab(b.dataset.tab)});
 
 const relNum=t=>{const m=/^v?(\d+)\.(\d+)/.exec(t||'');return m?[+m[1],+m[2]]:null};
-function updClose(){$('#updModal').hidden=true}
+let updRel=null,updBusy=false;
+function updClose(){if(!updBusy)$('#updModal').hidden=true}
 function updShow(cur,rel,newer,ahead){
   $('#updTitle').textContent=newer?'Update available':'No update needed';
   $('#updCur').textContent='Installed: '+cur;
@@ -877,6 +865,7 @@ function updShow(cur,rel,newer,ahead){
   if(!newer){n.textContent=ahead?'This version is newer than the latest release.':'This vario has the latest release.'}
   else if(/^https:\/\/github\.com\//.test(rel.html_url||'')){
     const a=document.createElement('a');a.href=rel.html_url;a.target='_blank';a.rel='noopener';a.textContent='Release notes for '+rel.tag_name;n.appendChild(a)}
+  updRel=newer?rel:null;$('#updGo').hidden=!newer;$('#updGo').disabled=false;$('#updProg').hidden=true;
   $('#updModal').hidden=false;$('#updClose').focus();
 }
 async function checkUpdate(){
@@ -891,6 +880,31 @@ async function checkUpdate(){
   }catch(e){toast('Could not check: turn mobile data on and try again')}
   b.disabled=false;
 }
+function updMsg(p,m){$('#updBar').style.width=Math.round(p*100)+'%';$('#updProg').hidden=false;$('#updNote').textContent=m}
+async function updInstall(){
+  if(updBusy||!updRel)return;
+  updBusy=true;$('#updGo').disabled=true;$('#updClose').disabled=true;
+  const fail=m=>{updBusy=false;$('#updGo').disabled=false;$('#updClose').disabled=false;updMsg(0,m)};
+  try{
+    const st=await fetch('/api/status',{cache:'no-store'}).then(r=>r.json());
+    if(st.flying)return fail('Not while flying.');
+    updMsg(0,'Downloading '+updRel.tag_name+'…');
+    const r=await fetch('https://raw.githubusercontent.com/'+REPO+'/main/firmware/paravario-'+updRel.tag_name+'-firmware.bin',{cache:'no-store'});
+    if(!r.ok)return fail('Could not download '+updRel.tag_name);
+    const want=+r.headers.get('content-length')||0,rd=r.body.getReader(),parts=[];let got=0;
+    for(;;){const c=await rd.read();if(c.done)break;parts.push(c.value);got+=c.value.length;if(want)updMsg(got/want/2,'Downloading '+Math.round(got/want*100)+'%')}
+    if(got<100000||(want&&!r.headers.get('content-encoding')&&got!==want))return fail('Download incomplete');
+    const fd=new FormData();fd.append('file',new Blob(parts),'firmware.bin');
+    const x=new XMLHttpRequest();x.open('POST','/api/ota');
+    x.upload.onprogress=e=>{if(e.lengthComputable)updMsg(.5+e.loaded/e.total/2,'Installing '+Math.round(e.loaded/e.total*100)+'%')};
+    x.onload=()=>{let j={};try{j=JSON.parse(x.responseText)}catch(e){}
+      if(x.status!=200)return fail('Update failed: '+(j.error||'HTTP '+x.status));
+      updMsg(1,'Installed. Restarting – rejoin the ParaVario Wi-Fi if your phone drops it.');setTimeout(()=>location.reload(),10000)};
+    x.onerror=()=>fail('Update failed: connection lost');
+    x.send(fd);
+  }catch(e){fail('Download failed: turn mobile data on and try again')}
+}
+$('#updGo').onclick=updInstall;
 $('#updCheck').onclick=checkUpdate;$('#updClose').onclick=updClose;
 $('#updModal').onclick=e=>{if(e.target.id==='updModal')updClose()};
 document.addEventListener('keydown',e=>{if(e.key==='Escape')updClose()});
@@ -1090,23 +1104,6 @@ $('#dbgclear').onclick=()=>{$('#dbglog').innerHTML='';dbgText=[]};
 $('#dbgsave').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([dbgText.join('\n')+'\n'],{type:'text/plain'}));
   a.download='paravario-debug-'+new Date().toISOString().replace(/[:.]/g,'-')+'.txt';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
 $('#dbg').ontoggle=()=>{if($('#dbg').open)pollDbg()};
-let fwBusy=false;
-function setFw(p,m){$('#fwbar').style.width=Math.round(p*100)+'%';txt('fwmsg',m)}
-$('#fwgo').onclick=()=>{
-  const f=$('#fwfile').files[0];if(!f)return toast('Choose a .bin file first');
-  const pw=$('#fwpass').value;if(!pw)return toast('Enter the update password');
-  const fs=/littlefs|spiffs/i.test(f.name);
-  if(!confirm((fs?'Replace the voice clips with '+f.name+'? This erases the flight logs.':'Install firmware '+f.name+'?')+' The vario restarts afterwards.'))return;
-  const fd=new FormData();fd.append('file',f,f.name);
-  const x=new XMLHttpRequest();x.open('POST','/api/ota'+(fs?'?target=fs':''));x.setRequestHeader('X-OTA-Password',pw);
-  const done=m=>{fwBusy=false;$('#fwgo').disabled=false;setFw(0,m)};
-  x.upload.onprogress=e=>{if(e.lengthComputable)setFw(e.loaded/e.total,'Uploading '+Math.round(e.loaded/e.total*100)+'%')};
-  x.onload=()=>{let j={};try{j=JSON.parse(x.responseText)}catch(e){}
-    if(x.status!=200)return done('Update failed: '+(j.error||'HTTP '+x.status));
-    setFw(1,'Installed. Restarting – rejoin the ParaVario Wi-Fi if your phone drops it.');setTimeout(()=>location.reload(),10000)};
-  x.onerror=()=>done('Update failed: connection lost');
-  fwBusy=true;$('#fwgo').disabled=true;setFw(0,'Uploading 0%');x.send(fd);
-};
 // ---- Map tab: the areas are drawn on a map (Leaflet, loaded from the internet when this tab is first opened) ----
 let aAreas=[],aDraft=null,aIdx=-1,aMap=null,aLayer=null,aMe=null,aTried=false,aPos=null,aFollow=false,aWasFly=false,aMeKey='';
 const $a=id=>document.getElementById(id);

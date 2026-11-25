@@ -171,8 +171,8 @@ Every setting, with its default, an example and what it does underneath, is in [
 - **Firmware (USB):** `pio run -e release_usb -t upload`. Use `-e debug_usb` for detailed logging.
 - **Firmware (Wi-Fi from VS Code):** connect the PC to the vario's Wi-Fi (or, if you have switched on the *maintenance server connection*, just power the vario on near the PC), then `pio run -e release -t upload` (or `-e debug`). The vario restarts when it is done.
 - **One program for every vario.** The same `firmware.bin` goes on a vario with and without a GPS module.
-- **Voice clips:** edit `tools/vocab.txt` or add your own recordings to `tools/voice_custom/`, run `python tools/make_voice.py` (it writes the one file `data/voice.pak` holding every clip), then `pio run -e release -t uploadfs`. You can also run `pio run -e release -t buildfs` and install `.pio/build/release/littlefs.bin` from the phone page. **This erases the flight logs stored on the vario, so download them first.** Settings are kept.
-- Firmware and voice-clip updates are refused while the vario is flying.
+- **Voice clips:** edit `tools/vocab.txt` or add your own recordings to `tools/voice_custom/`, run `python tools/make_voice.py` (it writes the one file `data/voice.pak` holding every clip), then `pio run -e release -t uploadfs`. **This erases the flight logs stored on the vario, so download them first.** Settings are kept.
+- Uploads from the computer need no password and are allowed in flight, so a bad version can always be replaced. *Install update* on the phone is refused while flying.
 - **Factory defaults:** web page, Logs & system tab, *Factory defaults*.
 
 ## Hardware test

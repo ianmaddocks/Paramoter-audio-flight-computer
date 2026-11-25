@@ -4416,33 +4416,46 @@ def t_ui_pilot(v, a):
             time.sleep(0.5)
         notes.append("no Quick settings card, a setting changed in its group is saved")
 
-        # Check for updates: the phone asks GitHub (answered here by a stand-in); a newer release gives a box with both versions and
-        # a link to its notes, the same or an older one says no update is needed, no answer gives a message and no box
+        # Install update: the box offers it only for a newer release; it fetches the release's file from the repository, and an
+        # image the vario refuses (here, zeros) gives a message and leaves the vario running
         p.tab("system")
         st_rel = v.get_json("/api/status")["release"]
         major, minor = [int(x) for x in re.match(r"v?(\d+)\.(\d+)", st_rel).groups()]
+        newer_tag = "v%d.%d" % (major, minor + 1)
 
         def check(tag, ok=True):
-            p.js("window.__f=window.__f||window.fetch;window.fetch=(u,o)=>String(u).includes('api.github.com')?(" + ("Promise.resolve({ok:true,json:()=>Promise.resolve({tag_name:" + json.dumps(tag) + ",html_url:'https://github.com/x/y/releases/tag/" + tag + "'})})" if ok else "Promise.reject(new Error('offline'))") + "):window.__f(u,o);document.getElementById('updModal').hidden=true;checkUpdate();1")
+            ans = ("Promise.resolve({ok:true,json:()=>Promise.resolve({tag_name:" + json.dumps(tag) + ",html_url:'https://github.com/x/y/releases/tag/" + tag + "'})})"
+                   if ok else "Promise.reject(new Error('offline'))")
+            p.js("window.__f=window.__f||window.fetch;window.__raw='';window.fetch=(u,o)=>String(u).includes('api.github.com')?(" + ans + "):"
+                 "String(u).includes('raw.githubusercontent.com')?(window.__raw=String(u),Promise.resolve(new Response(new Uint8Array(600000)))):window.__f(u,o);"
+                 "document.getElementById('updModal').hidden=true;checkUpdate();1")
             time.sleep(1.2)
             return p.js("({open:!document.getElementById('updModal').hidden,title:document.getElementById('updTitle').textContent,"
                         "cur:document.getElementById('updCur').textContent,nw:document.getElementById('updNew').textContent,"
-                        "a:(document.querySelector('#updNote a')||{}).href||''})")
+                        "a:(document.querySelector('#updNote a')||{}).href||'',go:!document.getElementById('updGo').hidden,"
+                        "note:document.getElementById('updNote').textContent})")
         try:
-            r = check("v%d.%d" % (major, minor + 1))
-            if not (r["open"] and r["title"] == "Update available" and r["nw"] == "Latest release: v%d.%d" % (major, minor + 1)
-                    and r["cur"].startswith("Installed: ") and r["a"].endswith("/releases/tag/v%d.%d" % (major, minor + 1))):
+            r = check(newer_tag)
+            if not (r["open"] and r["title"] == "Update available" and r["nw"] == "Latest release: " + newer_tag
+                    and r["cur"].startswith("Installed: ") and r["a"].endswith("/releases/tag/" + newer_tag) and r["go"]):
                 raise Fail(f"web page: update box for a newer release: {r}")
+            p.js("updInstall();1")
+            p.wait("/^Update failed/.test(document.getElementById('updNote').textContent)", 40, "a refused image gives a message")
+            raw = p.js("window.__raw")
+            if not raw.endswith("/firmware/paravario-%s-firmware.bin" % newer_tag):
+                raise Fail(f"web page: the firmware was asked for at {raw}")
+            if v.status()["uptime"] < 5:
+                raise Fail("vario restarted after a refused image")
             r = check(st_rel)
-            if not (r["open"] and r["title"] == "No update needed" and not r["a"]):
+            if not (r["open"] and r["title"] == "No update needed" and not r["a"] and not r["go"]):
                 raise Fail(f"web page: update box for the same release: {r}")
             r = check("v0.1")
-            if not (r["open"] and r["title"] == "No update needed" and "newer than the latest" in p.js("document.getElementById('updNote').textContent")):
+            if not (r["open"] and r["title"] == "No update needed" and not r["go"] and "newer than the latest" in r["note"]):
                 raise Fail(f"web page: update box for an older release: {r}")
             r = check("v9.9", ok=False)
             if r["open"]:
                 raise Fail("web page: an update box shown with no answer from GitHub")
-            notes.append("Check for updates: newer release shows both versions and a notes link, same or older says no update, no answer gives no box")
+            notes.append("Check for updates: a newer release offers Install update (a refused image gives a message), same or older says no update, no answer gives no box")
         finally:
             p.js("if(window.__f)window.fetch=window.__f;1")
 
@@ -4723,16 +4736,6 @@ def t_ui_settings(v, a):
         near(pa.js("document.querySelectorAll('#settings details label.row').length"), len([f for f in schema if f["g"] in hidden_order]), 0,
              "number of settings on /advanced")
         pa.wait("tInput('bleName').value===" + json.dumps(v.settings()["bleName"]), 6, "bleName box shows the stored value")
-        # The firmware update box is in Firmware Update there (not on the Logs & system tab), version shown, guarded
-        where = pa.js("(e=>e?[...e.closest('details').querySelector('summary').childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join(''):null)(document.getElementById('fwcard'))")
-        if where != "Firmware Update":
-            raise Fail(f"web page: the firmware update box is in {where!r}, expected Firmware Update on /advanced")
-        st0 = v.status()
-        pa.wait_text("fwver", rf"^Installed: {re.escape(st0['version'])} \(debug build\)$", 5)
-        pa.click("#fwgo")
-        pa.wait_text("toast", r"^Choose a \.bin file first$", 3, "Install refused without a file")
-        if pa.js("document.getElementById('fwpass').type") != "password":
-            raise Fail("web page: update password box is not masked")
         pa.wait_text("w-server", r"\S")
         # export and import of the settings as a readable file
         if not pa.js("!!document.getElementById('setExport') && !!document.getElementById('setImport')"):
@@ -4987,36 +4990,31 @@ def t_ui_system(v, a):
 
 
 def t_ota_guard(v, a):
-    """Firmware upload is refused without the right password (nothing is written)."""
+    """A firmware upload needs no password; an image that is not firmware is refused and nothing is written."""
     boundary = "paravariotest"
     body = (f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"firmware.bin\"\r\n"
             "Content-Type: application/octet-stream\r\n\r\n").encode() + b"\xe9not a real image" + \
         f"\r\n--{boundary}--\r\n".encode()
-    out = []
-    for password in ("definitely-wrong", None):
-        m = v.mark()
-        req = urllib.request.Request(v.base + "/api/ota", data=body, method="POST")
-        req.add_header("Content-Type", "multipart/form-data; boundary=" + boundary)
-        if password:
-            req.add_header("X-OTA-Password", password)
-        try:
-            with urllib.request.urlopen(req, timeout=15) as r:
-                raise Fail(f"upload with {'a wrong' if password else 'no'} password was accepted (HTTP {r.status})")
-        except urllib.error.HTTPError as e:
-            reply = e.read().decode("utf-8", "replace")
-            if e.code != 401 or "wrong password" not in reply:
-                raise Fail(f"expected HTTP 401 'wrong password', got {e.code} {reply[:60]}")
-        except Fail:
-            raise
-        except Exception as e:
-            raise Fail(f"upload request failed: {e}")
-        v.expect("OTA", r"Update rejected: wrong password", m, timeout=4)
-        out.append("wrong" if password else "missing")
+    m = v.mark()
+    req = urllib.request.Request(v.base + "/api/ota", data=body, method="POST")
+    req.add_header("Content-Type", "multipart/form-data; boundary=" + boundary)
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            raise Fail(f"an image that is not firmware was accepted (HTTP {r.status})")
+    except urllib.error.HTTPError as e:
+        reply = e.read().decode("utf-8", "replace")
+        if e.code != 500 or "password" in reply:
+            raise Fail(f"expected HTTP 500 for a bad image with no word of a password, got {e.code} {reply[:60]}")
+    except Fail:
+        raise
+    except Exception as e:
+        raise Fail(f"upload request failed: {e}")
+    v.expect("OTA", r"Update failed", m, timeout=4)
     time.sleep(1.5)
     st = v.status()  # still running, not restarting
     if st["uptime"] < 5:
         raise Fail("vario restarted after a refused upload")
-    return "refused with a " + " and a ".join(out) + " password; vario kept running"
+    return "no password asked; a bad image refused (HTTP 500); vario kept running"
 
 
 def t_memory(v, a):

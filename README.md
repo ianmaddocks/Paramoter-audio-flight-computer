@@ -62,8 +62,7 @@ The pin assignments are in [src/Pins.h](src/Pins.h).
 ## Getting started
 
 1. Install [VS Code](https://code.visualstudio.com/) with the PlatformIO extension, and clone this repository.
-2. **Set your own update password**: change `custom_ota_password` in [platformio.ini](platformio.ini). It is
-   asked for whenever new firmware is sent to the vario over Wi-Fi, so do not leave the shared one.
+2. **Keep the vario's Wi-Fi password private**: new firmware needs no password, so anyone on the vario's Wi-Fi can send it.
 3. **First install, over the USB cable:** `pio run -e release_usb -t upload`, for a vario with or without a
    GPS module. Then install the voice clips (the one file `data/voice.pak`): `pio run -e release_usb -t uploadfs`.
 4. **Join the vario's Wi-Fi** (named `ParaVario-` followed by four characters unique to your unit; the
@@ -284,3 +283,7 @@ blocks, quotes, links, bold, italics and `<a id>` anchors). The address is
 mapped to its section in `docs/Feature_Reference.md` by `GROUP_HELP` in `WebPage.h`; the section
 anchors in that document are `<a id="...">` tags, and the test `ui_help` checks that every link
 points at an anchor that exists, so renaming a section there needs the map updated too.
+
+## Publishing a release
+
+The phone's **Check for updates** reads the latest GitHub release and installs `firmware/paravario-<tag>-firmware.bin` from the `main` branch. For each release: tag the commit (`vN.N`), build the `release` environment, copy `.pio/build/release/firmware.bin` to `firmware/paravario-<tag>-firmware.bin`, commit and push it, then publish the GitHub release with the notes (and the same file as an asset).
