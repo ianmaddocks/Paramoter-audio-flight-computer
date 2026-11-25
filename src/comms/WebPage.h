@@ -261,8 +261,10 @@ R"HTML(
 <button data-a="reset_flight">Reset flight state</button>
 <button data-a="defaults" class="dng">Factory defaults</button>
 <button type="button" id="updCheck">Check for updates</button>
-</div><p class="mut" id="sys"></p></section>
-<section class="card" id="settingsFile"><h2>Backup and restore</h2><p class="mut">Export saves every setting and the areas to a file you can read and edit (JSON, distances in metres and speeds in metres per second). Import reads such a file back; values outside their limits are brought into range, and the areas in the file replace the ones on the vario (a file without areas leaves them alone). The file holds passwords, so keep it private. This vario's Wi-Fi and Bluetooth names are left out of both.</p><div class="btns"><button type="button" id="setExport">Export settings</button><button type="button" id="setImport">Import settings</button></div><input type="file" id="setFile" accept=".json,application/json" hidden></section>
+<button type="button" id="setExport">Export settings</button>
+<button type="button" id="setImport">Import settings</button>
+</div><input type="file" id="setFile" accept=".json,application/json" hidden><p class="mut" id="sys"></p></section>
+
 </div>
 <div id="helpPage" class="page" role="tabpanel" hidden>
 <section class="card" id="helpList"><h2>Help and guides</h2>
@@ -726,7 +728,7 @@ async function loadSettings(){
   schemaKey=st&&st.hw?st.hw.gps+'/'+st.hw.mic:'';
   render();
 }
-// Export and import of the settings as a readable JSON file (Backup and restore on the Logs & system tab). The names of
+// Export and import of the settings as a readable JSON file (Export and Import settings in the System section of the Logs & system tab). The names of
 // this unit are not carried over: they hold its own unit code.
 const FILE_SKIP=['bleName','wifiSsid'];
 async function settingsExport(){

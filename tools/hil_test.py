@@ -4746,15 +4746,16 @@ def t_ui_settings(v, a):
              "number of settings on /advanced")
         pa.wait("tInput('bleName').value===" + json.dumps(v.settings()["bleName"]), 6, "bleName box shows the stored value")
         pa.wait_text("w-server", r"\S")
-        # export and import of the settings as a readable file (Backup and restore, Logs & system tab)
-        # (Backup and restore is on the Logs & system tab of the main page, not on /advanced)
+        # export and import of the settings as a readable file (the System section of the Logs & system tab)
+        # (the buttons are on the Logs & system tab of the main page, not on /advanced)
         if pa.js("!!document.getElementById('setExport') || !!document.getElementById('setImport')"):
             raise Fail("web page: export / import buttons are still on /advanced")
         p.tab("system")
         if not p.js("!!document.querySelector('#systemPage #setExport') && !!document.querySelector('#systemPage #setImport')"):
             raise Fail("web page: no export / import buttons on the Logs & system tab")
-        if "Backup and restore" not in p.js("document.querySelector('#systemPage #settingsFile h2').textContent"):
-            raise Fail("web page: the export / import card is not called Backup and restore")
+        if not p.js("!!document.querySelector('#systemPage .card #setExport') && document.querySelector('#setExport').closest('.card').querySelector('h2').textContent==='System' "
+                    "&& document.querySelector('#setImport').closest('.card')===document.querySelector('#setExport').closest('.card')"):
+            raise Fail("web page: Export / Import settings are not in the System section")
         exp = len([k for k in v.settings() if k not in ("bleName", "wifiSsid")])
         p.js("window.__text=null;window.Blob=class{constructor(p){window.__text=p.join('')}};URL.createObjectURL=()=>'blob:x';"
               "HTMLAnchorElement.prototype.click=function(){};1")
