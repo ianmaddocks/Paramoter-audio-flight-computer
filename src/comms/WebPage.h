@@ -1265,41 +1265,50 @@ function areaPoints(){
   el.scrollTop=aDraft.length>aPtsN?el.scrollHeight:top;aPtsN=aDraft.length;
 }
 // The warning distance as a dotted line: that many metres outside a restricted area's edge (the track is warned before it would
-// cross), inside a safe area's edge. Worked out flat in metres around the middle of the shape. Gives null when it cannot be drawn
-// properly (a narrow or sharply bent area where the line would fold over itself): better no line than a wrong one.
+// cross), inside a safe area's edge. Found by measuring the distance to the shape over a grid and tracing the line where it equals
+// the warning distance, so jagged or narrow shapes come out right (a line may split in two, or vanish where the area is narrower than
+// the distance). Flat, in metres around the middle of the shape. Returns a list of lines, each a list of [lat, lon].
+const aOffCache=new Map();
 function areaOffset(pts,d){
-  const n=pts.length;if(n<3||!(d>0||d<0))return null;
+  const n=pts.length;if(n<3||!(d>0||d<0))return[];
+  const key=pts.join(';')+'|'+d,hit=aOffCache.get(key);if(hit)return hit;
   let la=0,lo=0;pts.forEach(p=>{la+=p[0];lo+=p[1]});la/=n;lo/=n;
   const kx=111320*Math.cos(la*Math.PI/180),ky=110540,P=pts.map(p=>[(p[1]-lo)*kx,(p[0]-la)*ky]);
-  const ar=V=>{let a=0;for(let i=0;i<V.length;i++){const p=V[i],q=V[(i+1)%V.length];a+=p[0]*q[1]-q[0]*p[1]}return a};
-  const A=ar(P);if(Math.abs(A)<1)return null;
-  const s=A>0?1:-1;  // +1: corners go counter-clockwise
-  const ed=i=>{const a=P[i],b=P[(i+1)%n],dx=b[0]-a[0],dy=b[1]-a[1],l=Math.hypot(dx,dy)||1;return [s*dy/l,-s*dx/l,dx/l,dy/l]};  // outward normal, direction
-  const Q=[];
-  for(let i=0;i<n;i++){
-    const e1=ed((i+n-1)%n),e2=ed(i),c=e1[2]*e2[3]-e1[3]*e2[2];
-    let x,y;
-    if(Math.abs(c)<1e-6){x=P[i][0]+d*e1[0];y=P[i][1]+d*e1[1]}
-    else{const t=(d*(e2[0]-e1[0])*e2[3]-d*(e2[1]-e1[1])*e2[2])/c;x=P[i][0]+d*e1[0]+t*e1[2];y=P[i][1]+d*e1[1]+t*e1[3]}
-    const dx=x-P[i][0],dy=y-P[i][1],l=Math.hypot(dx,dy),m=3*Math.abs(d);  // a very sharp corner: cut the point short
-    if(l>m){x=P[i][0]+dx*m/l;y=P[i][1]+dy*m/l}
-    Q.push([x,y]);
+  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;P.forEach(p=>{x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1])});
+  const m=(d>0?d:0)+Math.max(x1-x0,y1-y0)*.05+10,N=140,h=Math.max(x1-x0,y1-y0)/N+2*m/N;  // grid cell size
+  x0-=m;y0-=m;
+  const W=Math.ceil((x1-x0+m)/h)+1,H=Math.ceil((y1-y0+m)/h)+1,lev=d;  // lev: the signed distance to trace (+ outside, - inside)
+  const sd=(x,y)=>{let best=1e18,c=false;
+    for(let i=0,j=n-1;i<n;j=i++){const a=P[j],b=P[i],ex=b[0]-a[0],ey=b[1]-a[1],l2=ex*ex+ey*ey;
+      let t=l2?((x-a[0])*ex+(y-a[1])*ey)/l2:0;t=t<0?0:t>1?1:t;
+      const dx=x-(a[0]+t*ex),dy=y-(a[1]+t*ey),q=dx*dx+dy*dy;if(q<best)best=q;
+      if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])c=!c}
+    return(c?-1:1)*Math.sqrt(best)-lev};
+  const F=[];for(let j=0;j<H;j++){const r=[];for(let i=0;i<W;i++)r.push(sd(x0+i*h,y0+j*h));F.push(r)}
+  const pt=new Map(),nb=new Map();
+  const at=(k,xa,ya,fa,xb,yb,fb)=>{if(!pt.has(k)){const t=fa/(fa-fb);pt.set(k,[xa+(xb-xa)*t,ya+(yb-ya)*t])}return k};
+  const link=(a,b)=>{(nb.get(a)||nb.set(a,[]).get(a)).push(b);(nb.get(b)||nb.set(b,[]).get(b)).push(a)};
+  const T=[[],[3,0],[0,1],[3,1],[1,2],[3,0,1,2],[0,2],[3,2],[2,3],[2,0],[0,1,2,3],[2,1],[1,3],[1,0],[0,3],[]];
+  for(let j=0;j<H-1;j++)for(let i=0;i<W-1;i++){
+    const f0=F[j][i],f1=F[j][i+1],f2=F[j+1][i+1],f3=F[j+1][i],c=(f0<0)|(f1<0)<<1|(f2<0)<<2|(f3<0)<<3,t=T[c];
+    if(!t.length)continue;
+    const X=x0+i*h,Y=y0+j*h,e=[()=>at('h'+i+','+j,X,Y,f0,X+h,Y,f1),()=>at('v'+(i+1)+','+j,X+h,Y,f1,X+h,Y+h,f2),
+      ()=>at('h'+i+','+(j+1),X,Y+h,f3,X+h,Y+h,f2),()=>at('v'+i+','+j,X,Y,f0,X,Y+h,f3)];
+    for(let k=0;k<t.length;k+=2)link(e[t[k]](),e[t[k+1]]());
   }
-  // an edge that has run past its neighbours (the shape is narrower than the distance) points the other way round: no line
-  for(let i=0;i<n;i++){const j=(i+1)%n;if((Q[j][0]-Q[i][0])*(P[j][0]-P[i][0])+(Q[j][1]-Q[i][1])*(P[j][1]-P[i][1])<=0)return null}
-  const AQ=ar(Q);
-  if(AQ*A<=0||(d<0&&Math.abs(AQ)>=Math.abs(A))||(d>0&&Math.abs(AQ)<=Math.abs(A)))return null;
-  const cr=(a,b,c)=>(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
-  for(let i=0;i<n;i++)for(let j=i+2;j<n;j++){if(i===0&&j===n-1)continue;
-    const a=Q[i],b=Q[(i+1)%n],c=Q[j],e=Q[(j+1)%n];
-    if(cr(a,b,c)*cr(a,b,e)<0&&cr(c,e,a)*cr(c,e,b)<0)return null}
-  if(d<0)for(const q of Q){let in_=false;for(let i=0,j=n-1;i<n;j=i++)if((P[i][1]>q[1])!==(P[j][1]>q[1])&&q[0]<(P[j][0]-P[i][0])*(q[1]-P[i][1])/(P[j][1]-P[i][1])+P[i][0])in_=!in_;if(!in_)return null}
-  return Q.map(q=>[la+q[1]/ky,lo+q[0]/kx]);
+  const seen=new Set(),out=[],ll=q=>[la+q[1]/ky,lo+q[0]/kx];
+  const walk=k0=>{const line=[k0];seen.add(k0);let k=k0;
+    for(;;){const nx=(nb.get(k)||[]).find(q=>!seen.has(q));if(nx===undefined)break;seen.add(nx);line.push(nx);k=nx}
+    if(line.length>1&&(nb.get(k)||[]).includes(k0))line.push(k0);  // a closed loop
+    if(line.length>1)out.push(line.map(q=>ll(pt.get(q))))};
+  nb.forEach((v,k)=>{if(v.length===1&&!seen.has(k))walk(k)});  // open lines first
+  nb.forEach((v,k)=>{if(!seen.has(k))walk(k)});
+  if(aOffCache.size>60)aOffCache.clear();
+  aOffCache.set(key,out);return out;
 }
 function areaWarnLine(pts,restricted,w,col){
   if(!(w>0))return;
-  const o=areaOffset(pts,restricted?w:-w);
-  if(o)L.polygon(o,{color:col,weight:2,dashArray:'2 6',lineCap:'round',fill:false,interactive:false}).addTo(aLayer);
+  areaOffset(pts,restricted?w:-w).forEach(l=>L.polyline(l,{color:col,weight:2,dashArray:'2 6',lineCap:'round',interactive:false}).addTo(aLayer));
 }
 function areaDraw(){
   areaPoints();
