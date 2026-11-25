@@ -869,7 +869,7 @@ $('#specfloor').onchange=drawSpec;
 R"HTML(
 document.querySelectorAll('button[data-tab]').forEach(b=>b.onclick=()=>{if(ADV)location.href='/#'+b.dataset.tab;else selectTab(b.dataset.tab)});
 
-const relNum=t=>{const m=/^v?(\d+)\.(\d+)/.exec(t||'');return m?[+m[1],+m[2]]:null};
+const relNum=t=>{const m=/^v?(\d+)\.(\d+)(?:\.(\d+))?/.exec(t||'');return m?[+m[1],+m[2],+(m[3]||0)]:null};
 let updRel=null,updBusy=false,updLabel='Install update',updAbort=null;
 function updClose(){if(!updBusy)$('#updModal').hidden=true}
 // The box's button: Close, or Cancel while the update is being downloaded.
@@ -901,7 +901,7 @@ async function checkUpdate(){
     if(!r.ok)throw 0;
     const rel=await r.json(),cur=relNum(st.release||st.version),nw=relNum(rel.tag_name);
     if(!nw)throw 0;
-    const d=cur?(nw[0]-cur[0])||(nw[1]-cur[1]):1;updShow(st.version,rel,d>0,d<0,lowBatt(st));
+    const d=cur?(nw[0]-cur[0])||(nw[1]-cur[1])||(nw[2]-cur[2]):1;updShow(st.version,rel,d>0,d<0,lowBatt(st));
   }catch(e){toast('Could not check: turn mobile data on and try again')}
   b.disabled=false;
 }
@@ -941,7 +941,7 @@ async function updInstall(){
       const s2=await updWaitVario(60);
       if(!s2)return fail('Update failed: the vario did not answer again. Check it and try again.');
       const rn=relNum(s2.release||s2.version),restarted=(s2.uptime||0)<up0+(Date.now()-t0)/1000-10;
-      if(restarted&&rn&&want2&&rn[0]===want2[0]&&rn[1]===want2[1])return updDone(true);
+      if(restarted&&rn&&want2&&rn[0]===want2[0]&&rn[1]===want2[1]&&rn[2]===want2[2])return updDone(true);
       if(n<2)updMsg(UPD_DL,'Connection lost – sending again ('+(n+1)+' of 2)…');
     }
     fail('Update failed: connection lost');
