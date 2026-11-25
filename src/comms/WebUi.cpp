@@ -870,8 +870,9 @@ void handleOtaUpload() {
     // The web server library waits for upload data with no time limit, so an upload whose
     // sender has gone (out of range, PC asleep) would block the vario until the connection is
     // noticed dead, by default hours later. Probe the connection so that takes seconds; the
-    // loop watchdog in main.cpp is the backstop.
-    int idleS = 5, intervalS = 2, probes = 3;
+    // loop watchdog in App.cpp (30 s) is the backstop. Dead-link detection takes 8 + 4 x 4 = 24 s: long enough for a weak Wi-Fi
+    // link (the vario at -88 dBm lost whole seconds of traffic and an 11 s limit cut uploads off), and under the watchdog.
+    int idleS = 8, intervalS = 4, probes = 4;
     server.client().setOption(TCP_KEEPIDLE, &idleS);
     server.client().setOption(TCP_KEEPINTVL, &intervalS);
     server.client().setOption(TCP_KEEPCNT, &probes);
