@@ -5014,7 +5014,30 @@ def t_ota_guard(v, a):
     st = v.status()  # still running, not restarting
     if st["uptime"] < 5:
         raise Fail("vario restarted after a refused upload")
-    return "no password asked; a bad image refused (HTTP 500); vario kept running"
+    # An image of under 16 bytes starting with the image marker once made the update library write zeros over the whole
+    # flash (bootloader, settings, file system): it must be refused up front, and the vario must carry on untouched.
+    for tiny in (b"\xe9garbage", b"\xe9", b"\xe9" + bytes(14)):
+        body = (f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"firmware.bin\"\r\n"
+                "Content-Type: application/octet-stream\r\n\r\n").encode() + tiny + f"\r\n--{boundary}--\r\n".encode()
+        m = v.mark()
+        req = urllib.request.Request(v.base + "/api/ota", data=body, method="POST")
+        req.add_header("Content-Type", "multipart/form-data; boundary=" + boundary)
+        try:
+            with urllib.request.urlopen(req, timeout=15) as r:
+                raise Fail(f"a {len(tiny)}-byte image was accepted (HTTP {r.status})")
+        except urllib.error.HTTPError as e:
+            reply = e.read().decode("utf-8", "replace")
+            if e.code != 500 or "too small" not in reply:
+                raise Fail(f"expected HTTP 500 'too small' for a {len(tiny)}-byte image, got {e.code} {reply[:60]}")
+        except Fail:
+            raise
+        except Exception as e:
+            raise Fail(f"a {len(tiny)}-byte upload got no proper reply (the vario may have locked up): {e}")
+        time.sleep(1)
+        st = v.status()
+        if st["uptime"] < 5 or st["version"] != v.status()["version"]:
+            raise Fail(f"vario restarted after a {len(tiny)}-byte upload")
+    return "no password asked; a bad image refused (HTTP 500); images under 16 bytes refused as too small; vario kept running"
 
 
 def t_memory(v, a):

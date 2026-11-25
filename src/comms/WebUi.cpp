@@ -856,6 +856,7 @@ String otaError;
 bool otaFs = false;
 bool otaOk = false;
 const char* kOtaHeaders[] = {"X-HIL"};
+constexpr size_t kOtaMinFirmwareBytes = 100000;
 
 void otaFail(const String& msg) {
   if (otaError.isEmpty()) otaError = msg;
@@ -888,6 +889,10 @@ void handleOtaUpload() {
       otaFail(Update.errorString());
     }
   } else if (up.status == UPLOAD_FILE_END) {
+    // Never hand the library a firmware image of under 16 bytes at its end: it works out the length of its last write
+    // as (bytes held - 16), which wraps to about 4 GB and overwrites the whole flash (bootloader, settings, file system)
+    // with zeros. No real image is anywhere near this small.
+    if (otaError.isEmpty() && !otaFs && up.totalSize < kOtaMinFirmwareBytes) otaFail("image too small to be firmware");
     if (otaError.isEmpty() && !Update.end(true)) otaFail(Update.errorString());
     if (otaError.isEmpty()) {
       otaOk = true;
