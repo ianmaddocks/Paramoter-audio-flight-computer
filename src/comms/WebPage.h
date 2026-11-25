@@ -862,7 +862,12 @@ let updRel=null,updBusy=false,updLabel='Install update',updAbort=null;
 function updClose(){if(!updBusy)$('#updModal').hidden=true}
 // The box's button: Close, or Cancel while the update is being downloaded.
 function updCloseBtn(){if(updBusy){if(updAbort)updAbort.abort()}else updClose()}
-function updShow(cur,rel,newer,ahead){
+// Running on a battery below the level set for updates (USB power shows as under 2.5 V: no battery, no limit).
+// A fixed safety limit, not a setting: a flat battery halfway through a flash write would leave the vario dead.
+const UPD_MIN_BATT=30;
+const lowBatt=s=>!!(s.batt&&s.batt.v>=2.5&&s.batt.pct<UPD_MIN_BATT);
+const lowBattMsg=()=>'Updates require at least '+UPD_MIN_BATT+'% battery level.';
+function updShow(cur,rel,newer,ahead,low){
   $('#updTitle').textContent=newer?'Update available':'No update needed';
   $('#updCur').textContent='Installed: '+cur;
   $('#updNew').textContent='Latest release: '+rel.tag_name;
@@ -872,7 +877,8 @@ function updShow(cur,rel,newer,ahead){
     const a=document.createElement('a');a.href=rel.html_url;a.target='_blank';a.rel='noopener';a.textContent='Release notes for '+rel.tag_name;n.appendChild(a)}
   // The latest release can always be installed: a newer one is an update, the same one a reinstall, an older one a step back.
   updRel=rel;updLabel=newer?'Install update':ahead?'Install '+rel.tag_name+' (older)':'Reinstall '+rel.tag_name;
-  $('#updGo').hidden=false;$('#updGo').textContent=updLabel;$('#updGo').disabled=false;$('#updProg').hidden=true;
+  $('#updGo').hidden=false;$('#updGo').textContent=updLabel;$('#updGo').disabled=!!low;$('#updProg').hidden=true;
+  if(low){const d=document.createElement('div');d.textContent=lowBattMsg();n.appendChild(d)}
   $('#updModal').hidden=false;$('#updClose').focus();
 }
 async function checkUpdate(){
@@ -883,7 +889,7 @@ async function checkUpdate(){
     if(!r.ok)throw 0;
     const rel=await r.json(),cur=relNum(st.release||st.version),nw=relNum(rel.tag_name);
     if(!nw)throw 0;
-    const d=cur?(nw[0]-cur[0])||(nw[1]-cur[1]):1;updShow(st.version,rel,d>0,d<0);
+    const d=cur?(nw[0]-cur[0])||(nw[1]-cur[1]):1;updShow(st.version,rel,d>0,d<0,lowBatt(st));
   }catch(e){toast('Could not check: turn mobile data on and try again')}
   b.disabled=false;
 }
@@ -900,6 +906,7 @@ async function updInstall(){
   try{
     const st=await fetch('/api/status',{cache:'no-store'}).then(r=>r.json());
     if(st.flying)return fail('Not while flying.');
+    if(lowBatt(st))return fail(lowBattMsg());
     updMsg(0,'Downloading '+updRel.tag_name+'…');
     const r=await fetch('https://raw.githubusercontent.com/'+REPO+'/main/firmware/paravario-'+updRel.tag_name+'-firmware.bin',{cache:'no-store',signal:updAbort.signal});
     if(!r.ok)return fail('Could not download '+updRel.tag_name);
