@@ -925,7 +925,7 @@ async function updInstall(){
     const r=await fetch('https://raw.githubusercontent.com/'+REPO+'/main/firmware/paravario-'+updRel.tag_name+'-firmware.bin',{cache:'no-store',signal:updAbort.signal});
     if(!r.ok)return fail('Could not download '+updRel.tag_name);
     const want=+r.headers.get('content-length')||0,rd=r.body.getReader(),parts=[];let got=0;
-    for(;;){const c=await rd.read();if(c.done)break;parts.push(c.value);got+=c.value.length;if(want)updMsg(got/want*UPD_DL,'Downloading '+Math.round(got/want*100)+'%')}
+    for(;;){const c=await rd.read();if(c.done)break;parts.push(c.value);got+=c.value.length;if(want)updMsg(got/want*UPD_DL,(got>=want?'Downloaded ':'Downloading ')+Math.round(got/want*100)+'%')}
     if(got<100000||(want&&!r.headers.get('content-encoding')&&got!==want))return fail('Download incomplete');
     if(updAbort.signal.aborted)return fail('Cancelled.');
     $('#updClose').hidden=true;  // from here on the image goes to the vario
@@ -937,12 +937,12 @@ async function updInstall(){
       const res=await updSend(fd);
       if(res.status===200)return updDone(false);
       if(!res.lost)return fail('Update failed: '+res.error);
-      updMsg(UPD_DL,'Connection lost – waiting for the vario…');
+      updMsg(UPD_DL,'Connection lost – it will try again by itself, keep this page open…');
       const s2=await updWaitVario(60);
       if(!s2)return fail('Update failed: the vario did not answer again. Check it and try again.');
       const rn=relNum(s2.release||s2.version),restarted=(s2.uptime||0)<up0+(Date.now()-t0)/1000-10;
       if(restarted&&rn&&want2&&rn[0]===want2[0]&&rn[1]===want2[1]&&rn[2]===want2[2])return updDone(true);
-      if(n<2)updMsg(UPD_DL,'Connection lost – sending again ('+(n+1)+' of 2)…');
+      if(n<2)updMsg(UPD_DL,'Trying again (attempt '+(n+2)+' of 3)…');
     }
     fail('Update failed: connection lost');
   }catch(e){fail(e&&e.name==='AbortError'?'Cancelled.':'Download failed: turn mobile data on and try again')}
