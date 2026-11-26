@@ -3547,8 +3547,8 @@ def t_battery_learner(v, a):
     m = v.mark()
     v.sim(learntest=1)
     _, mm = v.expect("BATL", r"selftest default410=([\d.]+) learned=(\d) m410=([\d.]+) m375=([\d.]+) "
-                     r"left375=(-?\d+) m410b=([\d.]+) charging=(-?\d+)", m, timeout=15)
-    d410, learned, m410, m375, left375, m410b, charging = mm.groups()
+                     r"left375=(-?\d+) m410b=([\d.]+) charging=(-?\d+) flatboot=(\d)", m, timeout=15)
+    d410, learned, m410, m375, left375, m410b, charging, flatboot = mm.groups()
     near(d410, 360, 1, "minutes at 4.10 V before learning (runtime setting)")
     near(learned, 1, 0, "learned flag after a full discharge")
     near(m410, 234.2, 1.5, "learned minutes at 4.10 V after a 4 h discharge")
@@ -3556,6 +3556,7 @@ def t_battery_learner(v, a):
     near(left375, 59, 3, "minutes left at 3.75 V in a discharge running twice as fast")
     near(m410b, 199.4, 1.5, "minutes at 4.10 V after blending in a 2 h discharge")
     near(charging, -1, 0, "minutes left while charging (unknown)")
+    near(flatboot, 1, 0, "a run that ended flat counts when the vario starts again still low (on charge)")
     return f"4 h run -> {m410} min at 4.10 V, pace-scaled {left375} min, blended {m410b}, charging unknown"
 
 

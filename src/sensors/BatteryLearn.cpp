@@ -14,6 +14,7 @@ constexpr uint32_t kSessionMagic = 0x42535331;  // "BSS1"
 constexpr uint32_t kSaveEveryS = 300;
 constexpr float kRechargedRiseV = 0.06f;   // voltage this far above the deepest edge = recharged
 constexpr uint32_t kDiedBelowMv = 3600;    // last voltage seen at or below this = battery ran down
+constexpr uint32_t kFlatMv = 3350;         // at or below this the run counts at the next start-up, recharged or not
 constexpr uint32_t kDeathLagS = 150;       // the last save is on average this long before the end
 constexpr float kBlend = 0.3f;             // weight of a new measurement
 
@@ -166,8 +167,11 @@ void BatteryLearner::update(float volts, uint32_t nowMs) {
   if (!checked_) {
     checked_ = true;
     int lo = lowestEdge();
-    if (lo >= 0 && volts > edgeV(lo) + kRechargedRiseV) {
-      LOGI("BATL", "battery recharged since last discharge (%.2f V)", volts);
+    // A flat vario put on charge starts up while the voltage is still low, so "recharged" cannot be required of a run
+    // that clearly reached the end: waiting for it would see the voltage rise, take that for charging and drop the run.
+    const bool flat = lastMv_ > 0 && lastMv_ <= kFlatMv;
+    if (lo >= 0 && (flat || volts > edgeV(lo) + kRechargedRiseV)) {
+      LOGI("BATL", "last discharge over: ended at %.2f V, now %.2f V", lastMv_ / 1000.0f, volts);
       finishSession(lastMv_ > 0 && lastMv_ <= kDiedBelowMv);
       resetSession();
     }
@@ -273,7 +277,17 @@ void batteryLearnSelfTest() {
     ms += 1000;
   }
   int charging = b.minutesLeft(3.90f);
-  LOGI("BATL", "selftest default410=%.1f learned=%d m410=%.1f m375=%.1f left375=%d m410b=%.1f charging=%d",
-       def410, learned, m410, m375, left375, m410b, charging);
+  // Run flat, then started again on charge while still low: the run must count at that start-up.
+  b = BatteryLearner();
+  b.begin(false);
+  discharge(4.12f, 3.28f, 3600, 0.0f);
+  b.rebootForTest();
+  for (int i = 0; i < 2; ++i) {
+    b.update(2.85f, ms);
+    ms += 1000;
+  }
+  bool flatBoot = b.learned();
+  LOGI("BATL", "selftest default410=%.1f learned=%d m410=%.1f m375=%.1f left375=%d m410b=%.1f charging=%d flatboot=%d",
+       def410, learned, m410, m375, left375, m410b, charging, flatBoot);
 }
 #endif
