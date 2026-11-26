@@ -3,7 +3,7 @@
 // Seeed XIAO ESP32C3 GPIO numbers for the board labels (Dx).
 namespace pins {
 constexpr int MIC_ADC = A0;        // D0, analog microphone module output (ADC1)
-constexpr int AUDIO_ADC = A0;//    // D0, microphone input via 65DB mic/amplifier 
+//constexpr int AUDIO_ADC = A0;//    // D0, microphone input via 65DB mic/amplifier 
 constexpr int BATT_ADC = A1;//3;   // D1, battery via 51k/51k divider (sampled by the mic ADC DMA)
 constexpr int BUTTON = D2;//4;     // D2, push button to GND
 // D3 free not suitable as Analogue input due to board limitations with Wifi.
