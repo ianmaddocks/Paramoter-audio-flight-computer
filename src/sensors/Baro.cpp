@@ -15,6 +15,34 @@ constexpr float kSettleQuietMs = 0.3f;
 constexpr uint32_t kSettleMaxFactor = 3;
 
 float pressureToAltStd(float pa) { return 44330.8f * (1.0f - powf(pa / 101325.0f, 0.190263f)); }
+
+bool regWrite(TwoWire& w, uint8_t reg, uint8_t val) {
+  w.beginTransmission(DPS310_ADDR);
+  w.write(reg);
+  w.write(val);
+  return w.endTransmission() == 0;
+}
+
+int regRead(TwoWire& w, uint8_t reg) {
+  w.beginTransmission(DPS310_ADDR);
+  w.write(reg);
+  if (w.endTransmission(false) != 0 || w.requestFrom((uint8_t)DPS310_ADDR, (uint8_t)1) != 1) return -1;
+  return w.read();
+}
+
+// Some DPS310s have a fuse-bit fault that makes the temperature read about 60 C when it is about 20 C, which also
+// skews the temperature-compensated pressure. The manufacturer's fix (Infineon's library, and the Linux driver, which
+// first checks the undocumented register 0x32: bit 1 set = chip not affected) writes undocumented registers. It does
+// not survive a reset, so it is applied after every start of the sensor (the Adafruit library resets it in begin).
+// Returns 1 applied, 0 not needed, -1 I2C error.
+int fixTemperatureFault(TwoWire& w) {
+  int r = regRead(w, 0x32);
+  if (r < 0) return -1;
+  if (r & 0x02) return 0;
+  bool ok = regWrite(w, 0x0E, 0xA5) && regWrite(w, 0x0F, 0x96) && regWrite(w, 0x62, 0x02) && regWrite(w, 0x0E, 0x00) &&
+            regWrite(w, 0x0F, 0x00);
+  return ok ? 1 : -1;
+}
 }  // namespace
 
 void AltKalman::update(float z, float dt, float q, float r) {
@@ -52,6 +80,13 @@ bool Baro::begin(TwoWire& wire) {
 
 bool Baro::configure() {
   if (!dps_.begin_I2C(DPS310_ADDR, wire_)) return false;
+  const int fix = fixTemperatureFault(*wire_);
+  if (fix != tempFix_) {  // logged when it changes, not on every reconnect
+    tempFix_ = fix;
+    if (fix == 1) LOGI("BARO", "DPS310 temperature fault fix applied (chip reads ~60 C without it)");
+    else if (fix == 0) LOGI("BARO", "DPS310 temperature fault fix not needed");
+    else LOGW("BARO", "DPS310 temperature fault check failed (I2C)");
+  }
   dps_.configurePressure(DPS310_32HZ, DPS310_8SAMPLES);
   dps_.configureTemperature(DPS310_2HZ, DPS310_2SAMPLES);
   dps_.setMode(DPS310_CONT_PRESTEMP);

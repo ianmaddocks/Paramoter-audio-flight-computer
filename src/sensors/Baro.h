@@ -49,6 +49,7 @@ class Baro {
   uint32_t lastRetryMs_ = 0;
   float pressurePa_ = 0;
   float tempC_ = 0;
+  int tempFix_ = 2;  // result of the temperature-fault fix at the last sensor start (2 = not yet run)
   float rawAltStdM_ = 0;
   float sampleDtS_ = 0;
   uint16_t warmupLeft_ = 0;
